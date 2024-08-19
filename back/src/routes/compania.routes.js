@@ -17,6 +17,6 @@ router.post("/compania", createCompania);
 
 router.delete("/compania/:id", deleteCompania);
 
-router.put("/compania", updateCompania);
+router.put("/compania/:id", updateCompania);
 
 export default router;

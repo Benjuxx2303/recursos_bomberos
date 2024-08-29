@@ -11,6 +11,27 @@ export const getPersonal = async(req, res) =>{
     }
 };
 
+export const getPersonalWithDetails = async(req, res) => {
+    try {
+        const query = `
+            SELECT p.id, p.rut, p.nombre AS personal_nombre, p.apellido, p.activo, 
+                   p.fec_nac, p.img_url, p.obs, 
+                   rp.nombre AS rol_nombre, 
+                   c.nombre AS compania_nombre
+            FROM personal p
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            INNER JOIN compania c ON p.compania_id = c.id
+        `;
+        
+        const [rows] = await pool.query(query);
+        res.json(rows);
+    } catch (error) {
+        return res.status(500).json({
+            message: error
+        });
+    }
+};
+
 // personal por id
 export const getPersonalbyID = async(req, res)=>{
     try {
@@ -26,26 +47,35 @@ export const getPersonalbyID = async(req, res)=>{
     }
 }
 
-// TODO: validaciones en llaves foraneas: "rol_personal_id", "compania_id". Validaciones en fechas: "fec_nac". Valor por defecto en: "activo", "img_url", "obs".
+// TODO: getPersonalbyIDwithDetails
+
+// TODO: Validaciones en formatos de fechas: "fec_nac".
 export const createPersonal = async(req, res) =>{
     const {
         rol_personal_id,
         rut,
         nombre,
         apellido, 
-        activo, 
+        activo = 1, // activo por defecto. "1"  
         compania_id,
         fec_nac,
-        img_url,
-        obs
+        img_url = '', // sin imagen por defecto 
+        obs = '' // sin observaciones por defecto
     }= req.body
+
+    if (!rol_personal_id || !rut || !nombre || !apellido || !compania_id || !fec_nac) {
+        return res.status(400).json({
+            message: 'Todos los campos requeridos deben estar presentes'
+        });
+    }
+
     try{
         const [rows] = await pool.query('INSERT INTO personal (rol_personal_id, rut, nombre, apellido, activo, compania_id, fec_nac, img_url, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
             rol_personal_id,
             rut,
             nombre,
             apellido, 
-            activo, 
+            activo,
             compania_id,
             fec_nac,
             img_url,
@@ -71,7 +101,6 @@ export const createPersonal = async(req, res) =>{
 }
 
 // dar de baja (NO DELETE)
-// TODO: Comprobar que el codigo funcione
 export const downPersonal = async(req, res) =>{
     const {id} = req.params;
     try{

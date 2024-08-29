@@ -1,26 +1,30 @@
 import { Router } from "express";
 import {
     getPersonal,
+    getPersonalWithDetails,
     getPersonalbyID,
     createPersonal,
     downPersonal,
     updatePersonal,
-} from "../controllers/personal.controllers.js"
+} from "../controllers/personal.controllers.js";
+
+// TODO: Resto de rutas: busqueda con LIKE
 
 const router = Router();
+const base_route = '/personal';
 
-router.get("/personal", getPersonal);
+router.get(base_route, getPersonal);
 
-router.get("/personal/:id", getPersonalbyID);
+router.get(`${base_route}/details`, getPersonalWithDetails)
 
-router.post("/personal", createPersonal);
+router.get(`${base_route}/:id`, getPersonalbyID);
 
-// TODO: Ver como solucionar el problema de estos dos
+router.post(base_route, createPersonal);
 
-// dar de baja
-router.put("/personal/:id", downPersonal);
+// Dar de baja (marcar como inactivo)
+router.put(`${base_route}/:id/down`, downPersonal);
 
-// actualizar
-router.put("/personal/:id", updatePersonal);
+// Actualizar personal
+router.put(`${base_route}/:id`, updatePersonal);
 
 export default router;

@@ -9,14 +9,16 @@ import {
 
 const router = Router();
 
-router.get("/rol_personal", getRolesPersonal);
+const base_route = '/rol_personal'
 
-router.get("/rol_personal/:id", getRolPersonal);
+router.get(base_route, getRolesPersonal);
 
-router.post("/rol_personal", createRolPersonal);
+router.get(`${base_route}/:id`, getRolPersonal);
 
-router.delete("/rol_personal/:id", deleteRolPersonal);
+router.post(base_route, createRolPersonal);
 
-router.put("/rol_personal", updateRolPersonal);
+router.delete(`${base_route}/:id`, deleteRolPersonal);
+
+router.patch(base_route, updateRolPersonal);
 
 export default router;

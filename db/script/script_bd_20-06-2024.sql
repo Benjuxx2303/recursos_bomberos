@@ -10,7 +10,7 @@ USE `control_despacho_db` ;
 CREATE TABLE IF NOT EXISTS `rol_personal` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `nombre` VARCHAR(60) NOT NULL,
-  `desc` VARCHAR(500) NULL,
+  `descripcion` VARCHAR(500) NULL,
   PRIMARY KEY (`id`));
 
 

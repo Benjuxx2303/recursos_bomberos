@@ -16,7 +16,7 @@ import bitacoraRoutes from './routes/bitacora.routes.js';
 const app = express();
 app.use(express.json());
 
-base_route = "/api/";
+const base_route = "/api/";
 
 // TODO:  rutas de la api
 app.use(indexRoutes);

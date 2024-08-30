@@ -1,4 +1,4 @@
-import { pool } from "../db";
+import { pool } from "../db.js";
 // TODO: SELECTs CON INNER JOIN
 
 

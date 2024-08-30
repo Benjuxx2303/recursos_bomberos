@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-base_route = "/procedencia";
+const base_route = "/procedencia";
 
 router.get(base_route, getProcedencias);
 router.get(`${base_route}/:id`, getProcedenciaById);

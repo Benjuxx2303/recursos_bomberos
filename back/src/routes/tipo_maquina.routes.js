@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-base_route = "/tipo_maquina";
+const base_route = "/tipo_maquina";
 
 router.get(base_route, getTiposMaquinas);
 router.get(`${base_route}/:id`, getTipoMaquinaById);

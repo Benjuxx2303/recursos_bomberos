@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-base_route = '/taller'
+const base_route = '/taller'
 
 router.get(base_route, getTaller);
 router.get(`${base_route}/:id`, getTallerById);

@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-base_route = '/clave'
+const base_route = '/clave'
 
 router.get(base_route, getClaves);
 router.get(`${base_route}/:id`, getClaveById);

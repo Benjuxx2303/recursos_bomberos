@@ -13,9 +13,9 @@ import {
 const router = Router();
 const base_route = '/personal';
 
-router.get(base_route, getPersonal);
+router.get(base_route, getPersonalWithDetails);
 
-router.get(`${base_route}/details`, getPersonalWithDetails)
+// router.get(`${base_route}/details`, getPersonalWithDetails)
 
 router.get(`${base_route}/:id`, getPersonalbyID);
 

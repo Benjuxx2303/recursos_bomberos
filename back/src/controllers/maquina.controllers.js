@@ -1,8 +1,6 @@
 import { pool } from "../db.js";
-// TODO: SELECTs CON INNER JOIN
 
-
-export const getMaquina = async (req, res) => {
+export const getMaquinas = async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM maquina");
     res.json(rows);
@@ -13,7 +11,42 @@ export const getMaquina = async (req, res) => {
   }
 };
 
-// 
+export const getMaquinasDetails = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        m.id AS maquina_id,
+        m.codigo AS codigo,
+        m.patente AS patente,
+        m.num_chasis AS num_chasis,
+        m.vin AS vin,
+        m.bomba AS bomba,
+        m.hmetro_bomba AS hmetro_bomba,
+        m.hmetro_motor AS hmetro_motor,
+        m.kmetraje AS kmetraje,
+        m.num_motor AS num_motor,
+        DATE_FORMAT(m.ven_patente, '%d-%m-%Y') AS ven_patente, 
+        m.cost_rev_tec AS cost_rev_tec,
+        DATE_FORMAT(m.ven_rev_tec, '%d-%m-%Y') AS ven_rev_tec,
+        m.cost_seg_auto AS cost_seg_auto,
+        DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
+        tm.clasificacion AS tipo_maquina,
+        c.nombre AS compania,
+        p.nombre AS procedencia
+      FROM maquina m
+      INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
+      INNER JOIN compania c ON m.compania_id = c.id
+      INNER JOIN procedencia p ON m.procedencia_id = p.id
+    `);
+
+    res.json(rows);
+  } catch (error) {
+    return res.status(500).json({
+      message: error,
+    });
+  }
+};
+
 export const getMaquinaById = async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM maquina WHERE id = ?", [

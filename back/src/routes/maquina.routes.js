@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { 
-    getMaquina,
+    getMaquinas,
+    getMaquinasDetails,
     getMaquinaById,
     createMaquina,
     deleteMaquina,
@@ -11,7 +12,7 @@ const router = Router();
 
 const base_route = '/maquina'
 
-router.get(base_route, getMaquina);
+router.get(base_route, getMaquinasDetails);
 router.get(`${base_route}/:id`, getMaquinaById);
 
 router.post(base_route, createMaquina);

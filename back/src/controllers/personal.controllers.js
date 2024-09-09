@@ -11,6 +11,7 @@ export const getPersonal = async(req, res) =>{
     }
 };
 
+// devuelve solamente los activos
 export const getPersonalWithDetails = async(req, res) => {
     try {
         const query = `
@@ -21,6 +22,7 @@ export const getPersonalWithDetails = async(req, res) => {
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
+            WHERE p.activo = 1
         `;
         
         const [rows] = await pool.query(query);
@@ -46,8 +48,6 @@ export const getPersonalbyID = async(req, res)=>{
         })
     }
 }
-
-// TODO: getPersonalbyIDwithDetails
 
 // TODO: Validaciones en formatos de fechas: "fec_nac".
 export const createPersonal = async(req, res) =>{

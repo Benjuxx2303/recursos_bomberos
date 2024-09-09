@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS `usuario` (
   `id` INT NOT NULL,
   `username` VARCHAR(45) NOT NULL,
   `correo` VARCHAR(45) NOT NULL,
-  `contrasena` VARCHAR(45) NOT NULL,
+  `contrasena` VARCHAR(255) NOT NULL,
   `personal_id` INT NOT NULL,
   `personal_roles_personal_id` INT NOT NULL,
   PRIMARY KEY (`id`, `personal_id`, `personal_roles_personal_id`),

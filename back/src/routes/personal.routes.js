@@ -22,7 +22,7 @@ router.get(`${base_route}/:id`, getPersonalbyID);
 router.post(base_route, createPersonal);
 
 // Dar de baja (marcar como inactivo)
-router.put(`${base_route}/:id/down`, downPersonal);
+router.delete(`${base_route}/:id`, downPersonal);
 
 // Actualizar personal
 router.put(`${base_route}/:id`, updatePersonal);

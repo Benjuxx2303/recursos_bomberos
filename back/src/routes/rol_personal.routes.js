@@ -19,6 +19,6 @@ router.post(base_route, createRolPersonal);
 
 router.delete(`${base_route}/:id`, deleteRolPersonal);
 
-router.patch(base_route, updateRolPersonal);
+router.patch(`${base_route}/:id`, updateRolPersonal);
 
 export default router;

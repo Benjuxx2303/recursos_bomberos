@@ -27,7 +27,7 @@ const base_route = "/api/";
 app.use(indexRoutes);
 app.use(base_route, rol_personalRoutes); 
 app.use(base_route, companiaRoutes); 
-app.use(base_route, personalRoutes);
+app.use(base_route, personalRoutes); // revisar
 app.use(base_route, claveRoutes); // revisar
 app.use(base_route, tipo_maquinaRoutes); // revisar
 app.use(base_route, procedenciaRoutes); // revisar

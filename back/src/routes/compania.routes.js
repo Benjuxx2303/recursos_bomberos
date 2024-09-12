@@ -18,6 +18,6 @@ router.post(base_route, createCompania);
 
 router.delete(`${base_route}/:id`, deleteCompania);
 
-router.put(`${base_route}/:id`, updateCompania);
+router.patch(`${base_route}/:id`, updateCompania);
 
 export default router;

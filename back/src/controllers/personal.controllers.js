@@ -1,167 +1,282 @@
-import {pool} from "../db.js";
+import { pool } from "../db.js";
 
-export const getPersonal = async(req, res) =>{
+// TODO: revisar funciones
+
+// funciones para el rut
+const normalizeRUT = (rut) => rut.replace(/[.-]/g, '').toUpperCase();
+
+const validateRUT = (rut) => {
+    const normalizedRUT = normalizeRUT(rut);
+    const [body, checkDigit] = [normalizedRUT.slice(0, -1), normalizedRUT.slice(-1)];
+    
+    let sum = 0;
+    let factor = 2;
+    
+    for (let i = body.length - 1; i >= 0; i--) {
+        sum += parseInt(body[i], 10) * factor;
+        factor = factor === 7 ? 2 : factor + 1;
+    }
+    
+    const remainder = 11 - (sum % 11);
+    const validCheckDigit = remainder === 11 ? '0' : remainder === 10 ? 'K' : remainder.toString();
+    
+    return validCheckDigit === checkDigit;
+};
+
+export const getPersonal = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM personal');
+        const [rows] = await pool.query('SELECT * FROM personal WHERE isDeleted = 0');
         res.json(rows);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
 };
 
-// devuelve solamente los activos
-export const getPersonalWithDetails = async(req, res) => {
+// Devuelve solamente los activos
+export const getPersonalWithDetails = async (req, res) => {
     try {
         const query = `
-            SELECT p.id, p.rut, p.nombre AS personal_nombre, p.apellido, p.activo, 
-                   p.fec_nac, p.img_url, p.obs, 
-                   rp.nombre AS rol_nombre, 
-                   c.nombre AS compania_nombre
+            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, p.fec_nac, p.img_url, p.obs, p.isDeleted,
+                   rp.nombre AS rol_personal, 
+                   c.nombre AS compania
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
-            WHERE p.activo = 1
+            WHERE p.isDeleted = 0
         `;
         
         const [rows] = await pool.query(query);
         res.json(rows);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
+            message: error.message
         });
     }
 };
 
-// personal por id
-export const getPersonalbyID = async(req, res)=>{
+// Personal por id
+export const getPersonalbyID = async (req, res) => {
+    const { id } = req.params;
     try {
-        const [rows] = await pool.query('SELECT * FROM personal WHERE id = ?', [req.params.id]);
-        if(rows.length <=0) return res.status(404).json({
-            message: 'personal no encontrado'
-        })
-        res.json(rows[0])
+        // Validación de datos
+        const idNumber = parseInt(id);
+
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "Tipo de datos inválido",
+            });
+        }
+        
+        const [rows] = await pool.query('SELECT * FROM personal WHERE id = ? AND isDeleted = 0', [idNumber]);
+        if (rows.length <= 0) {
+            return res.status(404).json({
+                message: 'Personal no encontrado'
+            });
+        }
+        res.json(rows[0]);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
 }
 
-// TODO: Validaciones en formatos de fechas: "fec_nac".
-export const createPersonal = async(req, res) =>{
+export const createPersonal = async (req, res) => {
     const {
         rol_personal_id,
         rut,
         nombre,
-        apellido, 
-        activo = 1, // activo por defecto. "1"  
+        apellido,
         compania_id,
         fec_nac,
         img_url = '', // sin imagen por defecto 
         obs = '' // sin observaciones por defecto
-    }= req.body
+    } = req.body;
 
-    if (!rol_personal_id || !rut || !nombre || !apellido || !compania_id || !fec_nac) {
-        return res.status(400).json({
-            message: 'Todos los campos requeridos deben estar presentes'
-        });
-    }
+    try {
+        // Validación de datos
 
-    try{
-        const [rows] = await pool.query('INSERT INTO personal (rol_personal_id, rut, nombre, apellido, activo, compania_id, fec_nac, img_url, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-            rol_personal_id,
-            rut,
-            nombre,
-            apellido, 
-            activo,
-            compania_id,
-            fec_nac,
-            img_url,
-            obs
-        ])
-        res.send({
+        const rolPersonalIdNumber = parseInt(rol_personal_id);
+        const companiaIdNumber = parseInt(compania_id);
+        const normalizedRUT = normalizeRUT(rut);
+
+        if (
+            isNaN(rolPersonalIdNumber) ||
+            isNaN(companiaIdNumber) ||
+            typeof rut !== 'string' ||
+            typeof nombre !== 'string' ||
+            typeof apellido !== 'string' ||
+            typeof fec_nac !== 'string'
+        ) {
+            return res.status(400).json({
+                message: 'Tipo de datos inválido'
+            });
+        }
+
+        if (!validateRUT(rut)) {
+            return res.status(400).json({
+                message: 'El RUT es inválido'
+            });
+        }
+
+        // Validación de fecha
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+        if (!fechaRegex.test(fec_nac)) {
+            return res.status(400).json({
+                message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
+            });
+        }
+
+        // Inserción en la base de datos
+        const [rows] = await pool.query(
+            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, 0)',
+            [
+                rolPersonalIdNumber,
+                normalizedRUT,
+                nombre,
+                apellido,
+                companiaIdNumber,
+                fec_nac,
+                img_url,
+                obs
+            ]
+        );
+
+        return res.status(201).json({
             id: rows.insertId,
-            rol_personal_id,
-            rut,
+            rol_personal_id: rolPersonalIdNumber,
+            rut: normalizedRUT,
             nombre,
-            apellido, 
-            activo, 
-            compania_id,
+            apellido,
+            compania_id: companiaIdNumber,
             fec_nac,
             img_url,
             obs
-        });
-    } catch (error){
-        return res.status(500).json({
-            message: error
-        })
-    }
-}
-
-// dar de baja (NO DELETE)
-export const downPersonal = async(req, res) =>{
-    const {id} = req.params;
-    try{
-        const [result] = await pool.query("UPDATE personal SET activo = 0 WHERE id = ?", [id]);
-        if(result.affectedRows === 0) return res.status(404).json({
-            message: 'personal no encontrado'
         });
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: 'Error interno del servidor'
+        });
+    }
+};
+
+// Dar de baja
+export const downPersonal = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Validación de datos
+        const idNumber = parseInt(id);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "Tipo de datos inválido"
+            });
+        }
+
+        const [result] = await pool.query("UPDATE personal SET isDeleted = 1 WHERE id = ?", [idNumber]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: 'Personal no encontrado'
+            });
+        }
+        
+        res.status(204).end();
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: 'Error interno del servidor'
+        });
     }
 }
 
-// TODO: aplicar todas las validaciones posibles
-export const updatePersonal = async(req, res) =>{
-    const {id} = req.params;
+export const updatePersonal = async (req, res) => {
+    const { id } = req.params;
     const {
         rol_personal_id,
         rut,
         nombre,
-        apellido, 
-        activo, 
+        apellido,
         compania_id,
         fec_nac,
         img_url,
-        obs
+        obs,
+        isDeleted
     } = req.body;
 
     try {
-        const [result] = await pool.query('UPDATE personal SET'+
-            'rol_personal_id = IFNULL(?, rol_personal_id)'+
-            'rut = IFNULL(?, rut)'+
-            'nombre = IFNULL(?, nombre)'+
-            'apellido = IFNULL(?, apellido)'+
-            'activo = IFNULL(?, activo)'+
-            'compania_id = IFNULL(?, compania_id)'+
-            'fec_nac = IFNULL(?, fec_nac)'+
-            'img_url = IFNULL(?, img_url)'+
-            'obs = IFNULL(?, obs)'+
+        // Validación de datos
+        const idNumber = parseInt(id);
+        const rolPersonalIdNumber = parseInt(rol_personal_id);
+        const companiaIdNumber = parseInt(compania_id);
+        const normalizedRUT = normalizeRUT(rut);
+
+        if (
+            isNaN(rolPersonalIdNumber) ||
+            isNaN(companiaIdNumber) ||
+            typeof rut !== 'string' ||
+            typeof nombre !== 'string' ||
+            typeof apellido !== 'string' ||
+            typeof fec_nac !== 'string'
+        ) {
+            return res.status(400).json({
+                message: 'Tipo de datos inválido'
+            });
+        }
+
+        if (!validateRUT(rut)) {
+            return res.status(400).json({
+                message: 'El RUT es inválido'
+            });
+        }
+
+        // Validación de fecha
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+        if (!fechaRegex.test(fec_nac)) {
+            return res.status(400).json({
+                message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
+            });
+        }
+
+        const [result] = await pool.query('UPDATE personal SET ' +
+            'rol_personal_id = IFNULL(?, rol_personal_id), ' +
+            'rut = IFNULL(?, rut), ' +
+            'nombre = IFNULL(?, nombre), ' +
+            'apellido = IFNULL(?, apellido), ' +
+            'compania_id = IFNULL(?, compania_id), ' +
+            'fec_nac = IFNULL(?, fec_nac), ' +
+            'img_url = IFNULL(?, img_url), ' +
+            'obs = IFNULL(?, obs), ' +
+            'isDeleted = IFNULL(?, isDeleted) ' +
             'WHERE id = ?', [
-                rol_personal_id,
-                rut,
+                rolPersonalIdNumber,
+                normalizedRUT,
                 nombre,
-                apellido, 
-                activo, 
-                compania_id,
+                apellido,
+                companiaIdNumber,
                 fec_nac,
                 img_url,
                 obs,
-                id
-            ])
-        if(result.affectedRows === 0) return res.status(404).json({
-            message: 'personal no encontrado'
-        });
+                isDeleted,
+                idNumber
+            ]);
 
-        const [rows] = await pool.query('SELECT * FROM personal WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: 'Personal no encontrado'
+            });
+        }
+
+        const [rows] = await pool.query('SELECT * FROM personal WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: 'Error interno del servidor'
+        });
     }
-}
+};

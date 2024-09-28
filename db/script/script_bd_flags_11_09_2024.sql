@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS `mantencion` (
 -- Table `tipo_mantencion`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `tipo_mantencion` (
-  `id` INT NOT NULL,
+  `id` INT NOT NULL AUTO_INCREMENT,
   `nombre` VARCHAR(45) NOT NULL,
   `isDeleted` TINYINT(1) NOT NULL,
   PRIMARY KEY (`id`));

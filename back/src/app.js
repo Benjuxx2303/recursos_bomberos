@@ -16,6 +16,10 @@ import bitacoraRoutes from './routes/bitacora.routes.js';
 import mantencionRoutes from './routes/mantencion.routes.js';
 import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
+import divisionRoutes from './routes/division.routes.js';
+import subdivisionRoutes from './routes/subdivision.routes.js';
+import servicioRoutes from './routes/servicio.routes.js';
+import detalle_mantencionRoutes from './routes/detalle_mantencion.routes.js';
 
 const app = express();
 app.use(express.json());
@@ -38,6 +42,10 @@ app.use(base_route, bitacoraRoutes); // revisar
 app.use(base_route, mantencionRoutes); // revisar
 app.use(base_route, tipoMantencionRoutes); // revisar
 app.use(base_route, usuarioRoutes); // revisar
+app.use(base_route, divisionRoutes); // revisar
+app.use(base_route, subdivisionRoutes); // revisar
+app.use(base_route, servicioRoutes); // revisar
+app.use(base_route, detalle_mantencionRoutes); // revisar
 
 // endpoint
 app.use((req, res) =>{

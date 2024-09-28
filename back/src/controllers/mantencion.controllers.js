@@ -54,14 +54,14 @@ export const getMantencionById = async(req, res)=> {
 // TODO: Validaciones
 export const createMantencion = async (req, res) => {
     const {
-        bitacora_id,
-        maquina_id,
-        personal_id_responsable,
-        compania_id,
+        bitacora_id, // fk
+        maquina_id, // fk
+        personal_id_responsable, // fk
+        compania_id, // fk
         ord_trabajo,
         n_factura,
         cost_ser,
-        taller_id,
+        taller_id, // fk
     } = req.body;
 
     try {

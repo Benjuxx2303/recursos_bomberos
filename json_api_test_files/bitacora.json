@@ -1,0 +1,16 @@
+{
+    "compania_id": 1,
+    "conductor_id": 1,
+    "direccion": "123 Calle Ejemplo",
+    "fecha": "2024-09-28",
+    "h_salida": "08:00",
+    "h_llegada": "12:00",
+    "clave_id": 1,
+    "km_salida": 100,
+    "km_llegada": 150,
+    "hmetro_salida": "08:30",
+    "hmetro_llegada": "12:30",
+    "hbomba_salida": "09:00",
+    "hbomba_llegada": "13:00",
+    "obs": "Observaciones sobre el viaje"
+  }

@@ -1,28 +1,6 @@
 import { pool } from "../db.js";
 
-// TODO: revisar funciones
-
-// funciones para el rut
-const normalizeRUT = (rut) => rut.replace(/[.-]/g, '').toUpperCase();
-
-const validateRUT = (rut) => {
-    const normalizedRUT = normalizeRUT(rut);
-    const [body, checkDigit] = [normalizedRUT.slice(0, -1), normalizedRUT.slice(-1)];
-    
-    let sum = 0;
-    let factor = 2;
-    
-    for (let i = body.length - 1; i >= 0; i--) {
-        sum += parseInt(body[i], 10) * factor;
-        factor = factor === 7 ? 2 : factor + 1;
-    }
-    
-    const remainder = 11 - (sum % 11);
-    const validCheckDigit = remainder === 11 ? '0' : remainder === 10 ? 'K' : remainder.toString();
-    
-    return validCheckDigit === checkDigit;
-};
-
+// Devuelve todos los personales
 export const getPersonal = async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM personal WHERE isDeleted = 0');
@@ -35,7 +13,7 @@ export const getPersonal = async (req, res) => {
     }
 };
 
-// Devuelve solamente los activos
+// Devuelve solamente los activos con detalles
 export const getPersonalWithDetails = async (req, res) => {
     try {
         const query = `
@@ -62,7 +40,6 @@ export const getPersonalWithDetails = async (req, res) => {
 export const getPersonalbyID = async (req, res) => {
     const { id } = req.params;
     try {
-        // Validación de datos
         const idNumber = parseInt(id);
 
         if (isNaN(idNumber)) {
@@ -94,16 +71,13 @@ export const createPersonal = async (req, res) => {
         apellido,
         compania_id,
         fec_nac,
-        img_url = '', // sin imagen por defecto 
-        obs = '' // sin observaciones por defecto
+        img_url = '',
+        obs = ''
     } = req.body;
 
     try {
-        // Validación de datos
-
         const rolPersonalIdNumber = parseInt(rol_personal_id);
         const companiaIdNumber = parseInt(compania_id);
-        const normalizedRUT = normalizeRUT(rut);
 
         if (
             isNaN(rolPersonalIdNumber) ||
@@ -115,12 +89,6 @@ export const createPersonal = async (req, res) => {
         ) {
             return res.status(400).json({
                 message: 'Tipo de datos inválido'
-            });
-        }
-
-        if (!validateRUT(rut)) {
-            return res.status(400).json({
-                message: 'El RUT es inválido'
             });
         }
 
@@ -137,7 +105,7 @@ export const createPersonal = async (req, res) => {
             'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, 0)',
             [
                 rolPersonalIdNumber,
-                normalizedRUT,
+                rut,
                 nombre,
                 apellido,
                 companiaIdNumber,
@@ -150,7 +118,7 @@ export const createPersonal = async (req, res) => {
         return res.status(201).json({
             id: rows.insertId,
             rol_personal_id: rolPersonalIdNumber,
-            rut: normalizedRUT,
+            rut,
             nombre,
             apellido,
             compania_id: companiaIdNumber,
@@ -170,7 +138,6 @@ export const createPersonal = async (req, res) => {
 export const downPersonal = async (req, res) => {
     const { id } = req.params;
     try {
-        // Validación de datos
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
             return res.status(400).json({
@@ -209,11 +176,9 @@ export const updatePersonal = async (req, res) => {
     } = req.body;
 
     try {
-        // Validación de datos
         const idNumber = parseInt(id);
         const rolPersonalIdNumber = parseInt(rol_personal_id);
         const companiaIdNumber = parseInt(compania_id);
-        const normalizedRUT = normalizeRUT(rut);
 
         if (
             isNaN(rolPersonalIdNumber) ||
@@ -225,12 +190,6 @@ export const updatePersonal = async (req, res) => {
         ) {
             return res.status(400).json({
                 message: 'Tipo de datos inválido'
-            });
-        }
-
-        if (!validateRUT(rut)) {
-            return res.status(400).json({
-                message: 'El RUT es inválido'
             });
         }
 
@@ -254,7 +213,7 @@ export const updatePersonal = async (req, res) => {
             'isDeleted = IFNULL(?, isDeleted) ' +
             'WHERE id = ?', [
                 rolPersonalIdNumber,
-                normalizedRUT,
+                rut,
                 nombre,
                 apellido,
                 companiaIdNumber,

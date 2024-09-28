@@ -56,13 +56,13 @@ export const createBitacora = async (req, res) => {
     const [rows] = await pool.query(
       "INSERT INTO bitacora (compania_id, conductor_id, direccion, fecha, h_salida, h_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
-        compania_id,
-        conductor_id,
+        compania_id, // fk
+        conductor_id, // fk
         direccion,
         fecha,
         h_salida,
         h_llegada,
-        clave_id,
+        clave_id, // fk
         km_salida,
         km_llegada,
         hmetro_salida,

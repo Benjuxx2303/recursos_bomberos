@@ -35,6 +35,7 @@ export const getConductorMaquinaById = async (req, res) => {
   }
 };
 
+// TODO: Validaciones para ver si existen las llaves foraneas
 export const createConductorMaquina = async (req, res) => {
   const { personal_id, maquina_id, tipo_maquina_id, ven_licencia } = req.body;
 
@@ -81,7 +82,7 @@ export const createConductorMaquina = async (req, res) => {
     });
   } catch (error) {
     console.error('Error: ', error);
-    return res.status(500).json({ message: 'Error interno del servidor' });
+    return res.status(500).json({ message: error.message });
   }
 };
 

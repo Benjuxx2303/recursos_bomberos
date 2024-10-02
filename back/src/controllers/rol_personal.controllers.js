@@ -38,21 +38,21 @@ export const getRolPersonal = async(req, res)=>{
 }
 
 export const createRolPersonal = async(req, res) =>{
-    const {nombre, desc} = req.body
+    const {nombre, descripcion} = req.body
     try{
         // validacion de datos
-        if (typeof nombre !== "string" || typeof desc !== "string") {
+        if (typeof nombre !== "string" || typeof descripcion !== "string") {
           res.status(400).json({
             message: "Tipo de datos inválido",
           });
         }
 
         // se crea activo (isDeleted = 0) por defecto
-        const [rows] = await pool.query('INSERT INTO rol_personal (nombre, desc, isDeleted) VALUES (?, ?, 0)', [nombre, desc])
+        const [rows] = await pool.query('INSERT INTO rol_personal (nombre, descripcion, isDeleted) VALUES (?, ?, 0)', [nombre, descripcion])
         res.send({
             id: rows.insertId,
             nombre,
-            desc
+            descripcion
         });
     } catch (error){
         return res.status(500).json({
@@ -87,7 +87,7 @@ export const deleteRolPersonal = async(req, res) =>{
 
 export const updateRolPersonal = async(req, res) =>{
     const {id} = req.params;
-    const {nombre, desc, isDeleted} = req.body;
+    const {nombre, descripcion, isDeleted} = req.body;
 
     try {
         // validacion de datos
@@ -96,7 +96,7 @@ export const updateRolPersonal = async(req, res) =>{
         if (
           isNaN(idNumber) ||
           typeof nombre !== "string" ||
-          typeof desc !== "string" ||
+          typeof descripcion !== "string" ||
           typeof isDeleted !== "number" ||
           (isDeleted !== 0 && isDeleted !== 1)
         ) {
@@ -105,7 +105,7 @@ export const updateRolPersonal = async(req, res) =>{
           });
         }
         
-        const [result] = await pool.query('UPDATE rol_personal SET nombre = IFNULL(?, nombre), desc = IFNULL(?, desc), isDeleted = IFNULL(?, isDeleted) WHERE id = ?', [nombre, desc, isDeleted, idNumber]);
+        const [result] = await pool.query('UPDATE rol_personal SET nombre = IFNULL(?, nombre), descripcion = IFNULL(?, descripcion), isDeleted = IFNULL(?, isDeleted) WHERE id = ?', [nombre, descripcion, isDeleted, idNumber]);
 
         if(result.affectedRows === 0) return res.status(404).json({
             message: 'rol_personal no encontrado'

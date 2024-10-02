@@ -27,12 +27,12 @@ export const getTipoMaquinaById = async(req, res) =>{
 }
 
 export const createTipoMaquina = async(req, res) =>{
-    const {nombre} = req.body
+    const {clasificacion} = req.body
     try {
-        const [rows] = await pool.query("INSERT INTO tipo_maquina(nombre) VALUES(?)", [nombre]);
+        const [rows] = await pool.query("INSERT INTO tipo_maquina(clasificacion) VALUES(?)", [clasificacion]);
         res.send({
             id: rows.insertId,
-            nombre: nombre
+            clasificacion: clasificacion
         });
     } catch (error) {
         return res.status(500).json({
@@ -57,9 +57,9 @@ export const deleteTipoMaquina = async(req, res) =>{
 
 export const updateTipoMaquina = async(req, res) =>{
     const {id} = req.params;
-    const {nombre} = req.body;
+    const {clasificacion} = req.body;
     try {
-        const [result] = await pool.query('UPDATE tipo_maquina SET nombre = IFNULL(?, nombre) WHERE id = ?', [nombre, id]);
+        const [result] = await pool.query('UPDATE tipo_maquina SET clasificacion = IFNULL(?, clasificacion) WHERE id = ?', [clasificacion, id]);
         if(result.affectedRows === 0) return res.status(404).json({
             message: "tipo_maquina no encontrado"
         });

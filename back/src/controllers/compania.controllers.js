@@ -49,12 +49,11 @@ export const createCompania = async(req, res) =>{
         const [rows] = await pool.query('INSERT INTO compania (nombre, isDeleted) VALUES (?, 0)', [nombre])
         res.send({
             id: rows.insertId,
-            nombre,
-            desc
+            nombre
         });
     } catch (error){
         return res.status(500).json({
-            message: error
+            message: error.message
         })
     }
 }

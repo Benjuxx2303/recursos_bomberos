@@ -2,14 +2,19 @@ import { pool } from "../db.js";
 
 export const getMantenciones = async (req, res) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM mantencion");
+        const query = `
+            SELECT m.*, b.fecha 
+            FROM mantencion m
+            JOIN bitacora b ON m.bitacora_id = b.id
+        `;
+        const [rows] = await pool.query(query);
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-             message: error 
+            message: error.message 
         });
     }
-}
+};
 
 export const getMantencioneswithDetails = async (req, res) => {
     try {
@@ -168,3 +173,49 @@ export const updateMantencion = async (req, res) => {
         });
     }
 };
+
+// -----Reportes
+
+export const getMantencionCostosByMes = async (req, res) => {
+    const { anio } = req.params;
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                MONTH(b.fecha) AS mes, 
+                SUM(m.cost_ser) AS costoTotal
+            FROM 
+                mantencion m
+            INNER JOIN 
+                bitacora b ON m.bitacora_id = b.id
+            WHERE 
+                YEAR(b.fecha) = ?
+            GROUP BY 
+                MONTH(b.fecha)
+            ORDER BY 
+                mes
+        `, [anio]);
+
+        // Formatear la respuesta
+        const result = {
+            anio: parseInt(anio),
+            meses: []
+        };
+
+        // Rellenar los meses con 0 si no hay datos
+        for (let i = 1; i <= 12; i++) {
+            const mesData = rows.find(row => row.mes === i) || { mes: i, costoTotal: 0 };
+            result.meses.push({
+                mes: mesData.mes,
+                costoTotal: mesData.costoTotal
+            });
+        }
+
+        res.json(result);
+    } catch (error) {
+        return res.status(500).json({
+            message: error
+        });
+    }
+};
+

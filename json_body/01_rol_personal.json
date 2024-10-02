@@ -1,0 +1,6 @@
+{
+    "nombre": "Rol 1",
+    "descripcion": "Rol de prueba"
+}
+
+// http://localhost:3000/api/rol_personal

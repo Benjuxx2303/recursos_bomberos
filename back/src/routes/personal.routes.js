@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-    getPersonal,
     getPersonalWithDetails,
     getPersonalbyID,
     createPersonal,
@@ -8,14 +7,12 @@ import {
     updatePersonal,
 } from "../controllers/personal.controllers.js";
 
-// TODO: Resto de rutas: busqueda con LIKE
+// TODO: Resto de rutas: busqueda con LIKE (sql)
 
 const router = Router();
 const base_route = '/personal';
 
 router.get(base_route, getPersonalWithDetails);
-
-// router.get(`${base_route}/details`, getPersonalWithDetails)
 
 router.get(`${base_route}/:id`, getPersonalbyID);
 

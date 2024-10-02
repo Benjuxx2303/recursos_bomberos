@@ -1,5 +1,7 @@
 import { pool } from "../db.js";
 
+// TODO: Validación de ruts
+
 // Devuelve todos los personales
 export const getPersonal = async (req, res) => {
     try {

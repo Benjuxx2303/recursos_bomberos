@@ -20,6 +20,7 @@ import divisionRoutes from './routes/division.routes.js';
 import subdivisionRoutes from './routes/subdivision.routes.js';
 import servicioRoutes from './routes/servicio.routes.js';
 import detalle_mantencionRoutes from './routes/detalle_mantencion.routes.js';
+import carga_combustibleRoutes from './routes/carga_combustible.routes.js';
 
 const app = express();
 app.use(express.json());
@@ -31,13 +32,13 @@ const base_route = "/api/";
 app.use(indexRoutes);
 app.use(base_route, rol_personalRoutes); 
 app.use(base_route, companiaRoutes); 
-app.use(base_route, personalRoutes); // revisar
-app.use(base_route, claveRoutes); // revisar
-app.use(base_route, tipo_maquinaRoutes); // revisar
-app.use(base_route, procedenciaRoutes); // revisar
-app.use(base_route, maquinaRoutes); // revisar
-app.use(base_route, tallerRoutes); // revisar
-app.use(base_route, conductor_maquinaRoutes); // revisar
+app.use(base_route, personalRoutes);
+app.use(base_route, claveRoutes);
+app.use(base_route, tipo_maquinaRoutes);
+app.use(base_route, procedenciaRoutes);
+app.use(base_route, maquinaRoutes);
+app.use(base_route, tallerRoutes);
+app.use(base_route, conductor_maquinaRoutes);
 app.use(base_route, bitacoraRoutes); // revisar
 app.use(base_route, mantencionRoutes); // revisar
 app.use(base_route, tipoMantencionRoutes); // revisar
@@ -46,6 +47,7 @@ app.use(base_route, divisionRoutes); // revisar
 app.use(base_route, subdivisionRoutes); // revisar
 app.use(base_route, servicioRoutes); // revisar
 app.use(base_route, detalle_mantencionRoutes); // revisar
+app.use(base_route, carga_combustibleRoutes); // revisar
 
 // endpoint
 app.use((req, res) =>{

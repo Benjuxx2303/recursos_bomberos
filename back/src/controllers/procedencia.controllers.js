@@ -1,75 +1,100 @@
 import { pool } from "../db.js";
 
-export const getProcedencias = async(req, res) =>{
+// Obtener todas las procedencias
+export const getProcedencias = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM procedencia');
+        const [rows] = await pool.query('SELECT * FROM procedencia WHERE isDeleted = 0');
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
 }
 
-export const getProcedenciaById = async(req, res)=>{
+// Obtener procedencia por ID
+export const getProcedenciaById = async (req, res) => {
+    const { id } = req.params;
     try {
-        const [rows] = await pool.query('SELECT * FROM procedencia WHERE id = ?', [req.params.id]);
-        if(rows.length <= 0) return res.status(404).json({
-            message: "procedencia no encontrada"
-        })
-        res.json(rows[0])
+        const [rows] = await pool.query('SELECT * FROM procedencia WHERE id = ? AND isDeleted = 0', [id]);
+        if (rows.length <= 0) {
+            return res.status(404).json({
+                message: "Procedencia no encontrada"
+            });
+        }
+        res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
 }
 
-// TODO: crear rutas para distintas columnas. usar de preferencia el metodo LIKE en SQL.
+// Crear una nueva procedencia
+export const createProcedencia = async (req, res) => {
+    const { nombre } = req.body;
 
-export const createProcedencia = async(req, res)=>{
-    const {nombre} = req.body
     try {
-        const [rows] = await pool.query("INSERT INTO procedencia(nombre) VALUES(?)", [nombre]);
-        res.send({
+        if (typeof nombre !== 'string' || nombre.trim() === '') {
+            return res.status(400).json({
+                message: 'Nombre es un campo obligatorio y debe ser una cadena válida'
+            });
+        }
+
+        const [rows] = await pool.query("INSERT INTO procedencia(nombre, isDeleted) VALUES(?, 0)", [nombre]);
+        res.status(201).json({
             id: rows.insertId,
-            nombre: nombre
+            nombre
         });
     } catch (error) {
         return res.status(500).json({
-            message: error
-        })
-    }
-}
-
-export const deleteProcedencia = async(req, res) =>{
-    try {
-        const[result] = await pool.query("DELETE FROM procedencia WHERE id = ?", [req.params.id]);
-        if(result.affectedRows <= 0) return res.status(404).json({
-            message: "procedencia no encontrada"
-        });
-        res.status(204);
-    } catch (error) {
-        return res.status(500).json({
-            message: error
+            message: error.message
         });
     }
 }
 
-export const updateProcedencia = async(req, res)=>{
-    const {id} = req.params;
-    const {nombre} = req.body;
+// Cambiar estado a 'eliminado'
+export const deleteProcedencia = async (req, res) => {
+    const { id } = req.params;
     try {
+        const [result] = await pool.query("UPDATE procedencia SET isDeleted = 1 WHERE id = ?", [id]);
+        if (result.affectedRows <= 0) {
+            return res.status(404).json({
+                message: "Procedencia no encontrada"
+            });
+        }
+        res.status(204).end();
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+}
+
+// Actualizar procedencia
+export const updateProcedencia = async (req, res) => {
+    const { id } = req.params;
+    const { nombre } = req.body;
+
+    try {
+        if (typeof nombre !== 'string' || nombre.trim() === '') {
+            return res.status(400).json({
+                message: 'Nombre es un campo obligatorio y debe ser una cadena válida'
+            });
+        }
+
         const [result] = await pool.query('UPDATE procedencia SET nombre = IFNULL(?, nombre) WHERE id = ?', [nombre, id]);
-        if(result.affectedRows === 0) return res.status(404).json({
-            message: "procedencia no encontrada"
-        });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: "Procedencia no encontrada"
+            });
+        }
 
         const [rows] = await pool.query("SELECT * FROM procedencia WHERE id = ?", [id]);
-        res.json(rows[0])
+        res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: error.message
         });
     }
 }

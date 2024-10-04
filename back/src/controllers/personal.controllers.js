@@ -1,5 +1,7 @@
 import { pool } from "../db.js";
 
+// TODO: Validación de ruts
+
 // Devuelve todos los personales
 export const getPersonal = async (req, res) => {
     try {
@@ -17,7 +19,9 @@ export const getPersonal = async (req, res) => {
 export const getPersonalWithDetails = async (req, res) => {
     try {
         const query = `
-            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, p.fec_nac, p.img_url, p.obs, p.isDeleted,
+            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
+                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac, 
+                   p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania
             FROM personal p
@@ -36,6 +40,7 @@ export const getPersonalWithDetails = async (req, res) => {
     }
 };
 
+
 // Personal por id
 export const getPersonalbyID = async (req, res) => {
     const { id } = req.params;
@@ -47,8 +52,16 @@ export const getPersonalbyID = async (req, res) => {
                 message: "Tipo de datos inválido",
             });
         }
+
+        const query = `
+            SELECT id, rut, nombre, apellido, 
+                   DATE_FORMAT(fec_nac, '%d-%m-%Y') AS fec_nac, 
+                   img_url, obs, isDeleted, rol_personal_id, compania_id
+            FROM personal 
+            WHERE id = ? AND isDeleted = 0
+        `;
         
-        const [rows] = await pool.query('SELECT * FROM personal WHERE id = ? AND isDeleted = 0', [idNumber]);
+        const [rows] = await pool.query(query, [idNumber]);
         if (rows.length <= 0) {
             return res.status(404).json({
                 message: 'Personal no encontrado'
@@ -62,6 +75,7 @@ export const getPersonalbyID = async (req, res) => {
         });
     }
 }
+
 
 export const createPersonal = async (req, res) => {
     const {

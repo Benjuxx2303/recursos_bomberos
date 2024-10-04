@@ -1,74 +1,128 @@
 import { pool } from "../db.js";
 
-export const getTiposMaquinas = async(req ,res) =>{
+// Devuelve todos los tipos de máquina
+export const getTiposMaquinas = async (req, res) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM tipo_maquina");
+        const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE isDeleted = 0");
         res.json(rows);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
-}
+};
 
-// busqueda por id
-export const getTipoMaquinaById = async(req, res) =>{
+// Devuelve tipo de máquina por ID
+export const getTipoMaquinaById = async (req, res) => {
+    const { id } = req.params;
     try {
-        const[rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id =?", [req.params.id]);
-        if(rows.length <= 0) return res.status(404).json({
-            message: "tipo de maquina no encontrado"
-        })
-        res.json(rows[0])
+        const idNumber = parseInt(id);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "Tipo de datos inválido"
+            });
+        }
+        
+        const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [idNumber]);
+        if (rows.length <= 0) {
+            return res.status(404).json({
+                message: "Tipo de máquina no encontrado"
+            });
+        }
+        res.json(rows[0]);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
-}
+};
 
-export const createTipoMaquina = async(req, res) =>{
-    const {clasificacion} = req.body
+// Crear tipo de máquina
+export const createTipoMaquina = async (req, res) => {
+    const { clasificacion } = req.body;
+
     try {
-        const [rows] = await pool.query("INSERT INTO tipo_maquina(clasificacion) VALUES(?)", [clasificacion]);
-        res.send({
+        if (typeof clasificacion !== 'string') {
+            return res.status(400).json({
+                message: 'Tipo de datos inválido'
+            });
+        }
+
+        const [rows] = await pool.query("INSERT INTO tipo_maquina (clasificacion, isDeleted) VALUES (?, 0)", [clasificacion]);
+        res.status(201).json({
             id: rows.insertId,
-            clasificacion: clasificacion
+            clasificacion
         });
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
-        })
+            message: 'Error interno del servidor'
+        });
     }
-}
+};
 
-export const deleteTipoMaquina = async(req, res) =>{
+// Dar de baja tipo de máquina
+export const deleteTipoMaquina = async (req, res) => {
+    const { id } = req.params;
+
     try {
-        const[result] = await pool.query("DELETE FROM tipo_maquina WHERE id = ?", [req.params.id]);
-        if(result.affectedRows <= 0) return res.status(404).json({
-            message: "tipo_maquina no encontrado"
-        });
-        res.status(204);
+        const idNumber = parseInt(id);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "Tipo de datos inválido"
+            });
+        }
+
+        const [result] = await pool.query("UPDATE tipo_maquina SET isDeleted = 1 WHERE id = ?", [idNumber]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: "Tipo de máquina no encontrado"
+            });
+        }
+        
+        res.status(204).end();
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
+            message: 'Error interno del servidor'
         });
     }
-}
+};
 
-export const updateTipoMaquina = async(req, res) =>{
-    const {id} = req.params;
-    const {clasificacion} = req.body;
+// Actualizar tipo de máquina
+export const updateTipoMaquina = async (req, res) => {
+    const { id } = req.params;
+    const { clasificacion } = req.body;
+
     try {
-        const [result] = await pool.query('UPDATE tipo_maquina SET clasificacion = IFNULL(?, clasificacion) WHERE id = ?', [clasificacion, id]);
-        if(result.affectedRows === 0) return res.status(404).json({
-            message: "tipo_maquina no encontrado"
-        });
+        const idNumber = parseInt(id);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "Tipo de datos inválido"
+            });
+        }
 
-        const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ?", [id]);
-        res.json(rows[0])
+        if (typeof clasificacion !== 'string') {
+            return res.status(400).json({
+                message: 'Tipo de datos inválido'
+            });
+        }
+
+        const [result] = await pool.query('UPDATE tipo_maquina SET clasificacion = IFNULL(?, clasificacion) WHERE id = ? AND isDeleted = 0', [clasificacion, idNumber]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: "Tipo de máquina no encontrado"
+            });
+        }
+
+        const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ?", [idNumber]);
+        res.json(rows[0]);
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
-            message: error
+            message: 'Error interno del servidor'
         });
     }
-}
+};

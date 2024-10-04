@@ -54,6 +54,16 @@ export const createConductorMaquina = async (req, res) => {
       return res.status(400).json({ message: 'Tipo de datos inválido' });
     }
 
+    // Validación de existencia de llaves foráneas
+    const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
+    if (checkPersonal.length === 0) return res.status(400).json({ message: "ID de personal no válido" });
+
+    const [checkMaquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
+    if (checkMaquina.length === 0) return res.status(400).json({ message: "ID de máquina no válido" });
+
+    const [checkTipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipoMaquinaIdNumber]);
+    if (checkTipoMaquina.length === 0) return res.status(400).json({ message: "ID de tipo de máquina no válido" });
+
     // Validación de fecha
     const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
     if (!fechaRegex.test(ven_licencia)) {
@@ -85,6 +95,7 @@ export const createConductorMaquina = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
 
 
 
@@ -124,11 +135,28 @@ export const updateConductorMaquina = async (req, res) => {
       (rol_personal_id && typeof rol_personal_id !== "number") ||
       (maquina_id && typeof maquina_id !== "number") ||
       (tipo_maquina_id && typeof tipo_maquina_id !== "number") ||
-      (ven_licencia && !(ven_licencia instanceof Date))
+      (ven_licencia && typeof ven_licencia !== 'string') // Debe ser un string para validación de fecha
     ) {
       return res.status(400).json({ message: "Tipo de datos inválido" });
     }
 
+    // Validación de llaves foráneas
+    if (personal_id) {
+      const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
+      if (checkPersonal.length === 0) return res.status(400).json({ message: "ID de personal no válido" });
+    }
+
+    if (maquina_id) {
+      const [checkMaquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
+      if (checkMaquina.length === 0) return res.status(400).json({ message: "ID de máquina no válido" });
+    }
+
+    if (tipo_maquina_id) {
+      const [checkTipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
+      if (checkTipoMaquina.length === 0) return res.status(400).json({ message: "ID de tipo de máquina no válido" });
+    }
+
+    // Actualización en la base de datos
     const [result] = await pool.query(
       "UPDATE conductor_maquina SET " +
       "personal_id = IFNULL(?, personal_id), " +
@@ -148,7 +176,7 @@ export const updateConductorMaquina = async (req, res) => {
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "conductor_maquina no encontrado" });
+      return res.status(404).json({ message: "Conductor de máquina no encontrado" });
     }
 
     const [rows] = await pool.query(
@@ -157,6 +185,6 @@ export const updateConductorMaquina = async (req, res) => {
     );
     res.json(rows[0]);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: error.message });
   }
 };

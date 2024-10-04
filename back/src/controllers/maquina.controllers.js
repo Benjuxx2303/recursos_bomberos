@@ -25,7 +25,7 @@ export const getMaquinasDetails = async (req, res) => {
         m.hmetro_motor AS hmetro_motor,
         m.kmetraje AS kmetraje,
         m.num_motor AS num_motor,
-        DATE_FORMAT(m.ven_patente, '%d-%m-%Y') AS ven_patente, 
+        DATE_FORMAT(m.ven_patente, '%d-%m-%Y') AS ven_patente,
         m.cost_rev_tec AS cost_rev_tec,
         DATE_FORMAT(m.ven_rev_tec, '%d-%m-%Y') AS ven_rev_tec,
         m.cost_seg_auto AS cost_seg_auto,
@@ -61,7 +61,7 @@ export const getMaquinaById = async (req, res) => {
         m.hmetro_motor AS hmetro_motor,
         m.kmetraje AS kmetraje,
         m.num_motor AS num_motor,
-        DATE_FORMAT(m.ven_patente, '%d-%m-%Y') AS ven_patente, 
+        DATE_FORMAT(m.ven_patente, '%d-%m-%Y') AS ven_patente,
         m.cost_rev_tec AS cost_rev_tec,
         DATE_FORMAT(m.ven_rev_tec, '%d-%m-%Y') AS ven_rev_tec,
         m.cost_seg_auto AS cost_seg_auto,
@@ -82,7 +82,6 @@ export const getMaquinaById = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 
 // Crear nueva máquina
 export const createMaquina = async (req, res) => {
@@ -120,6 +119,16 @@ export const createMaquina = async (req, res) => {
     ) {
       return res.status(400).json({ message: 'Tipo de datos inválido' });
     }
+
+    // Validación de llaves foráneas
+    const [tipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
+    if (tipoMaquina.length === 0) return res.status(400).json({ message: 'Tipo de máquina no existe' });
+
+    const [compania] = await pool.query("SELECT * FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
+    if (compania.length === 0) return res.status(400).json({ message: 'Compañía no existe' });
+
+    const [procedencia] = await pool.query("SELECT * FROM procedencia WHERE id = ? AND isDeleted = 0", [procedencia_id]);
+    if (procedencia.length === 0) return res.status(400).json({ message: 'Procedencia no existe' });
 
     // Validación de fechas
     const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
@@ -172,6 +181,7 @@ export const deleteMaquina = async (req, res) => {
   }
 };
 
+// Actualizar máquina
 export const updateMaquina = async (req, res) => {
   const { id } = req.params;
   const {
@@ -209,6 +219,16 @@ export const updateMaquina = async (req, res) => {
       return res.status(400).json({ message: 'Tipo de datos inválido' });
     }
 
+    // Validación de llaves foráneas
+    const [tipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
+    if (tipoMaquina.length === 0) return res.status(400).json({ message: 'Tipo de máquina no existe' });
+
+    const [compania] = await pool.query("SELECT * FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
+    if (compania.length === 0) return res.status(400).json({ message: 'Compañía no existe' });
+
+    const [procedencia] = await pool.query("SELECT * FROM procedencia WHERE id = ? AND isDeleted = 0", [procedencia_id]);
+    if (procedencia.length === 0) return res.status(400).json({ message: 'Procedencia no existe' });
+
     // Validación de fechas
     const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
     const fechas = [ven_patente, ven_rev_tec, ven_seg_auto];
@@ -218,26 +238,9 @@ export const updateMaquina = async (req, res) => {
       }
     }
 
+    // Actualización en la base de datos
     const [result] = await pool.query(
-      `UPDATE maquina SET
-        tipo_maquina_id = IFNULL(?, tipo_maquina_id),
-        compania_id = IFNULL(?, compania_id),
-        codigo = IFNULL(?, codigo),
-        patente = IFNULL(?, patente),
-        num_chasis = IFNULL(?, num_chasis),
-        vin = IFNULL(?, vin),
-        bomba = IFNULL(?, bomba),
-        hmetro_bomba = IFNULL(?, hmetro_bomba),
-        hmetro_motor = IFNULL(?, hmetro_motor),
-        kmetraje = IFNULL(?, kmetraje),
-        num_motor = IFNULL(?, num_motor),
-        ven_patente = IFNULL(STR_TO_DATE(?, '%d-%m-%Y'), ven_patente),
-        procedencia_id = IFNULL(?, procedencia_id),
-        cost_rev_tec = IFNULL(?, cost_rev_tec),
-        ven_rev_tec = IFNULL(STR_TO_DATE(?, '%d-%m-%Y'), ven_rev_tec),
-        cost_seg_auto = IFNULL(?, cost_seg_auto),
-        ven_seg_auto = IFNULL(STR_TO_DATE(?, '%d-%m-%Y'), ven_seg_auto)
-      WHERE id = ? AND isDeleted = 0`,
+      "UPDATE maquina SET tipo_maquina_id = ?, compania_id = ?, codigo = ?, patente = ?, num_chasis = ?, vin = ?, bomba = ?, hmetro_bomba = ?, hmetro_motor = ?, kmetraje = ?, num_motor = ?, ven_patente = STR_TO_DATE(?, '%d-%m-%Y'), procedencia_id = ?, cost_rev_tec = ?, ven_rev_tec = STR_TO_DATE(?, '%d-%m-%Y'), cost_seg_auto = ?, ven_seg_auto = STR_TO_DATE(?, '%d-%m-%Y') WHERE id = ?",
       [
         tipo_maquina_id,
         compania_id,
@@ -260,12 +263,8 @@ export const updateMaquina = async (req, res) => {
       ]
     );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Máquina no encontrada" });
-    }
-
-    const [rows] = await pool.query("SELECT * FROM maquina WHERE id = ?", [id]);
-    res.json(rows[0]);
+    if (result.affectedRows === 0) return res.status(404).json({ message: "Máquina no encontrada" });
+    res.json({ message: "Máquina actualizada" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

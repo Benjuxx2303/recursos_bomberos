@@ -10,7 +10,7 @@ import claveRoutes from './routes/clave.routes.js';
 import companiaRoutes from './routes/compania.routes.js';
 import conductor_maquinaRoutes from './routes/conductor_maquina.routes.js';
 import detalle_mantencionRoutes from './routes/detalle_mantencion.routes.js';
-<<<<<<< HEAD
+
 import divisionRoutes from './routes/division.routes.js';
 import mantencionRoutes from './routes/mantencion.routes.js';
 import maquinaRoutes from './routes/maquina.routes.js';
@@ -23,9 +23,9 @@ import tallerRoutes from './routes/taller.routes.js';
 import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
 import tipo_maquinaRoutes from './routes/tipo_maquina.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
-=======
+
 import carga_combustibleRoutes from './routes/carga_combustible.routes.js';
->>>>>>> 34719d19153a5e41f8430812f1bc3b5d683c4023
+
 
 const app = express();
 app.use(cors());

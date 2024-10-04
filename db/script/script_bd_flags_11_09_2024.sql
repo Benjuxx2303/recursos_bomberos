@@ -187,13 +187,13 @@ CREATE TABLE IF NOT EXISTS `conductor_maquina` (
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `bitacora` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `compania_id` INT NOT NULL,
-  `conductor_id` INT NOT NULL,
+  `compania_id` INT NOT NULL, --- fk
+  `conductor_id` INT NOT NULL, --- fk
   `direccion` VARCHAR(100) NOT NULL,
   `fecha` DATE NOT NULL,
   `h_salida` TIME NOT NULL,
   `h_llegada` TIME NOT NULL,
-  `clave_id` INT NOT NULL,
+  `clave_id` INT NOT NULL, --- fk
   `km_salida` FLOAT NOT NULL,
   `km_llegada` FLOAT NOT NULL,
   `hmetro_salida` FLOAT NOT NULL,
@@ -229,14 +229,14 @@ CREATE TABLE IF NOT EXISTS `bitacora` (
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mantencion` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `bitacora_id` INT NOT NULL,
-  `maquina_id` INT NOT NULL,
-  `personal_id_responsable` INT NOT NULL,
-  `compania_id` INT NOT NULL,
+  `bitacora_id` INT NOT NULL, --- fk
+  `maquina_id` INT NOT NULL, --- fk
+  `personal_id_responsable` INT NOT NULL, ---fk
+  `compania_id` INT NOT NULL, --- fk
   `ord_trabajo` VARCHAR(45) NOT NULL,
   `n_factura` INT NOT NULL,
   `cost_ser` INT NOT NULL,
-  `taller_id` INT NOT NULL,
+  `taller_id` INT NOT NULL, --- fk
   `isDeleted` TINYINT(1) NOT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_mantenciones_carro1_idx` (`maquina_id` ASC) ,

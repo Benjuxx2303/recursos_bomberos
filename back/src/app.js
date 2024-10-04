@@ -39,8 +39,8 @@ app.use(base_route, procedenciaRoutes);
 app.use(base_route, maquinaRoutes);
 app.use(base_route, tallerRoutes);
 app.use(base_route, conductor_maquinaRoutes);
-app.use(base_route, bitacoraRoutes); // revisar
-app.use(base_route, mantencionRoutes); // revisar
+app.use(base_route, bitacoraRoutes);
+app.use(base_route, mantencionRoutes);
 app.use(base_route, tipoMantencionRoutes); // revisar
 app.use(base_route, usuarioRoutes); // revisar
 app.use(base_route, divisionRoutes); // revisar

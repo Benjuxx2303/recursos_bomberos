@@ -1,3 +1,7 @@
 back/.env
 back/node_modules
 .vscode
+back/test.http
+back/src/config.js
+back/test.http
+back/src/app.js

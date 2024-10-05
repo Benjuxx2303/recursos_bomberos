@@ -13,7 +13,7 @@ import maquinaRoutes from './routes/maquina.routes.js';
 import tallerRoutes from './routes/taller.routes.js';
 import conductor_maquinaRoutes from './routes/conductor_maquina.routes.js';
 import bitacoraRoutes from './routes/bitacora.routes.js';
-import mantencionRoutes from './routes/mantencion.routes.js';
+import mantencionRoutes from './routes/mantencion.routes.js'; //
 import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
 import divisionRoutes from './routes/division.routes.js';

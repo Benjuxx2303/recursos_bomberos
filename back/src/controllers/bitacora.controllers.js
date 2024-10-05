@@ -57,68 +57,97 @@ export const createBitacora = async (req, res) => {
         hmetro_llegada,
         hbomba_salida,
         hbomba_llegada,
-        obs,
+        obs, // Se incluye aquí, pero será opcional
     } = req.body;
 
     try {
-        // Validaciones
-        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
+        // Validación de datos
+        const companiaIdNumber = parseInt(compania_id);
+        const conductorIdNumber = parseInt(conductor_id);
+        const claveIdNumber = parseInt(clave_id);
+        
+        // Verificar que los IDs sean válidos
+        if (
+            isNaN(companiaIdNumber) ||
+            isNaN(conductorIdNumber) ||
+            isNaN(claveIdNumber) ||
+            typeof direccion !== 'string' // Asegurarse de que sea una cadena
+        ) {
+            return res.status(400).json({ message: 'Tipo de datos inválido' });
+        }
+
+        // Validación de existencia de llaves foráneas
+        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
         if (companiaExists.length === 0) {
             return res.status(400).json({ message: "Compania no existe o está eliminada" });
         }
 
-        const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductor_id]);
+        const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductorIdNumber]);
         if (conductorExists.length === 0) {
             return res.status(400).json({ message: "Conductor no existe o está eliminado" });
         }
 
-        const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [clave_id]);
+        const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
         if (claveExists.length === 0) {
             return res.status(400).json({ message: "Clave no existe o está eliminada" });
         }
+
+        // Validación de fecha
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+        if (!fechaRegex.test(fecha)) {
+            return res.status(400).json({
+                message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
+            });
+        }
+
+        // Preparar el valor de obs; si es nulo o no viene, se omitirá
+        const obsValue = obs || ''; // O también podrías usar '' si prefieres una cadena vacía
 
         // Inserción en la base de datos
         const [rows] = await pool.query(
             "INSERT INTO bitacora (compania_id, conductor_id, direccion, fecha, h_salida, h_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
             [
-                compania_id,
-                conductor_id,
+                companiaIdNumber,
+                conductorIdNumber,
                 direccion,
                 fecha,
                 h_salida,
                 h_llegada,
-                clave_id,
+                claveIdNumber,
                 km_salida,
                 km_llegada,
                 hmetro_salida,
                 hmetro_llegada,
                 hbomba_salida,
                 hbomba_llegada,
-                obs,
+                obsValue, // Se usa aquí el valor de obs
             ]
         );
 
         res.status(201).json({
             id: rows.insertId,
-            compania_id,
-            conductor_id,
+            compania_id: companiaIdNumber,
+            conductor_id: conductorIdNumber,
             direccion,
             fecha,
             h_salida,
             h_llegada,
-            clave_id,
+            clave_id: claveIdNumber,
             km_salida,
             km_llegada,
             hmetro_salida,
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obs,
+            obs: obsValue, // Se devuelve también en la respuesta
         });
     } catch (error) {
+        console.error('Error: ', error);
         return res.status(500).json({ message: "Error interno del servidor" });
     }
 };
+
+
 
 
 // Dar de baja (marcar como inactivo)
@@ -158,41 +187,90 @@ export const updateBitacora = async (req, res) => {
         hbomba_salida,
         hbomba_llegada,
         obs,
+        isDeleted,
     } = req.body;
 
     try {
-        // Validaciones
-        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-        if (companiaExists.length === 0) {
-            return res.status(400).json({ message: "Compania no existe o está eliminada" });
+        // Construir los campos de actualización
+        const updates = {};
+        if (direccion !== undefined) updates.direccion = direccion;
+
+        // Validación de fecha
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+        if (fecha !== undefined) {
+            if (!fechaRegex.test(fecha)) {
+                return res.status(400).json({
+                    message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
+                });
+            }
+            updates.fecha = fecha; // Guardamos la fecha en el objeto de actualizaciones
         }
 
-        const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductor_id]);
-        if (conductorExists.length === 0) {
-            return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+        // Validación y asignación de tiempos
+        if (h_salida !== undefined) updates.h_salida = h_salida;
+        if (h_llegada !== undefined) updates.h_llegada = h_llegada;
+
+        // Validación y asignación de floats
+        const floatFields = ['km_salida', 'km_llegada', 'hmetro_salida', 'hmetro_llegada', 'hbomba_salida', 'hbomba_llegada'];
+        for (const field of floatFields) {
+            if (req.body[field] !== undefined) {
+                const value = parseFloat(req.body[field]);
+                if (isNaN(value)) {
+                    return res.status(400).json({ message: `Tipo de dato inválido para '${field}'` });
+                }
+                updates[field] = value;
+            }
         }
 
-        const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [clave_id]);
-        if (claveExists.length === 0) {
-            return res.status(400).json({ message: "Clave no existe o está eliminada" });
+        // Validaciones de existencia solo si se proporcionan
+        if (compania_id !== undefined) {
+            const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
+            if (companiaExists.length === 0) {
+                return res.status(400).json({ message: "Compania no existe o está eliminada" });
+            }
+            updates.compania_id = compania_id;
         }
+
+        if (conductor_id !== undefined) {
+            const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductor_id]);
+            if (conductorExists.length === 0) {
+                return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+            }
+            updates.conductor_id = conductor_id;
+        }
+
+        if (clave_id !== undefined) {
+            const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [clave_id]);
+            if (claveExists.length === 0) {
+                return res.status(400).json({ message: "Clave no existe o está eliminada" });
+            }
+            updates.clave_id = clave_id;
+        }
+
+        // Validación y asignación de isDeleted
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
+            }
+            updates.isDeleted = isDeleted;
+        }
+
+        // Construir la consulta de actualización
+        const setClause = Object.keys(updates)
+            .map((key) => `${key} = ${key === 'fecha' ? 'STR_TO_DATE(?, "%d-%m-%Y")' : '?'}`)
+            .join(", ");
+
+        if (!setClause) {
+            return res.status(400).json({
+                message: "No se proporcionaron campos para actualizar"
+            });
+        }
+
+        const values = Object.values(updates).concat(id);
 
         const [result] = await pool.query(
-            "UPDATE bitacora SET direccion = IFNULL(?, direccion), fecha = IFNULL(?, fecha), h_salida = IFNULL(?, h_salida), h_llegada = IFNULL(?, h_llegada), km_salida = IFNULL(?, km_salida), km_llegada = IFNULL(?, km_llegada), hmetro_salida = IFNULL(?, hmetro_salida), hmetro_llegada = IFNULL(?, hmetro_llegada), hbomba_salida = IFNULL(?, hbomba_salida), hbomba_llegada = IFNULL(?, hbomba_llegada), obs = IFNULL(?, obs) WHERE id = ? AND isDeleted = 0",
-            [
-                direccion,
-                fecha,
-                h_salida,
-                h_llegada,
-                km_salida,
-                km_llegada,
-                hmetro_salida,
-                hmetro_llegada,
-                hbomba_salida,
-                hbomba_llegada,
-                obs,
-                id,
-            ]
+            `UPDATE bitacora SET ${setClause} WHERE id = ? AND isDeleted = 0`,
+            values
         );
 
         if (result.affectedRows === 0) {
@@ -202,6 +280,8 @@ export const updateBitacora = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
         res.json(rows[0]);
     } catch (error) {
+        console.error(error); // Opcional: para depurar el error
         return res.status(500).json({ message: "Error interno del servidor" });
     }
 };
+

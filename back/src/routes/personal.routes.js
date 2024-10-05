@@ -22,6 +22,6 @@ router.post(base_route, createPersonal);
 router.delete(`${base_route}/:id`, downPersonal);
 
 // Actualizar personal
-router.put(`${base_route}/:id`, updatePersonal);
+router.patch(`${base_route}/:id`, updatePersonal);
 
 export default router;

@@ -29,6 +29,8 @@ export const getMantencionesWithDetails = async (req, res) => {
                 p.rut AS 'personal_responsable',
                 m.compania_id, 
                 m.ord_trabajo, 
+                m.n_factura, 
+                m.cost_ser, 
                 t.nombre AS 'taller'
             FROM mantencion m
             INNER JOIN maquina ma ON m.maquina_id = ma.id
@@ -58,6 +60,8 @@ export const getMantencionById = async (req, res) => {
                 p.rut AS 'personal_responsable',
                 m.compania_id, 
                 m.ord_trabajo, 
+                m.n_factura, 
+                m.cost_ser, 
                 t.nombre AS 'taller'
             FROM mantencion m
             INNER JOIN maquina ma ON m.maquina_id = ma.id
@@ -177,47 +181,101 @@ export const updateMantencion = async (req, res) => {
         n_factura,
         cost_ser,
         taller_id,
+        isDeleted
     } = req.body;
 
     try {
         // Validación de existencia de llaves foráneas
-        const [bitacoraExists] = await pool.query("SELECT 1 FROM bitacora WHERE id = ? AND isDeleted = 0", [bitacora_id]);
-        const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
-        const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id_responsable]);
-        const [tallerExists] = await pool.query("SELECT 1 FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
+        const updates = {};
 
-        if (!bitacoraExists.length || !maquinaExists.length || !personalExists.length || !tallerExists.length) {
+        if (bitacora_id !== undefined) {
+            const [bitacoraExists] = await pool.query("SELECT 1 FROM bitacora WHERE id = ? AND isDeleted = 0", [bitacora_id]);
+            if (bitacoraExists.length === 0) {
+                return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
+            }
+            updates.bitacora_id = bitacora_id;
+        }
+
+        if (maquina_id !== undefined) {
+            const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
+            if (maquinaExists.length === 0) {
+                return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+            }
+            updates.maquina_id = maquina_id;
+        }
+
+        if (personal_id_responsable !== undefined) {
+            const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id_responsable]);
+            if (personalExists.length === 0) {
+                return res.status(400).json({ message: "Personal no existe o está eliminado" });
+            }
+            updates.personal_id_responsable = personal_id_responsable;
+        }
+
+        if (compania_id !== undefined) {
+            const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
+            if (companiaExists.length === 0) {
+                return res.status(400).json({ message: "Compañía no existe o está eliminada" });
+            }
+            updates.compania_id = compania_id;
+        }
+
+        if (taller_id !== undefined) {
+            const [tallerExists] = await pool.query("SELECT 1 FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
+            if (tallerExists.length === 0) {
+                return res.status(400).json({ message: "Taller no existe o está eliminado" });
+            }
+            updates.taller_id = taller_id;
+        }
+
+        // Validaciones para los campos específicos
+        if (ord_trabajo !== undefined) {
+            if (typeof ord_trabajo !== "string") {
+                return res.status(400).json({ message: "Tipo de dato inválido para 'ord_trabajo'" });
+            }
+            updates.ord_trabajo = ord_trabajo;
+        }
+
+        if (n_factura !== undefined) {
+            if (typeof n_factura !== "number") {
+                return res.status(400).json({ message: "Tipo de dato inválido para 'n_factura'" });
+            }
+            updates.n_factura = n_factura;
+        }
+
+        if (cost_ser !== undefined) {
+            if (typeof cost_ser !== "number") {
+                return res.status(400).json({ message: "Tipo de dato inválido para 'cost_ser'" });
+            }
+            updates.cost_ser = cost_ser;
+        }
+
+        // Validar y agregar isDeleted
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'isDeleted'"
+                });
+            }
+            updates.isDeleted = isDeleted;
+        }
+
+        const setClause = Object.keys(updates)
+            .map((key) => `${key} = ?`)
+            .join(", ");
+
+        if (!setClause) {
             return res.status(400).json({
-                message: 'Una o más llaves foráneas no existen'
+                message: "No se proporcionaron campos para actualizar"
             });
         }
 
-        const [result] = await pool.query(
-            "UPDATE mantencion SET " +
-            "bitacora_id = IFNULL(?, bitacora_id), " +
-            "maquina_id = IFNULL(?, maquina_id), " +
-            "personal_id_responsable = IFNULL(?, personal_id_responsable), " +
-            "compania_id = IFNULL(?, compania_id), " +
-            "ord_trabajo = IFNULL(?, ord_trabajo), " +
-            "n_factura = IFNULL(?, n_factura), " +
-            "cost_ser = IFNULL(?, cost_ser), " +
-            "taller_id = IFNULL(?, taller_id) " +
-            "WHERE id = ?", [
-                bitacora_id,
-                maquina_id,
-                personal_id_responsable,
-                compania_id,
-                ord_trabajo,
-                n_factura,
-                cost_ser,
-                taller_id,
-                id,
-            ]
-        );
+        const values = Object.values(updates).concat(id);
+        const [result] = await pool.query(`UPDATE mantencion SET ${setClause} WHERE id = ?`, values);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
-                message: "Mantencion no encontrada"
+                message: "Mantención no encontrada"
             });
         }
 
@@ -229,6 +287,7 @@ export const updateMantencion = async (req, res) => {
         });
     }
 };
+
 
 // Obtener costos de mantenciones por mes
 export const getMantencionCostosByMes = async (req, res) => {

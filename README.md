@@ -20,17 +20,38 @@ ssh -i "ruta-al-archivo-pem" ubuntu@<ipv4>
 sudo /opt/lampp/lampp start
 ```
 
-3. Actualizar el repositorio
+3. Clonar el repositorio
 ```
-git pull recursos_bomberos
+git clone --branch dev https://github.com/Benjuxx2303/recursos_bomberos/
 ```
 
-4. Modificar la configuración del archivo dotenv
+4. Verificar la rama del repositorio (debe ser dev)
+```
+cd recursos_bomberos
+git branch
+```
+
+5. Actualizar el repositorio (si se esta en la rama correcta)
+```
+git pull 
+```
+
+5.2. Actualizar el repositorio
+```
+git pull origin dev
+```
+
+6. Volver a la raíz de la instancia
+```
+cd
+```
+
+7. Modificar la configuración del archivo dotenv
 ```
 sudo nano recursos_bomberos/back/.env
 ```
 
-5. Iniciar la API
+8. Iniciar la API
 ```
 cd recursos_bomberos/back/src/
 npm run dev

@@ -12,7 +12,10 @@ Guia para usar o testear la API:
 Guia de uso de la API en una instancia EC2:
 1. Conectar via SSH:
 ```
+**PARA UBUNTU**
 ssh -i "ruta-al-archivo-pem" ubuntu@<ipv4>
+**PARA LINUX**
+ssh -i .\"ruta-al-archivo-pem" ec2-user@<ipv4>
 ```
 
 2. Iniciar XAMPP/LAMPP

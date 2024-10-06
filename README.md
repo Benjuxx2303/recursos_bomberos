@@ -27,7 +27,7 @@ git pull recursos_bomberos
 
 4. Modificar la configuración del archivo dotenv
 ```
-sudo nano recursos_bomberos/back/.env
+sudo nano recursos_bomberos/back/.pem
 ```
 
 5. Iniciar la API

@@ -64,16 +64,60 @@ export const deleteClave = async (req, res) => {
 // Actualizar clave
 export const updateClave = async (req, res) => {
     const { id } = req.params;
-    const { codigo, descripcion } = req.body;
+    const { codigo, descripcion, isDeleted } = req.body;
 
     try {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
-            return res.status(400).json({ message: "Tipo de datos inválido" });
+            return res.status(400).json({ message: "ID inválido" });
         }
 
-        const [result] = await pool.query("UPDATE clave SET codigo = IFNULL(?, codigo), descripcion = IFNULL(?, descripcion) WHERE id = ? AND isDeleted = 0", [codigo, descripcion, idNumber]);
-        if (result.affectedRows === 0) return res.status(404).json({ message: "Clave no encontrada" });
+        // Validaciones
+        const updates = {};
+        if (codigo !== undefined) {
+            if (typeof codigo !== "string") {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'codigo'"
+                });
+            }
+            updates.codigo = codigo;
+        }
+
+        if (descripcion !== undefined) {
+            if (typeof descripcion !== "string") {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'descripcion'"
+                });
+            }
+            updates.descripcion = descripcion;
+        }
+
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'isDeleted'. Debe ser 0 o 1."
+                });
+            }
+            updates.isDeleted = isDeleted;
+        }
+
+        // Construir la consulta de actualización
+        const setClause = Object.keys(updates)
+            .map((key) => `${key} = ?`)
+            .join(", ");
+
+        if (!setClause) {
+            return res.status(400).json({
+                message: "No se proporcionaron campos para actualizar"
+            });
+        }
+
+        const values = Object.values(updates).concat(idNumber);
+        const [result] = await pool.query(`UPDATE clave SET ${setClause} WHERE id = ? AND isDeleted = 0`, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Clave no encontrada" });
+        }
 
         const [rows] = await pool.query('SELECT * FROM clave WHERE id = ?', [idNumber]);
         res.json(rows[0]);

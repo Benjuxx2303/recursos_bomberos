@@ -94,23 +94,50 @@ export const deleteTipoMaquina = async (req, res) => {
 // Actualizar tipo de máquina
 export const updateTipoMaquina = async (req, res) => {
     const { id } = req.params;
-    const { clasificacion } = req.body;
+    const { clasificacion, isDeleted } = req.body;
 
     try {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
             return res.status(400).json({
-                message: "Tipo de datos inválido"
+                message: "ID inválido"
             });
         }
 
-        if (typeof clasificacion !== 'string') {
+        // Validaciones
+        const updates = {};
+        if (clasificacion !== undefined) {
+            if (typeof clasificacion !== 'string') {
+                return res.status(400).json({
+                    message: 'Tipo de dato inválido para "clasificacion"'
+                });
+            }
+            updates.clasificacion = clasificacion;
+        }
+
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'isDeleted'"
+                });
+            }
+            updates.isDeleted = isDeleted;
+        }
+
+        // Construir la consulta de actualización
+        const setClause = Object.keys(updates)
+            .map((key) => `${key} = ?`)
+            .join(", ");
+
+        if (!setClause) {
             return res.status(400).json({
-                message: 'Tipo de datos inválido'
+                message: "No se proporcionaron campos para actualizar"
             });
         }
 
-        const [result] = await pool.query('UPDATE tipo_maquina SET clasificacion = IFNULL(?, clasificacion) WHERE id = ? AND isDeleted = 0', [clasificacion, idNumber]);
+        const values = Object.values(updates).concat(idNumber);
+        const [result] = await pool.query(`UPDATE tipo_maquina SET ${setClause} WHERE id = ?`, values);
+
         if (result.affectedRows === 0) {
             return res.status(404).json({
                 message: "Tipo de máquina no encontrado"

@@ -202,69 +202,167 @@ export const updateMaquina = async (req, res) => {
     ven_rev_tec,
     cost_seg_auto,
     ven_seg_auto,
+    isDeleted,
   } = req.body;
 
   try {
-    // Validaciones de tipo de datos
-    if (
-      isNaN(parseInt(tipo_maquina_id)) ||
-      isNaN(parseInt(compania_id)) ||
-      typeof codigo !== 'string' ||
-      typeof patente !== 'string' ||
-      typeof num_chasis !== 'string' ||
-      typeof vin !== 'string' ||
-      isNaN(parseFloat(cost_rev_tec)) ||
-      isNaN(parseFloat(cost_seg_auto))
-    ) {
-      return res.status(400).json({ message: 'Tipo de datos inválido' });
+    const idNumber = parseInt(id);
+    if (isNaN(idNumber)) {
+      return res.status(400).json({ message: "ID inválido" });
     }
 
-    // Validación de llaves foráneas
-    const [tipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
-    if (tipoMaquina.length === 0) return res.status(400).json({ message: 'Tipo de máquina no existe' });
+    // Validaciones
+    const updates = {};
 
-    const [compania] = await pool.query("SELECT * FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-    if (compania.length === 0) return res.status(400).json({ message: 'Compañía no existe' });
-
-    const [procedencia] = await pool.query("SELECT * FROM procedencia WHERE id = ? AND isDeleted = 0", [procedencia_id]);
-    if (procedencia.length === 0) return res.status(400).json({ message: 'Procedencia no existe' });
-
-    // Validación de fechas
-    const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-    const fechas = [ven_patente, ven_rev_tec, ven_seg_auto];
-    for (const fecha of fechas) {
-      if (fecha && !fechaRegex.test(fecha)) {
-        return res.status(400).json({ message: 'Formato de fecha inválido. Debe ser dd-mm-aaaa' });
+    if (tipo_maquina_id !== undefined) {
+      if (isNaN(parseInt(tipo_maquina_id))) {
+        return res.status(400).json({ message: "Tipo de máquina inválido" });
       }
+      updates.tipo_maquina_id = tipo_maquina_id;
     }
 
-    // Actualización en la base de datos
-    const [result] = await pool.query(
-      "UPDATE maquina SET tipo_maquina_id = ?, compania_id = ?, codigo = ?, patente = ?, num_chasis = ?, vin = ?, bomba = ?, hmetro_bomba = ?, hmetro_motor = ?, kmetraje = ?, num_motor = ?, ven_patente = STR_TO_DATE(?, '%d-%m-%Y'), procedencia_id = ?, cost_rev_tec = ?, ven_rev_tec = STR_TO_DATE(?, '%d-%m-%Y'), cost_seg_auto = ?, ven_seg_auto = STR_TO_DATE(?, '%d-%m-%Y') WHERE id = ?",
-      [
-        tipo_maquina_id,
-        compania_id,
-        codigo,
-        patente,
-        num_chasis,
-        vin,
-        bomba,
-        hmetro_bomba,
-        hmetro_motor,
-        kmetraje,
-        num_motor,
-        ven_patente,
-        procedencia_id,
-        cost_rev_tec,
-        ven_rev_tec,
-        cost_seg_auto,
-        ven_seg_auto,
-        id,
-      ]
-    );
+    if (compania_id !== undefined) {
+      if (isNaN(parseInt(compania_id))) {
+        return res.status(400).json({ message: "Compañía inválida" });
+      }
+      updates.compania_id = compania_id;
+    }
 
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Máquina no encontrada" });
-    res.json({ message: "Máquina actualizada" });
+    if (codigo !== undefined) {
+      if (typeof codigo !== 'string') {
+        return res.status(400).json({ message: "Código inválido" });
+      }
+      updates.codigo = codigo;
+    }
+
+    if (patente !== undefined) {
+      if (typeof patente !== 'string') {
+        return res.status(400).json({ message: "Patente inválida" });
+      }
+      updates.patente = patente;
+    }
+
+    if (num_chasis !== undefined) {
+      if (typeof num_chasis !== 'string') {
+        return res.status(400).json({ message: "Número de chasis inválido" });
+      }
+      updates.num_chasis = num_chasis;
+    }
+
+    if (vin !== undefined) {
+      if (typeof vin !== 'string') {
+        return res.status(400).json({ message: "VIN inválido" });
+      }
+      updates.vin = vin;
+    }
+
+    if (bomba !== undefined) {
+      if (isNaN(parseFloat(bomba))) {
+        return res.status(400).json({ message: "Bomba inválida" });
+      }
+      updates.bomba = bomba;
+    }
+
+    if (hmetro_bomba !== undefined) {
+      if (isNaN(parseFloat(hmetro_bomba))) {
+        return res.status(400).json({ message: "Hmetro bomba inválido" });
+      }
+      updates.hmetro_bomba = hmetro_bomba;
+    }
+
+    if (hmetro_motor !== undefined) {
+      if (isNaN(parseFloat(hmetro_motor))) {
+        return res.status(400).json({ message: "Hmetro motor inválido" });
+      }
+      updates.hmetro_motor = hmetro_motor;
+    }
+
+    if (kmetraje !== undefined) {
+      if (isNaN(parseFloat(kmetraje))) {
+        return res.status(400).json({ message: "Kmetraje inválido" });
+      }
+      updates.kmetraje = kmetraje;
+    }
+
+    if (num_motor !== undefined) {
+      if (typeof num_motor !== 'string') {
+        return res.status(400).json({ message: "Número de motor inválido" });
+      }
+      updates.num_motor = num_motor;
+    }
+
+    if (ven_patente !== undefined) {
+      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+      if (!fechaRegex.test(ven_patente)) {
+        return res.status(400).json({ message: "Formato de fecha inválido para 'ven_patente'. Debe ser dd-mm-aaaa" });
+      }
+      updates.ven_patente = ven_patente;
+    }
+
+    if (procedencia_id !== undefined) {
+      if (isNaN(parseInt(procedencia_id))) {
+        return res.status(400).json({ message: "Procedencia inválida" });
+      }
+      updates.procedencia_id = procedencia_id;
+    }
+
+    if (cost_rev_tec !== undefined) {
+      if (isNaN(parseFloat(cost_rev_tec))) {
+        return res.status(400).json({ message: "Costo revisión técnica inválido" });
+      }
+      updates.cost_rev_tec = cost_rev_tec;
+    }
+
+    if (ven_rev_tec !== undefined) {
+      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+      if (!fechaRegex.test(ven_rev_tec)) {
+        return res.status(400).json({ message: "Formato de fecha inválido para 'ven_rev_tec'. Debe ser dd-mm-aaaa" });
+      }
+      updates.ven_rev_tec = ven_rev_tec;
+    }
+
+    if (cost_seg_auto !== undefined) {
+      if (isNaN(parseFloat(cost_seg_auto))) {
+        return res.status(400).json({ message: "Costo seguro auto inválido" });
+      }
+      updates.cost_seg_auto = cost_seg_auto;
+    }
+
+    if (ven_seg_auto !== undefined) {
+      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+      if (!fechaRegex.test(ven_seg_auto)) {
+        return res.status(400).json({ message: "Formato de fecha inválido para 'ven_seg_auto'. Debe ser dd-mm-aaaa" });
+      }
+      updates.ven_seg_auto = ven_seg_auto;
+    }
+
+    // Validación y actualización de isDeleted
+    if (isDeleted !== undefined) {
+      if (isDeleted !== 0 && isDeleted !== 1) {
+        return res.status(400).json({ message: "Valor inválido para 'isDeleted'. Debe ser 0 o 1." });
+      }
+      updates.isDeleted = isDeleted;
+    }
+
+    // Construir la consulta de actualización
+    const setClause = Object.keys(updates)
+      .map((key) => `${key} = ?`)
+      .join(", ");
+
+    if (!setClause) {
+      return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+    }
+
+    const values = Object.values(updates).concat(idNumber);
+    const [result] = await pool.query(`UPDATE maquina SET ${setClause} WHERE id = ?`, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Máquina no encontrada" });
+    }
+
+    const [rows] = await pool.query('SELECT * FROM maquina WHERE id = ?', [idNumber]);
+    res.json(rows[0]);
+    // res.json({ message: "Máquina actualizada" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

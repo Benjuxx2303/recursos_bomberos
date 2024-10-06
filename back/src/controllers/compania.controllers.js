@@ -83,33 +83,63 @@ export const deleteCompania = async(req, res) =>{
     }
 }
 
-export const updateCompania = async(req, res) =>{
-    const {id} = req.params;
-    const {nombre, isDeleted} = req.body;
+export const updateCompania = async (req, res) => {
+    const { id } = req.params;
+    const { nombre, isDeleted } = req.body;
 
     try {
         const idNumber = parseInt(id);
-        if (
-          isNaN(idNumber) ||
-          typeof nombre !== "string" ||
-          typeof isDeleted !== "number" ||
-          (isDeleted !== 0 && isDeleted !== 1)
-        ) {
-          res.status(400).json({
-            message: "Tipo de datos inválido"
-          });
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "ID inválido"
+            });
         }
 
-        const [result] = await pool.query('UPDATE compania SET nombre = IFNULL(?, nombre) isDeleted = IFNULL(?, isDeleted) WHERE id = ?', [nombre, isDeleted, idNumber])
-        if(result.affectedRows === 0) return res.status(404).json({
-            message: 'compania no encontrada'
-        });
+        // Validaciones
+        const updates = {};
+        if (nombre !== undefined) {
+            if (typeof nombre !== "string") {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'nombre'"
+                });
+            }
+            updates.nombre = nombre;
+        }
 
-        const [rows] = await pool.query('SELECT * FROM compania WHERE id = ?', [id]);
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'isDeleted'"
+                });
+            }
+            updates.isDeleted = isDeleted;
+        }
+
+        // Construir la consulta de actualización
+        const setClause = Object.keys(updates)
+            .map((key) => `${key} = ?`)
+            .join(", ");
+
+        if (!setClause) {
+            return res.status(400).json({
+                message: "No se proporcionaron campos para actualizar"
+            });
+        }
+
+        const values = Object.values(updates).concat(idNumber);
+        const [result] = await pool.query(`UPDATE compania SET ${setClause} WHERE id = ?`, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: 'Compañía no encontrada'
+            });
+        }
+
+        const [rows] = await pool.query('SELECT * FROM compania WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error
-        })
+            message: error.message
+        });
     }
-}
+};

@@ -28,6 +28,8 @@ git clone --branch dev https://github.com/Benjuxx2303/recursos_bomberos/
 4. Verificar la rama del repositorio (debe ser dev)
 ```
 cd recursos_bomberos
+```
+```
 git branch
 ```
 

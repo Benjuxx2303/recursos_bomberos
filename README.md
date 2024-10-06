@@ -46,14 +46,24 @@ git pull origin dev
 cd
 ```
 
-7. Modificar la configuración del archivo dotenv
+7. Instalar las dependencias
+```
+cd recursos_bomberos/back/
+```
+```
+npm install
+```
+
+8. Modificar la configuración del archivo dotenv
 ```
 sudo nano recursos_bomberos/back/.env.example
 ```
 
-8. Iniciar la API
+9. Iniciar la API
 ```
 cd recursos_bomberos/back/src/
+```
+```
 npm run dev
 ```
 

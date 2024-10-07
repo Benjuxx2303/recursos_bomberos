@@ -85,3 +85,10 @@ ps aux | grep node
 ```
 pkill node
 ```
+----------------------------------
+
+Abrir MySQL
+
+```
+sudo /opt/lampp/bin/mysql -u root -p
+```

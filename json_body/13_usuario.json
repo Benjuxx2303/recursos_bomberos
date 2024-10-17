@@ -1,0 +1,16 @@
+// registrar
+{
+    "username": "nicoSoto",
+    "correo": "test2@test.cl",
+    "contrasena": "test123",
+    "personal_id": 2
+}
+// http://localhost:3000/api/usuario/register/
+
+
+// login
+{
+    "username": "nicoSoto",
+    "contrasena": "test123"
+}
+// http://localhost:3000/api/usuario/login/

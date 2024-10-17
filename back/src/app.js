@@ -43,11 +43,11 @@ app.use(base_route, tallerRoutes);
 app.use(base_route, conductor_maquinaRoutes);
 app.use(base_route, bitacoraRoutes);
 app.use(base_route, mantencionRoutes);
-app.use(base_route, tipoMantencionRoutes); // revisar
-app.use(base_route, usuarioRoutes); // revisar
-app.use(base_route, divisionRoutes); // revisar
-app.use(base_route, subdivisionRoutes); // revisar
-app.use(base_route, servicioRoutes); // revisar
+app.use(base_route, tipoMantencionRoutes);
+app.use(base_route, usuarioRoutes);
+app.use(base_route, divisionRoutes);
+app.use(base_route, subdivisionRoutes);
+app.use(base_route, servicioRoutes);
 app.use(base_route, detalle_mantencionRoutes); // revisar
 app.use(base_route, carga_combustibleRoutes); // revisar
 

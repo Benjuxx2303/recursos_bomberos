@@ -1,23 +1,5 @@
 import { pool } from "../db.js";
 
-// Obtener todas las mantenciones
-// export const getMantenciones = async (req, res) => {
-//     try {
-//         const query = `
-//             SELECT m.*, b.fecha 
-//             FROM mantencion m
-//             JOIN bitacora b ON m.bitacora_id = b.id
-//             WHERE m.isDeleted = 0
-//         `;
-//         const [rows] = await pool.query(query);
-//         res.json(rows);
-//     } catch (error) {
-//         return res.status(500).json({
-//             message: error.message 
-//         });
-//     }
-// };
-
 // Obtener mantenciones con detalles
 export const getMantencionesWithDetails = async (req, res) => {
     try {

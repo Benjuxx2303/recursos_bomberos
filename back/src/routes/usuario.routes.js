@@ -1,29 +1,33 @@
 import { Router } from "express";
 import {
-  getUsuarios,
-  getUsuarioById,
-  createUsuario,
-  deleteUsuario,
-  updateUsuario,
-  registerUser,    // Función para registrar usuario
-  loginUser        // Función para iniciar sesión
+    getUsuarios,
+    getUsuariosWithDetails,
+    getUsuarioById,
+    deleteUsuario,
+    updateUsuario,
+    registerUser,
+    loginUser,
 } from "../controllers/usuario.controllers.js";
 
 const router = Router();
 
-const base_route = "/usuario";
+const base_route = "/usuario"; 
 
-// Rutas para la gestión de usuarios
-router.get(base_route, getUsuarios);                      // Obtener todos los usuarios
-router.get(`${base_route}/:id`, getUsuarioById);          // Obtener usuario por ID
+// Obtener todos los usuarios
+router.get(base_route, getUsuarios);
+// Obtener usuarios con detalles
+router.get(`${base_route}/detalles`, getUsuariosWithDetails);
+// Obtener usuario por ID
+router.get(`${base_route}/:id`, getUsuarioById);
+// Eliminar usuario (cambiar estado)
+router.delete(`${base_route}/:id`, deleteUsuario);
+// Actualizar usuario
+router.patch(`${base_route}/:id`, updateUsuario);
 
-router.post(base_route, createUsuario);                   // Crear un nuevo usuario
-
-router.delete(`${base_route}/:id`, deleteUsuario);         // Eliminar usuario por ID
-router.patch(`${base_route}/:id`, updateUsuario);          // Actualizar usuario por ID
-
-// Rutas para autenticación
-router.post(`${base_route}/register`, registerUser);       // Ruta para registrar usuario
-router.post(`${base_route}/login`, loginUser);             // Ruta para iniciar sesión
+// -----Logica login
+// Registrar nuevo usuario (con validaciones y encriptación)
+router.post(`${base_route}/register`, registerUser);
+// Iniciar sesión
+router.post(`${base_route}/login`, loginUser);
 
 export default router;

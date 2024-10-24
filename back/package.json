@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "pm2": "pm2 start src/index.js"
   },
   "keywords": [],
   "author": "",

@@ -1,4 +1,4 @@
-#Comandos Básicos de PM2
+# Comandos Básicos de PM2
 
 Iniciar una aplicación:
 

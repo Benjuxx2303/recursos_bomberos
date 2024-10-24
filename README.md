@@ -18,9 +18,13 @@ PARA LINUX
 ssh -i .\"ruta-al-archivo-pem" ec2-user@<ipv4>
 ```
 
-2. Iniciar XAMPP/LAMPP
+2. Iniciar XAMPP/LAMPP (MySQL)
 ```
-sudo /opt/lampp/lampp start
+sudo /opt/lampp/lampp startmysql
+```
+2.2. Iniciar XAMPP/LAMPP (MySQL)
+```
+sudo /opt/lampp/lampp stopmysql
 ```
 
 3. Clonar el repositorio
@@ -41,9 +45,9 @@ git branch
 git pull 
 ```
 
-5.2. Actualizar el repositorio
+5.2. Actualizar el repositorio (otra rama)
 ```
-git pull origin dev
+git pull origin <rama>
 ```
 
 6. Volver a la raíz de la instancia

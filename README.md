@@ -98,7 +98,7 @@ sudo /opt/lampp/bin/mysql -u root -p
 ```
 
 --------------------------------------------
-Deploy a instancia EC2 usando NGINX y Node
+# Deploy a instancia EC2 usando NGINX y Node
 
 Introducción
 Sigue la lista de comandos una vez conectado y configurado tu instancia como en el tutorial. Si te sirvio me apoyarias mucho dandole like y suscribiendote! Si tienes alguna sugerencia de algun tutorial dejala en los comentarios.

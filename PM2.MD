@@ -1,12 +1,13 @@
 # Comandos Básicos de PM2
 
 Iniciar una aplicación:
-
+```
 pm2 start nombre_del_script.js
-
+```
 Listar aplicaciones:
+```
 pm2 list
-
+```
 Ver el estado de una aplicación específica:
 pm2 status nombre_o_id
 

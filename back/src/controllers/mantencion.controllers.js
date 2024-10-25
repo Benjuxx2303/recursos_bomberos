@@ -14,11 +14,12 @@ export const getMantencionesWithDetails = async (req, res) => {
                 m.n_factura, 
                 m.cost_ser, 
                 t.nombre AS 'taller',
-                m.estado_mantencion_id
+                em.nombre AS 'estado_mantencion'
             FROM mantencion m
             INNER JOIN maquina ma ON m.maquina_id = ma.id
             INNER JOIN personal p ON m.personal_id_responsable = p.id
             INNER JOIN taller t ON m.taller_id = t.id
+            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             WHERE m.isDeleted = 0
         `);
 
@@ -30,6 +31,47 @@ export const getMantencionesWithDetails = async (req, res) => {
         });
     }
 };
+
+import { pool } from "../db.js";
+
+// Obtener mantención por ID con detalles
+export const getMantencionById = async (req, res) => {
+    const { id } = req.params; // Obtener el ID de los parámetros de la ruta
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                m.id, 
+                m.bitacora_id, 
+                ma.patente AS 'patente',
+                p.rut AS 'personal_responsable',
+                m.compania_id, 
+                m.ord_trabajo, 
+                m.n_factura, 
+                m.cost_ser, 
+                t.nombre AS 'taller',
+                em.nombre AS 'estado_mantencion' 
+            FROM mantencion m
+            INNER JOIN maquina ma ON m.maquina_id = ma.id
+            INNER JOIN personal p ON m.personal_id_responsable = p.id
+            INNER JOIN taller t ON m.taller_id = t.id
+            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            WHERE m.isDeleted = 0 AND m.id = ? 
+        `, [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Mantención no encontrada" });
+        }
+
+        res.json(rows[0]); 
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 
 // Crear mantencion
 export const createMantencion = async (req, res) => {
@@ -103,6 +145,25 @@ export const createMantencion = async (req, res) => {
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message
+        });
+    }
+};
+
+// Eliminar mantencion (cambiar estado)
+export const deleteMantencion = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const [result] = await pool.query("UPDATE mantencion SET isDeleted = 1 WHERE id = ?", [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: "Mantencion no encontrada" 
+            });
+        }
+        res.sendStatus(204);
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message 
         });
     }
 };
@@ -233,6 +294,56 @@ export const updateMantencion = async (req, res) => {
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message
+        });
+    }
+};
+
+// -----Reportes
+export const getMantencionCostosByMes = async (req, res) => {
+    const { anio } = req.params;
+
+    // Validación del año
+    if (!/^\d{4}$/.test(anio)) {
+        return res.status(400).json({ message: "El año debe ser un número de 4 dígitos" });
+    }
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                MONTH(b.fecha) AS mes, 
+                SUM(m.cost_ser) AS costoTotal
+            FROM 
+                mantencion m
+            INNER JOIN 
+                bitacora b ON m.bitacora_id = b.id
+            WHERE 
+                YEAR(b.fecha) = ?
+            GROUP BY 
+                MONTH(b.fecha)
+            ORDER BY 
+                mes
+        `, [anio]);
+
+        // Formatear la respuesta
+        const result = {
+            anio: parseInt(anio),
+            meses: []
+        };
+
+        // Rellenar los meses con 0 si no hay datos
+        for (let i = 1; i <= 12; i++) {
+            const mesData = rows.find(row => row.mes === i) || { mes: i, costoTotal: 0 };
+            result.meses.push({
+                mes: mesData.mes,
+                costoTotal: mesData.costoTotal
+            });
+        }
+        
+        res.json(result);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message // Captura el mensaje de error
         });
     }
 };

@@ -28,7 +28,16 @@
 }
 ```
 
-# 4. clave
+# 4. estado_mantencion
+### "/api/estado_mantencion"
+```
+{
+    nombre: "Pendiente",
+    descripcion: "algo"
+}
+```
+
+# 5. clave
 ### "/api/clave"
 ```
 {
@@ -37,7 +46,7 @@
 }
 ```
 
-# 5. tipo_maquina
+# 6. tipo_maquina
 ### "/api/tipo_maquina"
 ```
 {
@@ -45,7 +54,7 @@
 }
 ```
 
-# 6. procedencia
+# 7. procedencia
 ### "/api/procedencia"
 ```
 {
@@ -53,7 +62,7 @@
 }
 ```
 
-# 7. maquina
+# 8. maquina
 ### "/api/maquina"
 ```
 {
@@ -77,7 +86,7 @@
 }
 ```
 
-# 8. taller
+# 9. taller
 ### "/api/taller"
 ```
 {
@@ -86,7 +95,7 @@
 }
 ```
 
-# 9. conductor_maquina
+# 10. conductor_maquina
 ### "/api/conductor_maquina"
 ```
 {
@@ -97,7 +106,7 @@
 }
 ```
 
-# 10. bitacora
+# 11. bitacora
 ### "/api/bitacora"
 ```
 {
@@ -118,7 +127,7 @@
 }
 ```
 
-# 11. mantencion
+# 12. mantencion
 ### "/api/mantencion"
 ```
 {
@@ -133,7 +142,7 @@
 }
 ```
 
-# 12. tipo_mantencion
+# 13. tipo_mantencion
 ### "/api/tipo_mantencion"
 ```
 {
@@ -141,7 +150,7 @@
 }
 ```
 
-# 13.1 usuario (register)
+# 14.1 usuario (register)
 ### "/api/usuario/register"
 ```
 {
@@ -152,7 +161,7 @@
 }
 ```
 
-# 13.1 usuario (login)
+# 14.1 usuario (login)
 ### "/api/usuario/login"
 ```
 {
@@ -161,7 +170,7 @@
 }
 ```
 
-# 14. division
+# 15. division
 ### "/api/division"
 ```
 {
@@ -169,7 +178,7 @@
 }
 ```
 
-# 15. subdivision
+# 16. subdivision
 ### "/api/subdivision"
 ```
 {
@@ -178,7 +187,7 @@
 }
 ```
 
-# 16. servicio
+# 17. servicio
 ### "/api/servicio"
 ```
 {

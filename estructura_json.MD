@@ -138,7 +138,8 @@
     "ord_trabajo": "OT-1234",
     "n_factura": "F-5678",
     "cost_ser": 1500,
-    "taller_id": 1
+    "taller_id": 1,
+    "estado_mantencion": 1
 }
 ```
 

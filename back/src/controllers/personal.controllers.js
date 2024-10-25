@@ -145,9 +145,9 @@ export const createPersonal = async (req, res) => {
             obs
         });
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: error.message
         });
     }
 };

@@ -7,7 +7,8 @@ export const getDivisiones = async (req, res) => {
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -33,7 +34,8 @@ export const getDivision = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -58,7 +60,8 @@ export const createDivision = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -84,7 +87,8 @@ export const deleteDivision = async (req, res) => {
         res.sendStatus(204);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -144,7 +148,8 @@ export const updateDivision = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

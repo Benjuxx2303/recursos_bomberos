@@ -142,8 +142,7 @@ export const createBitacora = async (req, res) => {
             obs: obsValue, // Se devuelve también en la respuesta
         });
     } catch (error) {
-        console.error('Error: ', error);
-        return res.status(500).json({ message: "Error interno del servidor" });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -159,12 +158,12 @@ export const deleteBitacora = async (req, res) => {
           [id]
       );
       if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "Bitácora no encontrada" });
+          return res.status(404).json({ message: "Bitácora no encontrada"});
       }
 
       res.status(204).end();
   } catch (error) {
-      return res.status(500).json({ message: "Error interno del servidor" });
+      return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -281,7 +280,7 @@ export const updateBitacora = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         console.error(error); // Opcional: para depurar el error
-        return res.status(500).json({ message: "Error interno del servidor" });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 

@@ -7,7 +7,7 @@ export const getUsuarios = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM usuario WHERE isDeleted = 0");
         res.json(rows);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -25,7 +25,7 @@ export const getUsuariosWithDetails = async (req, res) => {
         `);
         res.json(rows);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -40,7 +40,7 @@ export const getUsuarioById = async (req, res) => {
         }
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -55,7 +55,7 @@ export const deleteUsuario = async (req, res) => {
         }
         res.sendStatus(204);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -96,7 +96,7 @@ export const updateUsuario = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM usuario WHERE id = ?", [id]);
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -118,7 +118,7 @@ export const loginUser = async (req, res) => {
 
         res.status(200).json({ message: 'Inicio de sesión exitoso', userId: user.id, username: user.username });
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -147,6 +147,6 @@ export const registerUser = async (req, res) => {
             userId: result.insertId,
         });
     } catch (error) {
-        return res.status(500).json({ message: error.message || 'Error al registrar el usuario' });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };

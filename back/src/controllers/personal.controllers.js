@@ -10,7 +10,8 @@ export const getPersonal = async (req, res) => {
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -35,7 +36,8 @@ export const getPersonalWithDetails = async (req, res) => {
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -75,7 +77,8 @@ export const getPersonalbyID = async (req, res) => {
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 }
@@ -146,7 +149,7 @@ export const createPersonal = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({
-            message: 'Error interno del servidor',
+            message: "Error interno del servidor",
             error: error.message
         });
     }
@@ -318,7 +321,8 @@ export const updatePersonal = async (req, res) => {
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

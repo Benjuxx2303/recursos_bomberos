@@ -12,7 +12,8 @@ export const getSubdivisiones = async (req, res) => {
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -42,7 +43,8 @@ export const getSubdivision = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -74,7 +76,8 @@ export const createSubdivision = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -98,7 +101,8 @@ export const deleteSubdivision = async (req, res) => {
         res.sendStatus(204);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -164,7 +168,8 @@ export const updateSubdivision = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

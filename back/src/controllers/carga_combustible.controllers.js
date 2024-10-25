@@ -14,9 +14,9 @@ export const getCargasCombustible = async (req, res) => {
         const [rows] = await pool.query(query);
         res.json(rows);
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -49,9 +49,9 @@ export const getCargaCombustibleByID = async (req, res) => {
         }
         res.json(rows[0]);
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message,
         });
     }
 }
@@ -81,9 +81,9 @@ export const createCargaCombustible = async (req, res) => {
             valor_mon
         });
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: error.message
         });
     }
 };
@@ -108,9 +108,9 @@ export const downCargaCombustible = async (req, res) => {
         
         res.status(204).end();
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: error.message
         });
     }
 }
@@ -154,9 +154,9 @@ export const updateCargaCombustible = async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM carga_combustible WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: 'Error interno del servidor',
+            error: error.message
         });
     }
 };

@@ -7,7 +7,7 @@ export const getConductorMaquina = async (req, res) => {
     const [rows] = await pool.query("SELECT * FROM conductor_maquina WHERE isDeleted = 0");
     res.json(rows);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -31,7 +31,7 @@ export const getConductorMaquinaById = async (req, res) => {
     }
     res.json(rows[0]);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -90,8 +90,7 @@ export const createConductorMaquina = async (req, res) => {
       ven_licencia,
     });
   } catch (error) {
-    console.error('Error: ', error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -118,7 +117,7 @@ export const deleteConductorMaquina = async (req, res) => {
     }
     res.sendStatus(204);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -220,6 +219,6 @@ export const updateConductorMaquina = async (req, res) => {
     const [rows] = await pool.query("SELECT * FROM conductor_maquina WHERE id = ?", [idNumber]);
     res.json(rows[0]);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };

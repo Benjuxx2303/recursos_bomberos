@@ -6,9 +6,9 @@ export const getTiposMaquinas = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE isDeleted = 0");
         res.json(rows);
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -32,9 +32,9 @@ export const getTipoMaquinaById = async (req, res) => {
         }
         res.json(rows[0]);
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -56,9 +56,9 @@ export const createTipoMaquina = async (req, res) => {
             clasificacion
         });
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -84,9 +84,9 @@ export const deleteTipoMaquina = async (req, res) => {
         
         res.status(204).end();
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -147,9 +147,9 @@ export const updateTipoMaquina = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ?", [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        console.error('error: ', error);
         return res.status(500).json({
-            message: 'Error interno del servidor'
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

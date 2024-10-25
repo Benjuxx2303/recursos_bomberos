@@ -13,8 +13,9 @@ export const getTaller = async (req, res) => {
   } catch (error) {
     console.error('error: ', error);
     return res.status(500).json({
-      message: error.message,
-    });
+      message: "Error interno del servidor",
+      error: error.message
+  });
   }
 };
 
@@ -32,8 +33,9 @@ export const getTallerById = async (req, res) => {
   } catch (error) {
     console.error('error: ', error);
     return res.status(500).json({
-      message: error.message,
-    });
+      message: "Error interno del servidor",
+      error: error.message
+  });
   }
 };
 
@@ -63,8 +65,9 @@ export const createTaller = async (req, res) => {
   } catch (error) {
     console.error('error: ', error);
     return res.status(500).json({
-      message: 'Error interno del servidor',
-    });
+      message: "Error interno del servidor",
+      error: error.message
+  });
   }
 };
 
@@ -83,8 +86,9 @@ export const deleteTaller = async (req, res) => {
   } catch (error) {
     console.error('error: ', error);
     return res.status(500).json({
-      message: 'Error interno del servidor',
-    });
+      message: "Error interno del servidor",
+      error: error.message
+  });
   }
 };
 
@@ -158,7 +162,8 @@ export const updateTaller = async (req, res) => {
   } catch (error) {
     console.error('error: ', error);
     return res.status(500).json({
-      message: 'Error interno del servidor'
-    });
+      message: "Error interno del servidor",
+      error: error.message
+  });
   }
 };

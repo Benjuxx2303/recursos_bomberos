@@ -17,7 +17,8 @@ export const getDetallesMantencion = async (req, res) => {
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -52,7 +53,8 @@ export const getDetalleMantencion = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -83,7 +85,8 @@ export const createDetalleMantencion = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -107,7 +110,8 @@ export const deleteDetalleMantencion = async (req, res) => {
         res.sendStatus(204);
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -149,7 +153,8 @@ export const updateDetalleMantencion = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

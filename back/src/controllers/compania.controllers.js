@@ -6,7 +6,8 @@ export const getCompanias = async(req, res)=>{
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         })
     }
 };
@@ -31,7 +32,8 @@ export const getCompania = async(req, res)=>{
         res.json(rows[0])
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         })
     }
 }
@@ -53,7 +55,8 @@ export const createCompania = async(req, res) =>{
         });
     } catch (error){
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message
         })
     }
 }
@@ -78,7 +81,8 @@ export const deleteCompania = async(req, res) =>{
         res.sendStatus(204)
     } catch (error) {
         return res.status(500).json({
-            message: error
+            message: "Error interno del servidor",
+            error: error.message
         })
     }
 }
@@ -139,7 +143,8 @@ export const updateCompania = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error.message
+            message: "Error interno del servidor",
+            error: error.message,
         });
     }
 };

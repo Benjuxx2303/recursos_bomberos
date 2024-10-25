@@ -6,7 +6,7 @@ export const getMaquinas = async (req, res) => {
     const [rows] = await pool.query("SELECT * FROM maquina WHERE isDeleted = 0");
     res.json(rows);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -41,7 +41,7 @@ export const getMaquinasDetails = async (req, res) => {
     `);
     res.json(rows);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -79,7 +79,7 @@ export const getMaquinaById = async (req, res) => {
     if (rows.length <= 0) return res.status(404).json({ message: "Máquina no encontrada" });
     res.json(rows[0]);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -165,7 +165,7 @@ export const createMaquina = async (req, res) => {
 
     res.status(201).json({ id: rows.insertId, ...req.body });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -177,7 +177,7 @@ export const deleteMaquina = async (req, res) => {
     if (result.affectedRows === 0) return res.status(404).json({ message: "Máquina no encontrada" });
     res.status(204).end();
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -364,6 +364,6 @@ export const updateMaquina = async (req, res) => {
     res.json(rows[0]);
     // res.json({ message: "Máquina actualizada" });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };

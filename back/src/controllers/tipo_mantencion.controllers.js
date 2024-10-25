@@ -7,7 +7,8 @@ export const getTipoMantenciones = async (req, res) => {
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
-            message: error.message || "Error del servidor"
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -34,7 +35,8 @@ export const getTipoMantencionById = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({
-            message: error.message || "Error del servidor"
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -59,7 +61,8 @@ export const createTipoMantencion = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({
-            message: error.message || "Error del servidor"
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -86,7 +89,8 @@ export const deleteTipoMantencion = async (req, res) => {
         res.sendStatus(204);
     } catch (error) {
         return res.status(500).json({
-            message: error.message || "Error del servidor"
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };
@@ -137,7 +141,7 @@ export const updateTipoMantencion = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM tipo_mantencion WHERE id = ?", [id]);
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({ message: error.message || "Error del servidor" });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 

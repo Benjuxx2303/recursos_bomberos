@@ -32,8 +32,6 @@ export const getMantencionesWithDetails = async (req, res) => {
     }
 };
 
-import { pool } from "../db.js";
-
 // Obtener mantención por ID con detalles
 export const getMantencionById = async (req, res) => {
     const { id } = req.params; // Obtener el ID de los parámetros de la ruta

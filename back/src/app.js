@@ -1,6 +1,7 @@
 import express from "express";
 import morgan from "morgan";
 import cors from "cors";
+// import multer from 'multer';
 // TODO: import desde routes
 import indexRoutes from './routes/index.routes.js';
 
@@ -27,6 +28,15 @@ const app = express();
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(cors());
+
+// -----------
+// Configurar multer
+// const storage = multer.memoryStorage(); // Almacenar archivos en memoria (buffer)
+// const upload = multer({ storage });
+
+// export const uploadImage = upload.single('file'); // Cambia 'image' a 'file'
+
+// -----------
 
 const base_route = "/api/";
 

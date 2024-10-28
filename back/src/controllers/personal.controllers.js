@@ -1,4 +1,9 @@
 import { pool } from "../db.js";
+import {
+    uploadFileToS3,
+    updateImageUrlInDb,
+    handleError
+} from './fileUpload.js';
 
 // TODO: Validación de ruts
 
@@ -324,5 +329,35 @@ export const updatePersonal = async (req, res) => {
             message: "Error interno del servidor",
             error: error.message
         });
+    }
+};
+
+const value = "personal";
+const folder=value;
+const tableName=value;
+
+export const updateImage = async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    // console.log({
+    //     id: id,
+    //     file: file,
+    //     folder: folder,
+    //     tableName: tableName
+    // });
+
+
+    if (!file) {
+        return res.status(400).json({ message: "Falta el archivo." });
+    }
+
+    try {
+        const data = await uploadFileToS3(file, folder);
+        const newUrl = data.Location;
+        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
+        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+    } catch (error) {
+        handleError(res, error, "Error al actualizar la imagen");
     }
 };

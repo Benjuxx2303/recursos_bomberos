@@ -32,7 +32,8 @@ export const getMaquinasDetails = async (req, res) => {
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
         tm.clasificacion AS tipo_maquina,
         c.nombre AS compania,
-        p.nombre AS procedencia
+        p.nombre AS procedencia,
+        m.img_url AS img_url
       FROM maquina m
       INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
       INNER JOIN compania c ON m.compania_id = c.id
@@ -68,7 +69,8 @@ export const getMaquinaById = async (req, res) => {
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
         tm.clasificacion AS tipo_maquina,
         c.nombre AS compania,
-        p.nombre AS procedencia
+        p.nombre AS procedencia,
+        m.img_url AS img_url
       FROM maquina m
       INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
       INNER JOIN compania c ON m.compania_id = c.id
@@ -141,7 +143,7 @@ export const createMaquina = async (req, res) => {
 
     // Inserción en la base de datos
     const [rows] = await pool.query(
-      "INSERT INTO maquina (tipo_maquina_id, compania_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba, hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto, ven_seg_auto, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, STR_TO_DATE(?, '%d-%m-%Y'), 0)",
+      "INSERT INTO maquina (tipo_maquina_id, compania_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba, hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto, ven_seg_auto, isDeleted, img_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, STR_TO_DATE(?, '%d-%m-%Y'), 0, '')",
       [
         tipo_maquina_id,
         compania_id,
@@ -366,4 +368,34 @@ export const updateMaquina = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
+};
+
+const value = "maquina";
+const folder=value;
+const tableName=value;
+
+export const updateImage = async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    // console.log({
+    //     id: id,
+    //     file: file,
+    //     folder: folder,
+    //     tableName: tableName
+    // });
+
+
+    if (!file) {
+        return res.status(400).json({ message: "Falta el archivo." });
+    }
+
+    try {
+        const data = await uploadFileToS3(file, folder);
+        const newUrl = data.Location;
+        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
+        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+    } catch (error) {
+        handleError(res, error, "Error al actualizar la imagen");
+    }
 };

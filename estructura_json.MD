@@ -231,7 +231,7 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ```
 {
     "maquina_id": 1,
-    "litros": 50,
-    "valor_mon": 1000.00
+    "litros": 50.00,
+    "valor_mon": 1000
 }
 ```

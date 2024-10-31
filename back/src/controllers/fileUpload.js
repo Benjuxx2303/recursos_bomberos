@@ -3,7 +3,17 @@ import { Upload } from "@aws-sdk/lib-storage";
 import { S3 } from "@aws-sdk/client-s3";
 import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_BUCKET_NAME } from "../config.js";
 import { pool } from "../db.js";
-import { v4 as uuidv4 } from 'uuid';
+
+
+const now = new Date();
+const formattedDate = [
+  now.getFullYear(),
+  String(now.getMonth() + 1).padStart(2, '0'),
+  String(now.getDate()).padStart(2, '0'),
+  String(now.getHours()).padStart(2, '0'),
+  String(now.getMinutes()).padStart(2, '0'),
+  String(now.getSeconds()).padStart(2, '0')
+].join('');
 
 // S3 Configuration
 const s3 = new S3({
@@ -18,7 +28,7 @@ const s3 = new S3({
 export const uploadFileToS3 = async (file, folder) => {
     const params = {
         Bucket: AWS_BUCKET_NAME,
-        Key: `${folder}/${uuidv4()}-${file.originalname}`,
+        Key: `${folder}/${formattedDate}-${file.originalname}`,
         Body: file.buffer,
         ContentType: file.mimetype,
     };

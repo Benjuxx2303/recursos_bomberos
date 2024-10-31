@@ -113,7 +113,7 @@ export const createMantencion = async (req, res) => {
         }
 
         const [rows] = await pool.query(
-            "INSERT INTO mantencion (bitacora_id, maquina_id, personal_id_responsable, compania_id, ord_trabajo, n_factura, cost_ser, taller_id, estado_mantencion_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO mantencion (bitacora_id, maquina_id, personal_id_responsable, compania_id, ord_trabajo, n_factura, cost_ser, taller_id, estado_mantencion_id, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
             [
                 bitacora_id,
                 maquina_id,

@@ -82,7 +82,7 @@ export const createMantencion = async (req, res) => {
         n_factura,
         cost_ser,
         taller_id,
-        estado_mantencion_id, // Nueva columna
+        estado_mantencion_id,
     } = req.body;
 
     try {
@@ -112,6 +112,12 @@ export const createMantencion = async (req, res) => {
             return res.status(400).json({ message: "Estado de mantención no existe" });
         }
 
+        // Validación de existencia de compañia
+        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
+        if (companiaExists.length === 0) {
+            return res.status(400).json({ message: "Compañía no existe o está eliminada" });
+        }
+
         const [rows] = await pool.query(
             "INSERT INTO mantencion (bitacora_id, maquina_id, personal_id_responsable, compania_id, ord_trabajo, n_factura, cost_ser, taller_id, estado_mantencion_id, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
             [
@@ -123,7 +129,7 @@ export const createMantencion = async (req, res) => {
                 n_factura,
                 cost_ser,
                 taller_id,
-                estado_mantencion_id, // Nueva columna
+                estado_mantencion_id,
             ]
         );
 
@@ -137,15 +143,16 @@ export const createMantencion = async (req, res) => {
             n_factura,
             cost_ser,
             taller_id,
-            estado_mantencion_id, // Nueva columna
+            estado_mantencion_id,
         });
     } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",
-            error: error.message
+            error: error.message,
         });
     }
 };
+
 
 // Eliminar mantencion (cambiar estado)
 export const deleteMantencion = async (req, res) => {

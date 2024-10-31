@@ -33,6 +33,7 @@ app.use(cors());
 
 const base_route = "/api/";
 
+
 // TODO:  rutas de la api
 app.use(indexRoutes);
 app.use(base_route, rol_personalRoutes); 

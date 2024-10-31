@@ -9,7 +9,7 @@ import {
 } from "../controllers/carga_combustible.controllers.js";
 import multer from 'multer';
 
-// Configuración de multer
+// Configuración de multer 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 

@@ -9,6 +9,7 @@ import rol_personalRoutes from './routes/rol_personal.routes.js';
 import companiaRoutes from './routes/compania.routes.js';
 import personalRoutes from './routes/personal.routes.js';
 import claveRoutes from './routes/clave.routes.js';
+import estado_mantencionRoutes from './routes/estado_mantencion.routes.js';
 import tipo_maquinaRoutes from './routes/tipo_maquina.routes.js';
 import procedenciaRoutes from './routes/procedencia.routes.js';
 import maquinaRoutes from './routes/maquina.routes.js';
@@ -29,14 +30,6 @@ app.use(express.json());
 app.use(morgan('dev'));
 app.use(cors());
 
-// -----------
-// Configurar multer
-// const storage = multer.memoryStorage(); // Almacenar archivos en memoria (buffer)
-// const upload = multer({ storage });
-
-// export const uploadImage = upload.single('file'); // Cambia 'image' a 'file'
-
-// -----------
 
 const base_route = "/api/";
 
@@ -46,6 +39,7 @@ app.use(base_route, rol_personalRoutes);
 app.use(base_route, companiaRoutes); 
 app.use(base_route, personalRoutes);
 app.use(base_route, claveRoutes);
+app.use(base_route, estado_mantencionRoutes)
 app.use(base_route, tipo_maquinaRoutes);
 app.use(base_route, procedenciaRoutes);
 app.use(base_route, maquinaRoutes);
@@ -58,7 +52,7 @@ app.use(base_route, usuarioRoutes);
 app.use(base_route, divisionRoutes);
 app.use(base_route, subdivisionRoutes);
 app.use(base_route, servicioRoutes);
-app.use(base_route, detalle_mantencionRoutes); // revisar
+app.use(base_route, detalle_mantencionRoutes);
 app.use(base_route, carga_combustibleRoutes); // revisar
 
 // endpoint

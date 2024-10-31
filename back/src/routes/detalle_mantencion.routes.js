@@ -5,6 +5,7 @@ import {
     createDetalleMantencion,
     deleteDetalleMantencion,
     updateDetalleMantencion,
+    getDetalleMantencionByMantencionID // Importar la nueva función
 } from "../controllers/detalle_mantencion.controllers.js";
 
 const router = Router();
@@ -16,6 +17,9 @@ router.get(base_route, getDetallesMantencion);
 
 // Obtener detalle de mantención por ID
 router.get(`${base_route}/:id`, getDetalleMantencion);
+
+// Obtener detalles de mantención por ID de mantención
+router.get(`${base_route}/mantencion/:mantencion_id`, getDetalleMantencionByMantencionID); // Nueva ruta
 
 // Crear un nuevo detalle de mantención
 router.post(base_route, createDetalleMantencion);

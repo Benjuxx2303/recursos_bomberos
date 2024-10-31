@@ -53,7 +53,7 @@ app.use(base_route, divisionRoutes);
 app.use(base_route, subdivisionRoutes);
 app.use(base_route, servicioRoutes);
 app.use(base_route, detalle_mantencionRoutes);
-app.use(base_route, carga_combustibleRoutes); // revisar
+app.use(base_route, carga_combustibleRoutes);
 
 // endpoint
 app.use((req, res) =>{

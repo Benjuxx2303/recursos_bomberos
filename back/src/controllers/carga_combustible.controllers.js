@@ -1,10 +1,15 @@
 import { pool } from "../db.js";
+import {
+    uploadFileToS3,
+    updateImageUrlInDb,
+    handleError
+} from './fileUpload.js';
 
 // Obtener todas las cargas de combustible
 export const getCargasCombustible = async (req, res) => {
     try {
         const query = `
-            SELECT cc.id, cc.maquina_id, cc.litros, cc.valor_mon, cc.isDeleted,
+            SELECT cc.id, cc.maquina_id, cc.litros, cc.valor_mon, cc.img_url, cc.isDeleted,
                    m.codigo, m.patente
             FROM carga_combustible cc
             INNER JOIN maquina m ON cc.maquina_id = m.id
@@ -31,7 +36,7 @@ export const getCargaCombustibleByID = async (req, res) => {
         }
 
         const query = `
-            SELECT cc.id, cc.maquina_id, cc.litros, cc.valor_mon, cc.isDeleted,
+            SELECT cc.id, cc.maquina_id, cc.litros, cc.valor_mon, cc.img_url, cc.isDeleted,
                    m.codigo, m.patente
             FROM carga_combustible cc
             INNER JOIN maquina m ON cc.maquina_id = m.id
@@ -50,7 +55,7 @@ export const getCargaCombustibleByID = async (req, res) => {
 
 // Crear una nueva carga de combustible
 export const createCargaCombustible = async (req, res) => {
-    const { maquina_id, litros, valor_mon } = req.body;
+    const { maquina_id, litros, valor_mon, } = req.body;
 
     try {
         const maquinaIdNumber = parseInt(maquina_id);
@@ -149,5 +154,27 @@ export const updateCargaCombustible = async (req, res) => {
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    }
+};
+
+const value = "carga_combustible";
+const folder=value;
+const tableName=value;
+
+export const updateImage = async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+        return res.status(400).json({ message: "Falta el archivo." });
+    }
+
+    try {
+        const data = await uploadFileToS3(file, folder);
+        const newUrl = data.Location;
+        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
+        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+    } catch (error) {
+        handleError(res, error, "Error al actualizar la imagen");
     }
 };

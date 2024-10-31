@@ -128,19 +128,19 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/bitacora"
 ```
 {
-  "compania_id": 1,
+  "compania_id": 2,
   "conductor_id": 1,
   "direccion": "123 Calle Ejemplo",
-  "fecha": "2024-09-28",
+  "fecha": "28-10-2024",
   "h_salida": "08:00",
   "h_llegada": "12:00",
   "clave_id": 1,
-  "km_salida": 100,
-  "km_llegada": 150,
-  "hmetro_salida": "08:30",
-  "hmetro_llegada": "12:30",
-  "hbomba_salida": "09:00",
-  "hbomba_llegada": "13:00",
+  "km_salida": 100.5,
+  "km_llegada": 150.75,
+  "hmetro_salida": 8.5,
+  "hmetro_llegada": 12.5,
+  "hbomba_salida": 9.0,
+  "hbomba_llegada": 13.0,
   "obs": "Observaciones sobre el viaje"
 }
 ```
@@ -151,13 +151,13 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 {
     "bitacora_id": 1,
     "maquina_id": 1,
-    "personal_id_responsable": 1,
+    "personal_id_responsable": 6,
     "compania_id": 1,
-    "ord_trabajo": "OT-1234",
-    "n_factura": "F-5678",
-    "cost_ser": 1500,
-    "taller_id": 1,
-    "estado_mantencion": 1
+    "ord_trabajo": "OT-12345",
+    "n_factura": "F-98765",
+    "cost_ser": 1500.00,
+    "taller_id": 5,
+    "estado_mantencion_id": 1
 }
 ```
 
@@ -212,5 +212,26 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 {
     "subdivision_id": 1,
     "descripcion": "servicio 1"
+}
+```
+
+# 18. detalle_mantencion
+### "/api/detalle_mantencion"
+```
+{
+    "mantencion_id": 1,
+    "tipo_mantencion_id": 2,
+    "observacion": "Detalles de la mantención",
+    "servicio_id": 3
+}
+```
+
+# 19. carga_combustible
+### "/api/carga_combustible"
+```
+{
+    "maquina_id": 1,
+    "litros": 50.00,
+    "valor_mon": 1000
 }
 ```

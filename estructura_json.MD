@@ -27,6 +27,24 @@
     "fec_nac": "01-01-1990"
 }
 ```
+# 3.1. actualizar imagenes
+### Método PATCH
+### Endpoint: `/api/personal/:id/image`
+
+##### Descripción
+Actualiza la imagen asociada al personal especificado por el ID.
+
+##### Parámetros
+- **URL Params**
+  - `id`: ID del personal cuya imagen se desea actualizar (requerido).
+
+##### Body
+Se debe enviar un archivo en `form-data` con la clave `file`.
+
+###### Ejemplo de `form-data`
+| Clave | Tipo   | Descripción                |
+|-------|--------|----------------------------|
+| file  | archivo| Archivo de imagen a subir. |
 
 # 4. estado_mantencion
 ### "/api/estado_mantencion"

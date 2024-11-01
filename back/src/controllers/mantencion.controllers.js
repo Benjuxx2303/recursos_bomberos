@@ -305,10 +305,10 @@ export const updateMantencion = async (req, res) => {
 
 // -----Reportes
 export const getMantencionCostosByMes = async (req, res) => {
-    const { anio } = req.params;
+    const { year } = req.query;
 
     // Validación del año
-    if (!/^\d{4}$/.test(anio)) {
+    if (!/^\d{4}$/.test(year)) {
         return res.status(400).json({ message: "El año debe ser un número de 4 dígitos" });
     }
 
@@ -327,11 +327,11 @@ export const getMantencionCostosByMes = async (req, res) => {
                 MONTH(b.fecha)
             ORDER BY 
                 mes
-        `, [anio]);
+        `, [year]);
 
         // Formatear la respuesta
         const result = {
-            anio: parseInt(anio),
+            year: parseInt(year),
             meses: []
         };
 
@@ -352,3 +352,63 @@ export const getMantencionCostosByMes = async (req, res) => {
         });
     }
 };
+
+// Reporte de mantenciones 
+// getReporteMantencionesEstadoCosto
+export const getReporteMantencionesEstadoCosto = async (req, res) => {
+    const { startDate, endDate, companiaId } = req.query;
+  
+    // Validar fechas
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "Se requieren startDate y endDate en formato dd-mm-yyyy." });
+    }
+  
+    try {
+      // Comenzar a construir la consulta
+      let query = `
+        SELECT 
+          MONTH(b.fecha) AS month,
+          em.nombre AS estado_mantencion,
+          COUNT(m.id) AS count,
+          SUM(m.cost_ser) AS cost
+        FROM mantencion m
+        JOIN bitacora b ON m.bitacora_id = b.id
+        JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+        WHERE m.isDeleted = 0 
+          AND b.fecha BETWEEN STR_TO_DATE(?, '%d-%m-%Y') AND STR_TO_DATE(?, '%d-%m-%Y')
+      `;
+  
+      const params = [startDate, endDate];
+  
+      if (companiaId) {
+        query += " AND b.compania_id = ?";
+        params.push(companiaId);
+      }
+  
+      query += `
+        GROUP BY month, em.nombre
+        ORDER BY month
+      `;
+  
+      // Ejecutar la consulta con los parámetros
+      const [rows] = await pool.query(query, params);
+  
+      // Formatear la respuesta
+      const report = {};
+      rows.forEach(row => {
+        const monthName = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(new Date(0, row.month - 1));
+        if (!report[monthName]) {
+          report[monthName] = {};
+        }
+        report[monthName][row.estado_mantencion] = {
+          count: row.count,
+          cost: row.cost
+        };
+      });
+  
+      res.json(report);
+    } catch (error) {
+      return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    }
+  };
+  

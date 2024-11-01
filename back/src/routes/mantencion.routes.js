@@ -6,7 +6,8 @@ import {
   deleteMantencion,
   updateMantencion,
   // ---- reportes
-  getMantencionCostosByMes
+  getMantencionCostosByMes,
+  getReporteMantencionesEstadoCosto,
 } from "../controllers/mantencion.controllers.js";
 
 const router = Router();
@@ -24,7 +25,14 @@ router.patch(`${base_route}/:id`, updateMantencion);
 
 // ---- reportes
 
-router.get(`/reportes${base_route}/costos/:anio`, getMantencionCostosByMes)
+router.get(`/reportes${base_route}/costosPorAnio`, getMantencionCostosByMes)
 // ej: {url}/api/reportes/mantencion/costos/2024
+
+router.get(`/reportes${base_route}/datosMantencion`, getReporteMantencionesEstadoCosto);
+// http://{url}/api/reportes/mantencion/datosMantencion
+// QueryParams:
+// startDate:   01-01-2024
+// endDate:     01-01-2025
+// companiaId:  2
 
 export default router;

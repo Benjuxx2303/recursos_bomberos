@@ -25,7 +25,7 @@ router.post(base_route, createCargaCombustible);
 
 router.delete(`${base_route}/:id`, downCargaCombustible);
 
-router.put(`${base_route}/:id`, updateCargaCombustible);
+router.patch(`${base_route}/:id`, updateCargaCombustible);
 // Nueva ruta para actualizar la imagen
 router.patch(`${base_route}/:id/image`, upload.single('file'), updateImage); // Ruta para actualizar la imagen
 

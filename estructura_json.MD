@@ -232,7 +232,7 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/carga_combustible"
 ```
 {
-    "maquina_id": 1,
+    "bitacora_id": 1,
     "litros": 50.00,
     "valor_mon": 1000
 }

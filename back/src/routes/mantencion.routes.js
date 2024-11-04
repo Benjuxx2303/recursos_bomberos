@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {
-  getMantencionesWithDetails,
-  getMantencionById,
+  // getMantencionesWithDetails,
+  getMantencionesAllDetails,
+  getMantencionAllDetailsById,
   createMantencion,
   deleteMantencion,
   updateMantencion,
@@ -14,8 +15,9 @@ const router = Router();
 
 const base_route = "/mantencion"; 
 
-router.get(base_route, getMantencionesWithDetails);
-router.get(`${base_route}/:id`, getMantencionById);
+// router.get(base_route, getMantencionesWithDetails);
+router.get(base_route, getMantencionesAllDetails);
+router.get(`${base_route}/:id`, getMantencionAllDetailsById);
 
 router.post(base_route, createMantencion);
 

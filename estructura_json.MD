@@ -126,22 +126,24 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 
 # 11. bitacora
 ### "/api/bitacora"
+- Se separaron los campos para fecha y hora. Pero al ingresar los datos, se mostrará como un solo campo.
 ```
 {
-  "compania_id": 2,
-  "conductor_id": 1,
-  "direccion": "123 Calle Ejemplo",
-  "fecha": "28-10-2024",
-  "h_salida": "08:00",
-  "h_llegada": "12:00",
-  "clave_id": 1,
-  "km_salida": 100.5,
-  "km_llegada": 150.75,
-  "hmetro_salida": 8.5,
-  "hmetro_llegada": 12.5,
-  "hbomba_salida": 9.0,
-  "hbomba_llegada": 13.0,
-  "obs": "Observaciones sobre el viaje"
+    "compania_id": 2,
+    "conductor_id": 1,
+    "direccion": "123 Calle Ejemplo",
+    "f_salida": "04-11-2024",
+    "h_salida": "08:50",
+    "f_llegada": "10-11-2024",
+    "h_llegada": "10:50",
+    "clave_id": 1,
+    "km_salida": 50.5,
+    "km_llegada": 75.0,
+    "hmetro_salida": 30.0,
+    "hmetro_llegada": 45.0,
+    "hbomba_salida": 15.0,
+    "hbomba_llegada": 20.0,
+    "obs": "Observaciones opcionales"
 }
 ```
 

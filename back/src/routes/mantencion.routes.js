@@ -28,7 +28,9 @@ router.patch(`${base_route}/:id`, updateMantencion);
 // ---- reportes
 
 router.get(`/reportes${base_route}/costos`, getMantencionCostosByAnio)
-// ej: {url}/api/reportes/mantencion/costos/2024
+// ej: {url}/api/reportes/mantencion/costos
+// QueryParams:
+// year:   2024
 
 router.get(`/reportes${base_route}/datosMantencion`, getReporteMantencionesEstadoCosto);
 // http://{url}/api/reportes/mantencion/datosMantencion

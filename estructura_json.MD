@@ -131,6 +131,7 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 {
     "compania_id": 2,
     "conductor_id": 1,
+    "maquina_id": 1,
     "direccion": "123 Calle Ejemplo",
     "f_salida": "04-11-2024",
     "h_salida": "08:50",

@@ -50,8 +50,8 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/estado_mantencion"
 ```
 {
-    nombre: "Pendiente",
-    descripcion: "algo"
+    "nombre": "Pendiente",
+    "descripcion": "algo"
 }
 ```
 

@@ -117,6 +117,17 @@ export const createPersonal = async (req, res) => {
                 message: 'Tipo de datos inválido'
             });
         }
+        
+        // Validación de existencia de llaves foráneas
+        const [rolPersonalExists] = await pool.query("SELECT 1 FROM rol_personal WHERE id = ? AND isDeleted = 0", [rolPersonalIdNumber]);
+        if (rolPersonalExists.length === 0) {
+            return res.status(400).json({ message: "rol_personal no existe o está eliminado" });
+        }
+        
+        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
+        if (companiaExists.length === 0) {
+            return res.status(400).json({ message: "compañia no existe o está eliminada" });
+        }
 
         // Validación de fecha
         const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
@@ -219,6 +230,11 @@ export const updatePersonal = async (req, res) => {
                 });
             }
             updates.rol_personal_id = rolPersonalIdNumber;
+
+            const [rolPersonalExists] = await pool.query("SELECT 1 FROM rol_personal WHERE id = ? AND isDeleted = 0", [rolPersonalIdNumber]);
+            if (rolPersonalExists.length === 0) {
+                return res.status(400).json({ message: "rol_personal no existe o está eliminado" });
+            }
         }
 
         if (rut !== undefined) {
@@ -256,6 +272,11 @@ export const updatePersonal = async (req, res) => {
                 });
             }
             updates.compania_id = companiaIdNumber;
+
+            const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
+            if (companiaExists.length === 0) {
+                return res.status(400).json({ message: "compañia no existe o está eliminada" });
+            }
         }
 
         if (fec_nac !== undefined) {

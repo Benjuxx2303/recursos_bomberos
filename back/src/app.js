@@ -1,7 +1,6 @@
 import express from "express";
 import morgan from "morgan";
 import cors from "cors";
-// import multer from 'multer';
 // TODO: import desde routes
 import indexRoutes from './routes/index.routes.js';
 

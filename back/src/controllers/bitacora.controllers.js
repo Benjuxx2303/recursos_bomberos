@@ -1,11 +1,5 @@
 import { pool } from "../db.js";
 
-// Función para validar si la hora es válida
-const isValidTime = (time) => {
-    const timeRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
-    return timeRegex.test(time);
-};
-
 export const getBitacora = async (req, res) => {
     try {
         const [rows] = await pool.query(
@@ -30,7 +24,7 @@ export const getBitacora = async (req, res) => {
              INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
              INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
              INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
-             INNER JOIN maquina m ON cm.maquina_id = m.id AND m.isDeleted = 0
+             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
              INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
              WHERE b.isDeleted = 0`
         );
@@ -40,9 +34,10 @@ export const getBitacora = async (req, res) => {
     }
 };
 
+
 // Obtener bitácora por ID
 export const getBitacoraById = async (req, res) => {
-    const { id } = req.params; // Obtener el id de los parámetros de la solicitud
+    const { id } = req.params;
     try {
         const [rows] = await pool.query(
             `SELECT b.id, 
@@ -66,21 +61,22 @@ export const getBitacoraById = async (req, res) => {
              INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
              INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
              INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
-             INNER JOIN maquina m ON cm.maquina_id = m.id AND m.isDeleted = 0
+             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
              INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
-             WHERE b.isDeleted = 0 AND b.id = ?`, // Filtrar por id
-            [id] // Pasar el id como parámetro
+             WHERE b.isDeleted = 0 AND b.id = ?`,
+            [id]
         );
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Registro no encontrado' });
         }
 
-        res.json(rows[0]); // Retornar el registro encontrado
+        res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }
 };
+
 
 
 // Crear una nueva bitácora
@@ -88,6 +84,7 @@ export const createBitacora = async (req, res) => {
     const {
         compania_id,
         conductor_id,
+        maquina_id,
         direccion,
         f_salida,
         h_salida,
@@ -105,17 +102,19 @@ export const createBitacora = async (req, res) => {
 
     try {
         // Concatenar fecha y hora para formatear como datetime
-        const fh_salida = `${f_salida} ${h_salida}`;  // "dd-mm-yyyy hh:mm"
-        const fh_llegada = `${f_llegada} ${h_llegada}`; // "dd-mm-yyyy hh:mm"
+        const fh_salida = `${f_salida} ${h_salida}`;
+        const fh_llegada = `${f_llegada} ${h_llegada}`;
 
         // Validación de datos
         const companiaIdNumber = parseInt(compania_id);
         const conductorIdNumber = parseInt(conductor_id);
+        const maquinaIdNumber = parseInt(maquina_id);
         const claveIdNumber = parseInt(clave_id);
 
         if (
             isNaN(companiaIdNumber) ||
             isNaN(conductorIdNumber) ||
+            isNaN(maquinaIdNumber) ||
             isNaN(claveIdNumber) ||
             typeof direccion !== 'string'
         ) {
@@ -133,6 +132,11 @@ export const createBitacora = async (req, res) => {
             return res.status(400).json({ message: "Conductor no existe o está eliminado" });
         }
 
+        const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
+        if (maquinaExists.length === 0) {
+            return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+        }
+
         const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
         if (claveExists.length === 0) {
             return res.status(400).json({ message: "Clave no existe o está eliminada" });
@@ -140,7 +144,7 @@ export const createBitacora = async (req, res) => {
 
         // Validación de fecha
         const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-        const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/; // Formato HH:mm
+        const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
 
         if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
             return res.status(400).json({
@@ -159,13 +163,14 @@ export const createBitacora = async (req, res) => {
 
         // Inserción en la base de datos
         const [rows] = await pool.query(
-            'INSERT INTO bitacora (compania_id, conductor_id, direccion, fh_salida, fh_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)',
+            'INSERT INTO bitacora (compania_id, conductor_id, maquina_id, direccion, fh_salida, fh_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)',
             [
                 companiaIdNumber,
                 conductorIdNumber,
+                maquinaIdNumber,
                 direccion,
-                fh_salida, // Fecha y hora de salida
-                fh_llegada, // Fecha y hora de llegada
+                fh_salida,
+                fh_llegada,
                 claveIdNumber,
                 km_salida,
                 km_llegada,
@@ -173,32 +178,33 @@ export const createBitacora = async (req, res) => {
                 hmetro_llegada,
                 hbomba_salida,
                 hbomba_llegada,
-                obsValue, // Observaciones
+                obsValue
             ]
         );
 
         res.status(201).json({
             id: rows.insertId,
-            compania_id: companiaIdNumber,
-            conductor_id: conductorIdNumber,
+            companiaIdNumber,
+            conductorIdNumber,
+            maquinaIdNumber,
             direccion,
-            f_salida,
-            h_salida,
-            f_llegada,
-            h_llegada,
-            clave_id: claveIdNumber,
+            fh_salida,
+            fh_llegada,
+            claveIdNumber,
             km_salida,
             km_llegada,
             hmetro_salida,
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obs: obsValue, // Se devuelve también en la respuesta
+            obsValue
         });
     } catch (error) {
-        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+        console.error(error);
+        return res.status(500).json({ message: 'Error en la creación de la bitácora' });
     }
 };
+
 
 // Dar de baja (marcar como inactivo)
 export const deleteBitacora = async (req, res) => {
@@ -224,6 +230,7 @@ export const updateBitacora = async (req, res) => {
     const {
         compania_id,
         conductor_id,
+        maquina_id,
         clave_id,
         direccion,
         f_salida,
@@ -283,7 +290,7 @@ export const updateBitacora = async (req, res) => {
             values.push(fh_llegada);
         }
 
-        // Validaciones y actualizaciones para los demás campos
+        // Validaciones y actualizaciones para los demás campos numéricos
         const floatFields = ['km_salida', 'km_llegada', 'hmetro_salida', 'hmetro_llegada', 'hbomba_salida', 'hbomba_llegada'];
         for (const field of floatFields) {
             if (req.body[field] !== undefined) {
@@ -313,6 +320,15 @@ export const updateBitacora = async (req, res) => {
             }
             updates.push("conductor_id = ?");
             values.push(conductor_id);
+        }
+
+        if (maquina_id !== undefined) {
+            const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
+            if (maquinaExists.length === 0) {
+                return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+            }
+            updates.push("maquina_id = ?");
+            values.push(maquina_id);
         }
 
         if (clave_id !== undefined) {

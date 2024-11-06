@@ -377,7 +377,7 @@ export const updateMantencion = async (req, res) => {
 
 
 
-// -----Reportes
+// -----------------------------------Reportes
 export const getMantencionCostosByAnio = async (req, res) => {
     const { year } = req.query;
 

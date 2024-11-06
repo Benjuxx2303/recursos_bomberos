@@ -7,7 +7,7 @@ import {
   deleteMantencion,
   updateMantencion,
   // ---- reportes
-  getMantencionCostosByMes,
+  getMantencionCostosByAnio,
   getReporteMantencionesEstadoCosto,
 } from "../controllers/mantencion.controllers.js";
 
@@ -27,7 +27,7 @@ router.patch(`${base_route}/:id`, updateMantencion);
 
 // ---- reportes
 
-router.get(`/reportes${base_route}/costosPorAnio`, getMantencionCostosByMes)
+router.get(`/reportes${base_route}/costos`, getMantencionCostosByAnio)
 // ej: {url}/api/reportes/mantencion/costos/2024
 
 router.get(`/reportes${base_route}/datosMantencion`, getReporteMantencionesEstadoCosto);

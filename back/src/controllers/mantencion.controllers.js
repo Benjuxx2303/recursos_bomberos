@@ -1,38 +1,5 @@
 import { pool } from "../db.js";
 
-// Obtener mantenciones con detalles
-export const getMantencionesWithDetails = async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT
-                m.id, 
-                m.bitacora_id, 
-                ma.patente AS 'patente',
-                p.rut AS 'personal_responsable',
-                m.fec_termino AS 'fec_termino',
-                m.compania_id, 
-                m.ord_trabajo, 
-                m.n_factura, 
-                m.cost_ser, 
-                t.nombre AS 'taller',
-                em.nombre AS 'estado_mantencion'
-            FROM mantencion m
-            INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN personal p ON m.personal_id_responsable = p.id
-            INNER JOIN taller t ON m.taller_id = t.id
-            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-            WHERE m.isDeleted = 0
-        `);
-
-        res.json(rows);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
 export const getMantencionesAllDetails = async (req, res) => {
     try {
         const [rows] = await pool.query(`
@@ -52,9 +19,7 @@ export const getMantencionesAllDetails = async (req, res) => {
                 b.hbomba_llegada AS 'bitacora.hbomba_llegada',
                 b.obs AS 'bitacora.obs',
                 ma.patente AS 'patente',
-                p2.rut AS 'personal_responsable',
-                DATE_FORMAT(m.fec_termino, '%d-%m-%Y %H:%i') AS 'fec_termino',
-                m.compania_id,
+                DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
                 m.cost_ser,
@@ -62,11 +27,10 @@ export const getMantencionesAllDetails = async (req, res) => {
                 em.nombre AS 'estado_mantencion'
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
-            INNER JOIN compania c ON b.compania_id = c.id -- Join con compañia
+            INNER JOIN compania c ON b.compania_id = c.id
             INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id -- Join con conductor_maquina
-            INNER JOIN personal p ON cm.personal_id = p.id -- Join con personal
-            INNER JOIN personal p2 ON m.personal_id_responsable = p2.id -- Join con responsable
+            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id
+            INNER JOIN personal p ON cm.personal_id = p.id
             INNER JOIN taller t ON m.taller_id = t.id
             INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             WHERE m.isDeleted = 0 AND b.isDeleted = 0
@@ -90,9 +54,7 @@ export const getMantencionesAllDetails = async (req, res) => {
                 obs: row['bitacora.obs'],
             },
             patente: row.patente,
-            personal_responsable: row.personal_responsable,
             fec_termino: row.fec_termino,
-            compania_id: row.compania_id,
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
             cost_ser: row.cost_ser,
@@ -130,9 +92,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 b.hbomba_llegada AS 'bitacora.hbomba_llegada',
                 b.obs AS 'bitacora.obs',
                 ma.patente AS 'patente',
-                p2.rut AS 'personal_responsable',
-                DATE_FORMAT(m.fec_termino, '%d-%m-%Y %H:%i') AS 'fec_termino',
-                m.compania_id,
+                DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
                 m.cost_ser,
@@ -140,11 +100,10 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 em.nombre AS 'estado_mantencion'
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
-            INNER JOIN compania c ON b.compania_id = c.id -- Join con compañia
+            INNER JOIN compania c ON b.compania_id = c.id
             INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id -- Join con conductor_maquina
-            INNER JOIN personal p ON cm.personal_id = p.id -- Join con personal
-            INNER JOIN personal p2 ON m.personal_id_responsable = p2.id -- Join con responsable
+            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id
+            INNER JOIN personal p ON cm.personal_id = p.id
             INNER JOIN taller t ON m.taller_id = t.id
             INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             WHERE m.isDeleted = 0 AND b.isDeleted = 0 AND m.id = ?
@@ -172,9 +131,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 obs: row['bitacora.obs'],
             },
             patente: row.patente,
-            personal_responsable: row.personal_responsable,
             fec_termino: row.fec_termino,
-            compania_id: row.compania_id,
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
             cost_ser: row.cost_ser,
@@ -191,55 +148,11 @@ export const getMantencionAllDetailsById = async (req, res) => {
     }
 };
 
-
-
-// Obtener mantención por ID con detalles
-export const getMantencionById = async (req, res) => {
-    const { id } = req.params; // Obtener el ID de los parámetros de la ruta
-
-    try {
-        const [rows] = await pool.query(`
-            SELECT
-                m.id, 
-                m.bitacora_id, 
-                ma.patente AS 'patente',
-                p.rut AS 'personal_responsable',
-                m.fec_termino AS 'fec_termino',
-                m.compania_id, 
-                m.ord_trabajo, 
-                m.n_factura, 
-                m.cost_ser, 
-                t.nombre AS 'taller',
-                em.nombre AS 'estado_mantencion' 
-            FROM mantencion m
-            INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN personal p ON m.personal_id_responsable = p.id
-            INNER JOIN taller t ON m.taller_id = t.id
-            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-            WHERE m.isDeleted = 0 AND m.id = ? 
-        `, [id]);
-
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "Mantención no encontrada" });
-        }
-
-        res.json(rows[0]); 
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
-
 // Crear mantencion
 export const createMantencion = async (req, res) => {
     const {
         bitacora_id,
         maquina_id,
-        personal_id_responsable,
-        compania_id,
         ord_trabajo,
         n_factura,
         cost_ser,
@@ -259,12 +172,7 @@ export const createMantencion = async (req, res) => {
         if (maquinaExists.length === 0) {
             return res.status(400).json({ message: "Máquina no existe o está eliminada" });
         }
-        
-        const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id_responsable]);
-        if (personalExists.length === 0) {
-            return res.status(400).json({ message: "Personal no existe o está eliminado" });
-        }
-        
+
         const [tallerExists] = await pool.query("SELECT 1 FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
         if (tallerExists.length === 0) {
             return res.status(400).json({ message: "Taller no existe o está eliminado" });
@@ -273,12 +181,6 @@ export const createMantencion = async (req, res) => {
         const [estadoExists] = await pool.query("SELECT 1 FROM estado_mantencion WHERE id = ?", [estado_mantencion_id]);
         if (estadoExists.length === 0) {
             return res.status(400).json({ message: "Estado de mantención no existe" });
-        }
-
-        // Validación de existencia de compañía
-        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-        if (companiaExists.length === 0) {
-            return res.status(400).json({ message: "Compañía no existe o está eliminada" });
         }
 
         // Validar y formatear fec_termino si está presente
@@ -297,12 +199,10 @@ export const createMantencion = async (req, res) => {
         }
 
         const [rows] = await pool.query(
-            "INSERT INTO mantencion (bitacora_id, maquina_id, personal_id_responsable, compania_id, ord_trabajo, n_factura, cost_ser, taller_id, estado_mantencion_id, fec_termino, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+            'INSERT INTO mantencion (bitacora_id, maquina_id, ord_trabajo, n_factura, cost_ser, taller_id, estado_mantencion_id, fec_termino, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, IFNULL(STR_TO_DATE(?, "%d-%m-%Y"), NULL), 0)',
             [
                 bitacora_id,
                 maquina_id,
-                personal_id_responsable,
-                compania_id,
                 ord_trabajo,
                 n_factura,
                 cost_ser,
@@ -316,8 +216,6 @@ export const createMantencion = async (req, res) => {
             id: rows.insertId,
             bitacora_id,
             maquina_id,
-            personal_id_responsable,
-            compania_id,
             ord_trabajo,
             n_factura,
             cost_ser,
@@ -359,8 +257,6 @@ export const updateMantencion = async (req, res) => {
     const {
         bitacora_id,
         maquina_id,
-        personal_id_responsable,
-        compania_id,
         ord_trabajo,
         n_factura,
         cost_ser,
@@ -389,22 +285,6 @@ export const updateMantencion = async (req, res) => {
                 return res.status(400).json({ message: "Máquina no existe o está eliminada" });
             }
             updates.maquina_id = maquina_id;
-        }
-
-        if (personal_id_responsable !== undefined) {
-            const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id_responsable]);
-            if (personalExists.length === 0) {
-                return res.status(400).json({ message: "Personal no existe o está eliminado" });
-            }
-            updates.personal_id_responsable = personal_id_responsable;
-        }
-
-        if (compania_id !== undefined) {
-            const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-            if (companiaExists.length === 0) {
-                return res.status(400).json({ message: "Compañía no existe o está eliminada" });
-            }
-            updates.compania_id = compania_id;
         }
 
         if (taller_id !== undefined) {
@@ -498,7 +378,7 @@ export const updateMantencion = async (req, res) => {
 
 
 // -----Reportes
-export const getMantencionCostosByMes = async (req, res) => {
+export const getMantencionCostosByAnio = async (req, res) => {
     const { year } = req.query;
 
     // Validación del año
@@ -509,16 +389,17 @@ export const getMantencionCostosByMes = async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
-                MONTH(b.fecha) AS mes, 
-                SUM(m.cost_ser) AS costoTotal
+                MONTH(b.fh_salida) AS mes, 
+                SUM(m.cost_ser) AS costoTotal,
+                COUNT(m.id) AS totalMantenciones
             FROM 
                 mantencion m
             INNER JOIN 
                 bitacora b ON m.bitacora_id = b.id
             WHERE 
-                YEAR(b.fecha) = ?
+                YEAR(b.fh_salida) = ?
             GROUP BY 
-                MONTH(b.fecha)
+                MONTH(b.fh_salida)
             ORDER BY 
                 mes
         `, [year]);
@@ -531,10 +412,11 @@ export const getMantencionCostosByMes = async (req, res) => {
 
         // Rellenar los meses con 0 si no hay datos
         for (let i = 1; i <= 12; i++) {
-            const mesData = rows.find(row => row.mes === i) || { mes: i, costoTotal: 0 };
+            const mesData = rows.find(row => row.mes === i) || { mes: i, costoTotal: 0, totalMantenciones: 0 };
             result.meses.push({
                 mes: mesData.mes,
-                costoTotal: mesData.costoTotal
+                costoTotal: mesData.costoTotal,
+                totalMantenciones: mesData.totalMantenciones
             });
         }
         
@@ -547,7 +429,7 @@ export const getMantencionCostosByMes = async (req, res) => {
     }
 };
 
-// Reporte de mantenciones 
+
 // getReporteMantencionesEstadoCosto
 export const getReporteMantencionesEstadoCosto = async (req, res) => {
     const { startDate, endDate, companiaId } = req.query;
@@ -561,7 +443,8 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
       // Comenzar a construir la consulta
       let query = `
         SELECT 
-          MONTH(b.fecha) AS month,
+          YEAR(b.fh_llegada) AS year,          -- Obtener el año de la fecha de llegada
+          MONTH(b.fh_llegada) AS month,        -- Obtener el mes de la fecha de llegada
           em.nombre AS estado_mantencion,
           COUNT(m.id) AS count,
           SUM(m.cost_ser) AS cost
@@ -569,19 +452,19 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
         JOIN bitacora b ON m.bitacora_id = b.id
         JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
         WHERE m.isDeleted = 0 
-          AND b.fecha BETWEEN STR_TO_DATE(?, '%d-%m-%Y') AND STR_TO_DATE(?, '%d-%m-%Y')
+          AND b.fh_llegada BETWEEN STR_TO_DATE(?, '%d-%m-%Y') AND STR_TO_DATE(?, '%d-%m-%Y')
       `;
   
       const params = [startDate, endDate];
   
       if (companiaId) {
-        query += " AND b.compania_id = ?";
+        query += " AND b.compania_id = ?";   // Filtro por compania_id
         params.push(companiaId);
       }
   
       query += `
-        GROUP BY month, em.nombre
-        ORDER BY month
+        GROUP BY year, month, em.nombre
+        ORDER BY year, month
       `;
   
       // Ejecutar la consulta con los parámetros
@@ -590,11 +473,17 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
       // Formatear la respuesta
       const report = {};
       rows.forEach(row => {
-        const monthName = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(new Date(0, row.month - 1));
-        if (!report[monthName]) {
-          report[monthName] = {};
+        // Formatear el mes con el año (por ejemplo: nov-2024)
+        const monthName = new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(new Date(row.year, row.month - 1));
+        const monthYear = `${monthName}-${row.year}`;
+        
+        // Si no existe la clave para ese mes/año, crearla
+        if (!report[monthYear]) {
+          report[monthYear] = {};
         }
-        report[monthName][row.estado_mantencion] = {
+
+        // Agregar el estado de mantenimiento y sus valores
+        report[monthYear][row.estado_mantencion] = {
           count: row.count,
           cost: row.cost
         };
@@ -605,3 +494,4 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
       return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
+

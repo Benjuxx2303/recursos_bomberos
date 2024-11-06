@@ -153,13 +153,11 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 {
     "bitacora_id": 1,
     "maquina_id": 1,
-    "personal_id_responsable": 6,
-    "compania_id": 2,
     "ord_trabajo": "OT-12345",
     "n_factura": 123456,
     "cost_ser": 1500.00,
     "taller_id": 1,
-    "estado_mantencion_id": 1
+    "estado_mantencion_id": 3
 }
 ```
 

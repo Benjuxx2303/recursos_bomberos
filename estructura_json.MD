@@ -152,13 +152,30 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/mantencion"
 ```
 {
-    "bitacora_id": 1,
+    "bitacora": {
+        "compania_id": 2,
+        "conductor_id": 1,
+        "direccion": "Dirección de destino",
+        "f_salida": "01-01-2024",
+        "h_salida": "08:30",
+        "f_llegada": "01-01-2024",
+        "h_llegada": "12:45",
+        "clave_id": 3,
+        "km_salida": 1500,
+        "km_llegada": 1600,
+        "hmetro_salida": 120.5,
+        "hmetro_llegada": 130.7,
+        "hbomba_salida": 50,
+        "hbomba_llegada": 55.8,
+        "obs": "Observaciones adicionales si hay alguna"
+    },
     "maquina_id": 1,
-    "ord_trabajo": "OT-12345",
-    "n_factura": 123456,
-    "cost_ser": 1500.00,
+    "ord_trabajo": "OT12345",
+    "n_factura": 45678,
+    "cost_ser": 50000,
     "taller_id": 1,
-    "estado_mantencion_id": 3
+    "estado_mantencion_id": 6,
+    "fec_termino": "02-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
 }
 ```
 
@@ -231,7 +248,24 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/carga_combustible"
 ```
 {
-    "bitacora_id": 1,
+    "bitacora": {
+        "compania_id": 2,
+        "conductor_id": 1,
+        "maquina_id": 1,
+        "direccion": "123 Calle Ejemplo",
+        "f_salida": "04-11-2024",  
+        "h_salida": "08:50",        
+        "f_llegada": "10-11-2024",  
+        "h_llegada": "10:50",       
+        "clave_id": 1,
+        "km_salida": 50,
+        "km_llegada": 75.0,
+        "hmetro_salida": 30.0,
+        "hmetro_llegada": 45.0,
+        "hbomba_salida": 15.0,
+        "hbomba_llegada": 20.1,
+        "obs": "Observaciones opcionales"
+    },
     "litros": 50.00,
     "valor_mon": 1000
 }

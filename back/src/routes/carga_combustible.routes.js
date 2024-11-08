@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
     getCargasCombustible,
     getCargaCombustibleByID,
-    createCargaCombustible,
+    // createCargaCombustible,
+    createCargaCombustibleBitacora,
     downCargaCombustible,
     updateCargaCombustible,
     updateImage,
@@ -21,7 +22,8 @@ router.get(base_route, getCargasCombustible);
 
 router.get(`${base_route}/:id`, getCargaCombustibleByID);
 
-router.post(base_route, createCargaCombustible);
+// router.post(base_route, createCargaCombustible);
+router.post(base_route, createCargaCombustibleBitacora);
 
 router.delete(`${base_route}/:id`, downCargaCombustible);
 

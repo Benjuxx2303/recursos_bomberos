@@ -136,6 +136,163 @@ export const createCargaCombustible = async (req, res) => {
     }
 };
 
+export const createCargaCombustibleBitacora = async (req, res) => {
+    const { bitacora, litros, valor_mon } = req.body;
+
+    // Validar que los datos principales estén presentes
+    if (!bitacora || typeof litros !== 'number' || typeof valor_mon !== 'number') {
+        return res.status(400).json({ message: 'Datos incompletos o inválidos' });
+    }
+
+    // Extraer y validar los datos de la bitácora
+    const {
+        compania_id,
+        conductor_id,
+        maquina_id,
+        direccion,
+        f_salida,
+        h_salida,
+        f_llegada,
+        h_llegada,
+        clave_id,
+        km_salida,
+        km_llegada,
+        hmetro_salida,
+        hmetro_llegada,
+        hbomba_salida,
+        hbomba_llegada,
+        obs
+    } = bitacora;
+
+    try {
+        // Concatenar fecha y hora para el formato datetime
+        const fh_salida = `${f_salida} ${h_salida}`;
+        const fh_llegada = `${f_llegada} ${h_llegada}`;
+
+        // Convertir los IDs a números y validar
+        const companiaIdNumber = parseInt(compania_id);
+        const conductorIdNumber = parseInt(conductor_id);
+        const maquinaIdNumber = parseInt(maquina_id);
+        const claveIdNumber = parseInt(clave_id);
+
+        if (
+            isNaN(companiaIdNumber) ||
+            isNaN(conductorIdNumber) ||
+            isNaN(maquinaIdNumber) ||
+            isNaN(claveIdNumber) ||
+            typeof direccion !== 'string'
+        ) {
+            return res.status(400).json({ message: 'Tipo de datos inválido en bitácora' });
+        }
+
+        // Validar formato de fecha y hora
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+        const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+
+        if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
+            return res.status(400).json({
+                message: 'Formato de fecha o hora de salida inválido. Deben ser dd-mm-aaaa y HH:mm'
+            });
+        }
+
+        if (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada)) {
+            return res.status(400).json({
+                message: 'Formato de fecha o hora de llegada inválido. Deben ser dd-mm-aaaa y HH:mm'
+            });
+        }
+
+        // Validar la existencia de las llaves foráneas
+        const [companiaExists] = await pool.query(
+            "SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0",
+            [companiaIdNumber]
+        );
+        if (companiaExists.length === 0) {
+            return res.status(400).json({ message: "Compañía no existe o está eliminada" });
+        }
+
+        const [conductorExists] = await pool.query(
+            "SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0",
+            [conductorIdNumber]
+        );
+        if (conductorExists.length === 0) {
+            return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+        }
+
+        const [maquinaExists] = await pool.query(
+            "SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0",
+            [maquinaIdNumber]
+        );
+        if (maquinaExists.length === 0) {
+            return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+        }
+
+        const [claveExists] = await pool.query(
+            "SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0",
+            [claveIdNumber]
+        );
+        if (claveExists.length === 0) {
+            return res.status(400).json({ message: "Clave no existe o está eliminada" });
+        }
+
+        // Validación de valores numéricos para los kilómetros y otros campos
+        const kmSalida = parseFloat(km_salida);
+        const kmLlegada = parseFloat(km_llegada);
+        const hmetroSalida = parseFloat(hmetro_salida);
+        const hmetroLlegada = parseFloat(hmetro_llegada);
+        const hbombaSalida = parseFloat(hbomba_salida);
+        const hbombaLlegada = parseFloat(hbomba_llegada);
+
+        // Validar que los valores no sean negativos
+        if (
+            isNaN(kmSalida) || kmSalida < 0 ||
+            isNaN(kmLlegada) || kmLlegada < 0 ||
+            isNaN(hmetroSalida) || hmetroSalida < 0 ||
+            isNaN(hmetroLlegada) || hmetroLlegada < 0 ||
+            isNaN(hbombaSalida) || hbombaSalida < 0 ||
+            isNaN(hbombaLlegada) || hbombaLlegada < 0
+        ) {
+            return res.status(400).json({ message: "Los valores de kilómetros, horas metro o bomba no pueden ser negativos" });
+        }
+
+        // Preparar el valor de obs (permitir nulo si no se proporciona)
+        const obsValue = obs || null;
+
+        // Crear una nueva bitácora
+        const [bitacoraResult] = await pool.query(
+            `INSERT INTO bitacora (
+                compania_id, conductor_id, maquina_id, direccion,
+                fh_salida, fh_llegada, clave_id, km_salida, km_llegada,
+                hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted
+            ) VALUES (?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+            [
+                companiaIdNumber, conductorIdNumber, maquinaIdNumber, direccion,
+                fh_salida, fh_llegada, claveIdNumber,
+                km_salida, km_llegada, hmetro_salida, hmetro_llegada,
+                hbomba_salida, hbomba_llegada, obsValue
+            ]
+        );
+
+        const bitacoraId = bitacoraResult.insertId;
+
+        // Crear la carga de combustible
+        const [cargaResult] = await pool.query(
+            'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, isDeleted) VALUES (?, ?, ?, 0)',
+            [bitacoraId, litros, valor_mon]
+        );
+
+        return res.status(201).json({
+            id: cargaResult.insertId,
+            bitacora_id: bitacoraId,
+            litros,
+            valor_mon
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Error en la creación de la carga de combustible', error: error.message });
+    }
+};
+
+
 // Dar de baja una carga de combustible
 export const downCargaCombustible = async (req, res) => {
     const { id } = req.params;

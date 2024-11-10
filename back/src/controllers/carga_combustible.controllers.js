@@ -166,8 +166,15 @@ export const createCargaCombustibleBitacora = async (req, res) => {
 
     try {
         // Concatenar fecha y hora para el formato datetime
-        const fh_salida = `${f_salida} ${h_salida}`;
-        const fh_llegada = `${f_llegada} ${h_llegada}`;
+        let fh_salida = null;
+        let fh_llegada = null;
+
+        if (f_salida && h_salida) {
+            fh_salida = `${f_salida} ${h_salida}`;
+        }
+        if (f_llegada && h_llegada) {
+            fh_llegada = `${f_llegada} ${h_llegada}`;
+        }
 
         // Convertir los IDs a números y validar
         const companiaIdNumber = parseInt(compania_id);
@@ -185,19 +192,19 @@ export const createCargaCombustibleBitacora = async (req, res) => {
             return res.status(400).json({ message: 'Tipo de datos inválido en bitácora' });
         }
 
-        // Validar formato de fecha y hora
+        // Validación de fecha y hora si están presentes
         const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
         const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
 
-        if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
+        if (f_salida && h_salida && (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida))) {
             return res.status(400).json({
-                message: 'Formato de fecha o hora de salida inválido. Deben ser dd-mm-aaaa y HH:mm'
+                message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
             });
         }
 
-        if (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada)) {
+        if (f_llegada && h_llegada && (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada))) {
             return res.status(400).json({
-                message: 'Formato de fecha o hora de llegada inválido. Deben ser dd-mm-aaaa y HH:mm'
+                message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
             });
         }
 
@@ -273,6 +280,12 @@ export const createCargaCombustibleBitacora = async (req, res) => {
         );
 
         const bitacoraId = bitacoraResult.insertId;
+
+
+        // validacion litros
+        if(litros <= 0 || valor_mon <= 0){
+            return res.status(400).json({ message: "Ingrese valores validos para 'litros' o 'valor_mon'"})
+        }
 
         // Crear la carga de combustible
         const [cargaResult] = await pool.query(

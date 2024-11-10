@@ -265,8 +265,15 @@ export const createMantencionBitacora = async (req, res) => {
 
     try {
         // Concatenar fecha y hora para formatear como datetime
-        const fh_salida = `${f_salida} ${h_salida}`;
-        const fh_llegada = `${f_llegada} ${h_llegada}`;
+        let fh_salida = null;
+        let fh_llegada = null;
+
+        if (f_salida && h_salida) {
+            fh_salida = `${f_salida} ${h_salida}`;
+        }
+        if (f_llegada && h_llegada) {
+            fh_llegada = `${f_llegada} ${h_llegada}`;
+        }
 
         // Validación de datos de la bitácora
         const companiaIdNumber = parseInt(compania_id);
@@ -305,19 +312,19 @@ export const createMantencionBitacora = async (req, res) => {
             return res.status(400).json({ message: "Clave no existe o está eliminada" });
         }
 
-        // Validación de fechas y horas
+        // Validación de fecha y hora si están presentes
         const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
         const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
 
-        if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
+        if (f_salida && h_salida && (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida))) {
             return res.status(400).json({
-                message: "El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm"
+                message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
             });
         }
 
-        if (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada)) {
+        if (f_llegada && h_llegada && (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada))) {
             return res.status(400).json({
-                message: "El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm"
+                message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
             });
         }
 
@@ -382,6 +389,27 @@ export const createMantencionBitacora = async (req, res) => {
             const dateParts = fec_termino.split("-");
             const [day, month, year] = dateParts.map(Number);
             formattedFecTermino = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+        }
+
+        // validar el costo del servicio solo si existe el "n_factura"
+        if (n_factura) {
+            // Validar que n_factura sea un valor válido
+            if (n_factura <= 0) {
+                return res.status(400).json({ message: "El número de factura no es válido" });
+            }
+        
+            // Validar que cost_ser esté presente cuando n_factura está presente
+            if (cost_ser === undefined || cost_ser === null) {
+                return res.status(400).json({ message: "El costo del servicio es obligatorio cuando se proporciona un número de factura" });
+            }
+        
+            // Validar que cost_ser no sea negativo
+            if (cost_ser <= 0) {
+                return res.status(400).json({ message: "El costo no puede ser negativo o menor a cero" });
+            }
+        } else if (cost_ser) {
+            // Si cost_ser está presente pero n_factura no, lanzar un error
+            return res.status(400).json({ message: "Debe ingresar el número de factura primero" });
         }
 
         // Inserción en la tabla mantención

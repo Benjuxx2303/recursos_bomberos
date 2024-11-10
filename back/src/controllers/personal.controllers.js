@@ -26,7 +26,8 @@ export const getPersonalWithDetails = async (req, res) => {
     try {
         const query = `
             SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
-                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac, 
+                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
+                   DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania
@@ -62,7 +63,8 @@ export const getPersonalbyID = async (req, res) => {
 
         const query = `
             SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
-                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac, 
+                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
+                   DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania
@@ -98,7 +100,8 @@ export const createPersonal = async (req, res) => {
         compania_id,
         fec_nac,
         img_url = '',
-        obs = ''
+        obs = '',
+        fec_ingreso // Nuevo campo
     } = req.body;
 
     try {
@@ -117,13 +120,13 @@ export const createPersonal = async (req, res) => {
                 message: 'Tipo de datos inválido'
             });
         }
-        
+
         // Validación de existencia de llaves foráneas
         const [rolPersonalExists] = await pool.query("SELECT 1 FROM rol_personal WHERE id = ? AND isDeleted = 0", [rolPersonalIdNumber]);
         if (rolPersonalExists.length === 0) {
             return res.status(400).json({ message: "rol_personal no existe o está eliminado" });
         }
-        
+
         const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
         if (companiaExists.length === 0) {
             return res.status(400).json({ message: "compañia no existe o está eliminada" });
@@ -137,9 +140,16 @@ export const createPersonal = async (req, res) => {
             });
         }
 
+        // Validación opcional de fec_ingreso
+        if (fec_ingreso && typeof fec_ingreso === 'string' && !fechaRegex.test(fec_ingreso) || fec_ingreso.length === 0) {
+            return res.status(400).json({
+                message: 'El formato de la fecha de ingreso es inválido. Debe ser dd-mm-aaaa'
+            });
+        }
+
         // Inserción en la base de datos
         const [rows] = await pool.query(
-            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, 0)',
+            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, fec_ingreso, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), 0)',
             [
                 rolPersonalIdNumber,
                 rut,
@@ -148,7 +158,8 @@ export const createPersonal = async (req, res) => {
                 companiaIdNumber,
                 fec_nac,
                 img_url,
-                obs
+                obs,
+                fec_ingreso || null // Inserta NULL si fec_ingreso no se especifica
             ]
         );
 
@@ -161,7 +172,8 @@ export const createPersonal = async (req, res) => {
             compania_id: companiaIdNumber,
             fec_nac,
             img_url,
-            obs
+            obs,
+            fec_ingreso
         });
     } catch (error) {
         return res.status(500).json({
@@ -170,6 +182,7 @@ export const createPersonal = async (req, res) => {
         });
     }
 };
+
 
 // Dar de baja
 export const downPersonal = async (req, res) => {
@@ -209,7 +222,8 @@ export const updatePersonal = async (req, res) => {
         fec_nac,
         img_url,
         obs,
-        isDeleted
+        isDeleted,
+        fec_ingreso // Nuevo campo
     } = req.body;
 
     try {
@@ -293,6 +307,23 @@ export const updatePersonal = async (req, res) => {
                 });
             }
             updates.fec_nac = fec_nac;
+        }
+
+        // Validación opcional de fec_ingreso
+        if (fec_ingreso !== undefined) {
+            if (typeof fec_ingreso !== 'string') {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'fec_ingreso'"
+                });
+            }
+            // Validación de fecha
+            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+            if (!fechaRegex.test(fec_ingreso)) {
+                return res.status(400).json({
+                    message: 'El formato de la fecha de ingreso es inválido. Debe ser dd-mm-aaaa'
+                });
+            }
+            updates.fec_ingreso = fec_ingreso;
         }
 
         if (img_url !== undefined) {

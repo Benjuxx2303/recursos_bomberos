@@ -16,6 +16,7 @@ export const getMaquinasDetails = async (req, res) => {
     const [rows] = await pool.query(`
       SELECT
         m.id AS maquina_id,
+        m.disponible AS disponible,
         m.codigo AS codigo,
         m.patente AS patente,
         m.num_chasis AS num_chasis,
@@ -53,6 +54,7 @@ export const getMaquinaById = async (req, res) => {
     const [rows] = await pool.query(`
       SELECT
         m.id AS maquina_id,
+        m.disponible AS disponible,
         m.codigo AS codigo,
         m.patente AS patente,
         m.num_chasis AS num_chasis,
@@ -175,7 +177,7 @@ export const createMaquina = async (req, res) => {
 export const deleteMaquina = async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await pool.query("UPDATE maquina SET isDeleted = 1 WHERE id = ?", [id]);
+    const [result] = await pool.query("UPDATE maquina SET isDeleted = 1 AND disponible = 0 WHERE id = ?", [id]);
     if (result.affectedRows === 0) return res.status(404).json({ message: "Máquina no encontrada" });
     res.status(204).end();
   } catch (error) {
@@ -204,6 +206,7 @@ export const updateMaquina = async (req, res) => {
     ven_rev_tec,
     cost_seg_auto,
     ven_seg_auto,
+    disponible,
     isDeleted,
   } = req.body;
 
@@ -344,6 +347,13 @@ export const updateMaquina = async (req, res) => {
         return res.status(400).json({ message: "Valor inválido para 'isDeleted'. Debe ser 0 o 1." });
       }
       updates.isDeleted = isDeleted;
+    }
+    
+    if (disponible !== undefined) {
+      if (disponible !== 0 && disponible !== 1) {
+        return res.status(400).json({ message: "Valor inválido para 'disponible'. Debe ser 0 o 1." });
+      }
+      updates.disponible = disponible;
     }
 
     // Construir la consulta de actualización

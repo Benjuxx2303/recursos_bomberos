@@ -71,6 +71,111 @@ export const getMantencionesAllDetails = async (req, res) => {
     }
 };
 
+// con parametros de busqueda
+export const getMantencionesAllDetailsSearch = async (req, res) => {
+    try {
+        const { taller, estado_mantencion, ord_trabajo, compania } = req.query;
+
+        // Iniciar la consulta SQL base
+        let query = `
+            SELECT
+                m.id,
+                b.id AS 'bitacora.id',
+                c.nombre AS 'bitacora.compania', -- Nombre de la compañia
+                CONCAT(p.rut) AS 'bitacora.conductor', -- RUT del conductor
+                b.direccion AS 'bitacora.direccion',
+                DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.h_salida',
+                DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.h_llegada',
+                b.km_salida AS 'bitacora.km_salida',
+                b.km_llegada AS 'bitacora.km_llegada',
+                b.hmetro_salida AS 'bitacora.hmetro_salida',
+                b.hmetro_llegada AS 'bitacora.hmetro_llegada',
+                b.hbomba_salida AS 'bitacora.hbomba_salida',
+                b.hbomba_llegada AS 'bitacora.hbomba_llegada',
+                b.obs AS 'bitacora.obs',
+                ma.patente AS 'patente',
+                DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
+                m.ord_trabajo,
+                m.n_factura,
+                m.cost_ser,
+                t.nombre AS 'taller',
+                em.nombre AS 'estado_mantencion'
+            FROM mantencion m
+            INNER JOIN bitacora b ON m.bitacora_id = b.id
+            INNER JOIN compania c ON b.compania_id = c.id
+            INNER JOIN maquina ma ON m.maquina_id = ma.id
+            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id
+            INNER JOIN personal p ON cm.personal_id = p.id
+            INNER JOIN taller t ON m.taller_id = t.id
+            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            WHERE m.isDeleted = 0 AND b.isDeleted = 0
+        `;
+
+        // Array para almacenar los parámetros a inyectar
+        const params = [];
+
+        // Agregar condiciones de búsqueda si existen query params
+        const conditions = [];
+        if (taller) {
+            conditions.push(`t.nombre LIKE ?`);
+            params.push(`%${taller}%`);
+        }
+        if (estado_mantencion) {
+            conditions.push(`em.nombre LIKE ?`);
+            params.push(`%${estado_mantencion}%`);
+        }
+        if (ord_trabajo) {
+            conditions.push(`m.ord_trabajo LIKE ?`);
+            params.push(`%${ord_trabajo}%`);
+        }
+        if (compania) {
+            conditions.push(`c.nombre LIKE ?`);
+            params.push(`%${compania}%`);
+        }
+
+        // Si hay condiciones de búsqueda, agregar el 'AND' y las condiciones correspondientes
+        if (conditions.length > 0) {
+            query += ' AND ' + conditions.join(' AND ');
+        }
+
+        // Ejecutar la consulta con los parámetros
+        const [rows] = await pool.query(query, params);
+
+        const result = rows.map(row => ({
+            id: row.id,
+            bitacora: {
+                id: row['bitacora.id'],
+                compania: row['bitacora.compania'],
+                conductor: row['bitacora.conductor'],
+                direccion: row['bitacora.direccion'],
+                h_salida: row['bitacora.h_salida'],
+                h_llegada: row['bitacora.h_llegada'],
+                km_salida: row['bitacora.km_salida'],
+                km_llegada: row['bitacora.km_llegada'],
+                hmetro_salida: row['bitacora.hmetro_salida'],
+                hmetro_llegada: row['bitacora.hmetro_llegada'],
+                hbomba_salida: row['bitacora.hbomba_salida'],
+                hbomba_llegada: row['bitacora.hbomba_llegada'],
+                obs: row['bitacora.obs'],
+            },
+            patente: row.patente,
+            fec_termino: row.fec_termino,
+            ord_trabajo: row.ord_trabajo,
+            n_factura: row.n_factura,
+            cost_ser: row.cost_ser,
+            taller: row.taller,
+            estado_mantencion: row.estado_mantencion,
+        }));
+
+        res.json(result);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message,
+        });
+    }
+};
+
 export const getMantencionAllDetailsById = async (req, res) => {
     const { id } = req.params;
 
@@ -704,3 +809,133 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
     }
 };
 
+// dashboardSummary (mes actual)
+export const getReporteGeneral = async (req, res) => {
+    // Obtener la fecha actual para hacer comparaciones
+    const fechaHoy = new Date();
+    const fechaFinMes = new Date(fechaHoy.getFullYear(), fechaHoy.getMonth() + 1, 0); // Último día del mes
+
+    // Definir los sinónimos de los estados
+    const estados = {
+        abiertas: ['abierta', 'en proceso', 'pendiente'], // Los sinónimos de "abierta"
+        completadas: ['cerrada', 'terminada', 'finalizada'], // Los sinónimos de "completada"
+        atrasadas: ['atrasada', 'vencida'] // Los sinónimos de "atrasada"
+    };
+
+    try {
+        // Contar el total de máquinas
+        const [totalMaquinasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM maquina
+        `);
+        const totalMaquinas = totalMaquinasRows[0].total;
+
+        // Contar las máquinas activas
+        const [maquinasActivasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM maquina
+            WHERE isDeleted = 0
+        `);
+        const maquinasActivas = maquinasActivasRows[0].total;
+
+        // Contar las máquinas disponibles (disponible = 1)
+        const [maquinasDisponiblesRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM maquina
+            WHERE disponible = 1 AND isDeleted = 0
+        `);
+        const maquinasDisponibles = maquinasDisponiblesRows[0].total;
+
+        // Calcular el porcentaje de flota disponible
+        const flotaDisponible = maquinasActivas > 0 ? (maquinasDisponibles / maquinasActivas) : 0;
+
+        // Contar mantenciones programadas para el resto del mes
+        const [mantencionesProximasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM mantencion m
+            JOIN bitacora b ON m.bitacora_id = b.id
+            WHERE m.isDeleted = 0
+              AND m.fec_termino BETWEEN CURDATE() AND ?
+        `, [fechaFinMes]);
+
+        const mantencionesProximas = mantencionesProximasRows[0].total;
+
+        // Contar mantenciones abiertas
+        const estadosAbiertos = estados.abiertas.join("','"); // Unir los sinónimos de "abierta"
+        const [mantencionesAbiertasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM mantencion m
+            JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            WHERE em.nombre IN ('${estadosAbiertos}')
+              AND m.isDeleted = 0
+        `);
+        const mantencionesAbiertas = mantencionesAbiertasRows[0].total;
+
+        // Contar mantenciones completadas este mes
+        const estadosCompletadas = estados.completadas.join("','"); // Unir los sinónimos de "completada"
+        const [mantencionesCompletadasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM mantencion m
+            JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            WHERE em.nombre IN ('${estadosCompletadas}')
+              AND m.isDeleted = 0
+              AND MONTH(m.fec_termino) = MONTH(CURDATE())
+              AND YEAR(m.fec_termino) = YEAR(CURDATE())
+        `);
+        const mantencionesCompletadas = mantencionesCompletadasRows[0].total;
+
+        // Contar mantenciones atrasadas (fechas de término pasadas)
+        const estadosAtrasadas = estados.atrasadas.join("','"); // Unir los sinónimos de "atrasada"
+        const [mantencionesAtrasadasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM mantencion m
+            JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            WHERE em.nombre IN ('${estadosAtrasadas}')
+              AND m.isDeleted = 0
+              AND m.fec_termino < CURDATE()
+        `);
+        const mantencionesAtrasadas = mantencionesAtrasadasRows[0].total;
+
+        // Calcular el tiempo de resolución promedio de mantenciones
+        const [tiempoResolucionRows] = await pool.query(`
+            SELECT AVG(DATEDIFF(m.fec_termino, b.fh_salida)) AS promedio
+            FROM mantencion m
+            JOIN bitacora b ON m.bitacora_id = b.id
+            WHERE m.isDeleted = 0
+              AND m.fec_termino IS NOT NULL
+        `);
+        const tiempoResolucionPromedio = Math.round(tiempoResolucionRows[0].promedio) || 0;
+
+        // Calcular el porcentaje de mantenciones preventivas (sin fec_termino o fec_termino null)
+        const [mantencionesPreventivasRows] = await pool.query(`
+            SELECT COUNT(*) AS total
+            FROM mantencion m
+            WHERE m.isDeleted = 0
+              AND (m.fec_termino IS NULL OR m.fec_termino = '')
+        `);
+        const mantencionesPreventivas = mantencionesPreventivasRows[0].total;
+        const porcentajePreventivas = totalMaquinas > 0 ? (mantencionesPreventivas / totalMaquinas) : 0;
+
+        // Devolver el reporte completo
+        const reporte = {
+            totalMaquinas,
+            maquinasActivas,
+            mantencionesProximas,
+            mantencionesAbiertas,
+            mantencionesCompletadas,
+            mantencionesAtrasadas,
+            eficiencia: {
+                tiempoResolucionPromedio,
+                porcentajePreventivas,
+                flotaDisponible
+            }
+        };
+
+        res.json(reporte);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};

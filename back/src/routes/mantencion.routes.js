@@ -44,7 +44,7 @@ router.get(`/reportes${base_route}/costos`, getMantencionCostosByAnio)
 // QueryParams:
 // year:   2024
 
-router.get(`/reportes${base_route}/datosMantencion`, getReporteMantencionesEstadoCosto);
+router.get(`/reportes${base_route}/stats`, getReporteMantencionesEstadoCosto);
 // http://{url}/api/reportes/mantencion/datosMantencion
 // QueryParams:
 // startDate:   01-01-2024

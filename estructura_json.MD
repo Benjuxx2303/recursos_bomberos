@@ -175,6 +175,7 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
     "cost_ser": 50000,
     "taller_id": 1,
     "estado_mantencion_id": 6,
+    "fec_inicio": "01-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
     "fec_termino": "02-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
 }
 ```

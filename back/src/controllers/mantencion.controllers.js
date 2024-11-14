@@ -422,7 +422,7 @@ export const createMantencionBitacora = async (req, res) => {
                     message: "El formato de la fecha es inválido. Debe ser dd-mm-yyyy"
                 });
             }
-            
+
             const dateParts = fec_inicio.split("-");
             const [day, month, year] = dateParts.map(Number);
             formattedFecInicio = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
@@ -430,22 +430,18 @@ export const createMantencionBitacora = async (req, res) => {
 
         // validar el costo del servicio solo si existe el "n_factura"
         if (n_factura) {
-            // Validar que n_factura sea un valor válido
             if (n_factura <= 0) {
                 return res.status(400).json({ message: "El número de factura no es válido" });
             }
-        
-            // Validar que cost_ser esté presente cuando n_factura está presente
+
             if (cost_ser === undefined || cost_ser === null) {
                 return res.status(400).json({ message: "El costo del servicio es obligatorio cuando se proporciona un número de factura" });
             }
-        
-            // Validar que cost_ser no sea negativo
+
             if (cost_ser <= 0) {
                 return res.status(400).json({ message: "El costo no puede ser negativo o menor a cero" });
             }
         } else if (cost_ser) {
-            // Si cost_ser está presente pero n_factura no, lanzar un error
             return res.status(400).json({ message: "Debe ingresar el número de factura primero" });
         }
 
@@ -454,10 +450,10 @@ export const createMantencionBitacora = async (req, res) => {
             `INSERT INTO mantencion (
                 bitacora_id, maquina_id, ord_trabajo, n_factura,
                 cost_ser, taller_id, estado_mantencion_id, fec_inicio, fec_termino, isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
             [
                 bitacora_id, maquina_id, ord_trabajo, n_factura,
-                cost_ser, taller_id, estado_mantencion_id, formattedFecInicio, formattedFecTermino
+                cost_ser, taller_id, estado_mantencion_id, formattedFecInicio, formattedFecTermino || null
             ]
         );
 
@@ -478,6 +474,7 @@ export const createMantencionBitacora = async (req, res) => {
         return res.status(500).json({ message: "Error en la creación de la mantención y bitácora", error: error.message });
     }
 };
+
 
 // Eliminar mantencion (cambiar estado)
 export const deleteMantencion = async (req, res) => {

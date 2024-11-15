@@ -704,6 +704,7 @@ export const getMantencionCostosByAnio = async (req, res) => {
 
 
 // stats
+// stats
 export const getReporteMantencionesEstadoCosto = async (req, res) => {
     const { startDate, endDate, companiaId } = req.query; // startDate y endDate filtra por "fec_inicio"
 
@@ -754,6 +755,7 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
                 SUM(m.cost_ser) AS cost
             FROM mantencion m
             JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            JOIN bitacora b ON m.bitacora_id = b.id      -- Relación con bitacora para obtener compania_id
             WHERE m.isDeleted = 0 
                 AND m.fec_inicio BETWEEN STR_TO_DATE(?, '%d-%m-%Y') AND STR_TO_DATE(?, '%d-%m-%Y')
                 AND m.fec_termino BETWEEN STR_TO_DATE(?, '%d-%m-%Y') AND STR_TO_DATE(?, '%d-%m-%Y')
@@ -762,7 +764,7 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
         const params = [startDate, endDate, startDate, endDate];
 
         if (companiaId) {
-            query += " AND m.compania_id = ?";   // Filtro por compania_id
+            query += " AND b.compania_id = ?";  // Filtro por compania_id en bitacora
             params.push(companiaId);
         }
 
@@ -803,10 +805,15 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
             FROM detalle_mantencion dm
             JOIN tipo_mantencion tm ON dm.tipo_mantencion_id = tm.id
             JOIN mantencion m ON dm.mantencion_id = m.id
+            JOIN bitacora b ON m.bitacora_id = b.id      -- Relación con bitacora para obtener compania_id
             WHERE m.isDeleted = 0
         `;
 
-        const [tiposRows] = await pool.query(tiposMantencionesQuery);
+        if (companiaId) {
+            tiposMantencionesQuery += " AND b.compania_id = ?";  // Filtro por compania_id en bitacora
+        }
+
+        const [tiposRows] = await pool.query(tiposMantencionesQuery, companiaId ? [companiaId] : []);
 
         const totalMantenciones = tiposRows.reduce((sum, row) => sum + row.cantidad, 0);
         const tiposMantenciones = {};
@@ -827,7 +834,11 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
             WHERE m.isDeleted = 0
         `;
         
-        const [flotaRows] = await pool.query(estadoFlotaQuery);
+        if (companiaId) {
+            estadoFlotaQuery += " AND m.compania_id = ?";  // Filtro por compania_id en maquina
+        }
+
+        const [flotaRows] = await pool.query(estadoFlotaQuery, companiaId ? [companiaId] : []);
 
         const estadoFlota = {
             disponible: {
@@ -862,6 +873,7 @@ export const getReporteMantencionesEstadoCosto = async (req, res) => {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
+
 
 // dashboardSummary (mes actual)
 export const getReporteGeneral = async (req, res) => {

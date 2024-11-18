@@ -486,6 +486,80 @@ export const createMantencionBitacora = async (req, res) => {
     }
 };
 
+// Crear nueva mantención (solo mantencion)
+export const createMantencion = async (req, res) => {
+    const {
+      bitacora_id,
+      maquina_id,
+      taller_id,
+      estado_mantencion_id,
+      fec_inicio,
+      fec_termino,
+      ord_trabajo,
+      n_factura,
+      img_url,
+      cost_ser,
+    } = req.body;
+  
+    try {
+      // Validaciones de tipo de datos
+      if (
+        isNaN(parseInt(bitacora_id)) ||
+        isNaN(parseInt(maquina_id)) ||
+        isNaN(parseInt(taller_id)) ||
+        isNaN(parseInt(estado_mantencion_id)) ||
+        typeof ord_trabajo !== 'string' ||
+        (n_factura && isNaN(parseInt(n_factura))) ||
+        (cost_ser && isNaN(parseInt(cost_ser)))
+      ) {
+        return res.status(400).json({ message: 'Tipo de datos inválido' });
+      }
+  
+      // Validación de llaves foráneas
+      const [bitacora] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [bitacora_id]);
+      if (bitacora.length === 0) return res.status(400).json({ message: 'Bitácora no existe' });
+  
+      const [maquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
+      if (maquina.length === 0) return res.status(400).json({ message: 'Máquina no existe' });
+  
+      const [taller] = await pool.query("SELECT * FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
+      if (taller.length === 0) return res.status(400).json({ message: 'Taller no existe' });
+  
+      const [estadoMantencion] = await pool.query("SELECT * FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
+      if (estadoMantencion.length === 0) return res.status(400).json({ message: 'Estado de mantención no existe' });
+  
+      // Validación de fechas
+      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+      const fechas = [fec_inicio, fec_termino];
+      for (const fecha of fechas) {
+        if (fecha && !fechaRegex.test(fecha)) {
+          return res.status(400).json({ message: 'Formato de fecha inválido. Debe ser dd-mm-aaaa' });
+        }
+      }
+  
+      // Inserción en la base de datos
+      const [rows] = await pool.query(
+        "INSERT INTO mantencion (bitacora_id, maquina_id, taller_id, estado_mantencion_id, fec_inicio, fec_termino, ord_trabajo, n_factura, img_url, cost_ser, isDeleted) VALUES (?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, ?, 0)",
+        [
+          bitacora_id,
+          maquina_id,
+          taller_id,
+          estado_mantencion_id,
+          fec_inicio,
+          fec_termino,
+          ord_trabajo,
+          n_factura || null, // Si no hay número de factura, lo dejamos como null
+          img_url || null, // Si no hay imagen, lo dejamos como null
+          cost_ser || null, // Si no hay costo de servicio, lo dejamos como null
+        ]
+      );
+  
+      res.status(201).json({ id: rows.insertId, ...req.body });
+    } catch (error) {
+      return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    }
+  };
+  
 
 // Eliminar mantencion (cambiar estado)
 export const deleteMantencion = async (req, res) => {

@@ -4,7 +4,7 @@ import {
   getMantencionesAllDetails,
   getMantencionesAllDetailsSearch,
   getMantencionAllDetailsById,
-  // createMantencion,
+  createMantencion,
   createMantencionBitacora,
   deleteMantencion,
   updateMantencion,
@@ -38,6 +38,7 @@ router.get(`${base_route}/search`, getMantencionesAllDetailsSearch);
 router.get(`${base_route}/:id`, getMantencionAllDetailsById);
 
 router.post(base_route, createMantencionBitacora);
+router.post(`${base_route}/old`, createMantencion);
 
 router.delete(`${base_route}/:id`, deleteMantencion);
 

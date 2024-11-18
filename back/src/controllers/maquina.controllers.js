@@ -1,4 +1,9 @@
 import { pool } from "../db.js";
+import {
+  uploadFileToS3,
+  updateImageUrlInDb,
+  handleError
+} from './fileUpload.js';
 
 // Obtener todas las máquinas
 export const getMaquinas = async (req, res) => {

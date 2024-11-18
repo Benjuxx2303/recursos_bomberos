@@ -1,4 +1,9 @@
 import { pool } from "../db.js";
+import {
+    uploadFileToS3,
+    updateImageUrlInDb,
+    handleError
+  } from './fileUpload.js';
 
 export const getMantencionesAllDetails = async (req, res) => {
     try {
@@ -23,6 +28,7 @@ export const getMantencionesAllDetails = async (req, res) => {
                 DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
+                m.img_url,
                 m.cost_ser,
                 t.nombre AS 'taller',
                 em.nombre AS 'estado_mantencion'
@@ -59,6 +65,7 @@ export const getMantencionesAllDetails = async (req, res) => {
             fec_termino: row.fec_termino,
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
+            img_url: row.img_url,
             cost_ser: row.cost_ser,
             taller: row.taller,
             estado_mantencion: row.estado_mantencion,
@@ -100,6 +107,7 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
                 DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
+                m.img_url,
                 m.cost_ser,
                 t.nombre AS 'taller',
                 em.nombre AS 'estado_mantencion'
@@ -159,6 +167,7 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
             fec_termino: row.fec_termino,
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
+            img_url: row.img_url,
             cost_ser: row.cost_ser,
             taller: row.taller,
             estado_mantencion: row.estado_mantencion,
@@ -198,6 +207,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
+                m.img_url,
                 m.cost_ser,
                 t.nombre AS 'taller',
                 em.nombre AS 'estado_mantencion'
@@ -238,6 +248,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
             fec_termino: row.fec_termino,
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
+            img_url: row.img_url,
             cost_ser: row.cost_ser,
             taller: row.taller,
             estado_mantencion: row.estado_mantencion,
@@ -642,6 +653,27 @@ export const updateMantencion = async (req, res) => {
     }
 };
 
+const value = "mantencion";
+const folder=value;
+const tableName=value;
+
+export const updateImage = async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+        return res.status(400).json({ message: "Falta el archivo." });
+    }
+
+    try {
+        const data = await uploadFileToS3(file, folder);
+        const newUrl = data.Location;
+        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
+        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+    } catch (error) {
+        handleError(res, error, "Error al actualizar la imagen");
+    }
+};
 
 
 // -----------------------------------Reportes

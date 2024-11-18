@@ -8,11 +8,17 @@ import {
   createMantencionBitacora,
   deleteMantencion,
   updateMantencion,
+  updateImage,
   // ---- reportes
   getMantencionCostosByAnio,
   getReporteMantencionesEstadoCosto,
   getReporteGeneral,
 } from "../controllers/mantencion.controllers.js";
+import multer from 'multer';
+
+// Configuración de multer
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 const router = Router();
 
@@ -36,6 +42,7 @@ router.post(base_route, createMantencionBitacora);
 router.delete(`${base_route}/:id`, deleteMantencion);
 
 router.patch(`${base_route}/:id`, updateMantencion);
+router.patch(`${base_route}/:id/image`, upload.single('file'), updateImage); // Ruta para actualizar la imagen
 
 
 // ---- reportes

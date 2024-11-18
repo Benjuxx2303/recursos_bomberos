@@ -37,6 +37,7 @@ export const getMaquinasDetails = async (req, res) => {
         m.cost_seg_auto AS cost_seg_auto,
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
         tm.clasificacion AS tipo_maquina,
+        c.id AS compania_id,
         c.nombre AS compania,
         p.nombre AS procedencia,
         m.img_url AS img_url
@@ -75,6 +76,7 @@ export const getMaquinaById = async (req, res) => {
         m.cost_seg_auto AS cost_seg_auto,
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
         tm.clasificacion AS tipo_maquina,
+        c.id AS compania_id,
         c.nombre AS compania,
         p.nombre AS procedencia,
         m.img_url AS img_url

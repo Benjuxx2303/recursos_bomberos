@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-    getPersonalWithDetails,
+    // getPersonalWithDetails,
+    getPersonalWithDetailsPage,
     getPersonalbyID,
     createPersonal,
     downPersonal,
@@ -18,7 +19,12 @@ const upload = multer({ storage: storage });
 const router = Router();
 const base_route = '/personal';
 
-router.get(base_route, getPersonalWithDetails);
+// router.get(base_route, getPersonalWithDetails);
+router.get(base_route, getPersonalWithDetailsPage); // con paginación
+// http://{url}/api/personal
+// QueryParams:
+// page:              1
+// pageSize:          10
 
 router.get(`${base_route}/:id`, getPersonalbyID);
 

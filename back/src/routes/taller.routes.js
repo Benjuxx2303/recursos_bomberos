@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { 
-    getTaller,
+    // getTalleres,
+    getTalleresPage,
     getTallerById,
     createTaller,
     deleteTaller,
@@ -11,7 +12,13 @@ const router = Router();
 
 const base_route = '/taller'
 
-router.get(base_route, getTaller);
+// router.get(base_route, getTalleres);
+router.get(base_route, getTalleresPage);
+// http://{url}/api/taller
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 router.get(`${base_route}/:id`, getTallerById);
 
 router.post(base_route, createTaller);

@@ -25,11 +25,15 @@ const router = Router();
 const base_route = "/mantencion"; 
 
 // router.get(base_route, getMantencionesWithDetails);
-router.get(base_route, getMantencionesAllDetails);
+// router.get(base_route, getMantencionesAllDetails);
 
-router.get(`${base_route}/search`, getMantencionesAllDetailsSearch);
-// http://{url}/api/mantencion/search
+// router.get(`${base_route}/search`, getMantencionesAllDetailsSearch);
+router.get(base_route, getMantencionesAllDetailsSearch);
+// http://{url}/api/mantencion
 // QueryParams:
+// page:              1
+// pageSize:          10
+
 // taller:            test
 // estado_mantencion: rechazada
 // ord_trabajo:       OT-12345

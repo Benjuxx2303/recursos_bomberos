@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { 
-    getClaves,
+    // getClaves,
+    getClavesPage,
     getClaveById,
     createClave,
     deleteClave,
@@ -11,7 +12,13 @@ const router = Router();
 
 const base_route = '/clave'
 
-router.get(base_route, getClaves);
+// router.get(base_route, getClaves);
+router.get(base_route, getClavesPage); // paginado
+// http://{url}/api/clave
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 router.get(`${base_route}/:id`, getClaveById);
 
 router.post(base_route, createClave);

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-  getTipoMantenciones,
+  // getTipoMantenciones,
+  getTipoMantencionesPage,
   getTipoMantencionById,
   createTipoMantencion,
   deleteTipoMantencion,
@@ -11,7 +12,13 @@ const router = Router();
 
 const base_route = "/tipo_mantencion";
 
-router.get(base_route, getTipoMantenciones); 
+// router.get(base_route, getTipoMantenciones); 
+router.get(base_route, getTipoMantencionesPage); // paginado
+// http://{url}/api/tipo_mantencion
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 router.get(`${base_route}/:id`, getTipoMantencionById);
 
 router.post(base_route, createTipoMantencion);

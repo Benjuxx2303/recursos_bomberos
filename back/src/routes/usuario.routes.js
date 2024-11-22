@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {
     getUsuarios,
-    getUsuariosWithDetails,
+    // getUsuariosWithDetails,
+    getUsuariosWithDetailsPage,
     getUsuarioById,
     deleteUsuario,
     updateUsuario,
@@ -14,13 +15,23 @@ const router = Router();
 const base_route = "/usuario"; 
 
 // Obtener todos los usuarios
-router.get(base_route, getUsuarios);
+// router.get(base_route, getUsuarios);
+
 // Obtener usuarios con detalles
-router.get(`${base_route}/detalles`, getUsuariosWithDetails);
+// router.get(`${base_route}/detalles`, getUsuariosWithDetails);
+// router.get(base_route, getUsuariosWithDetails);
+router.get(base_route, getUsuariosWithDetailsPage); // paginado
+// http://{url}/api/usuario
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 // Obtener usuario por ID
 router.get(`${base_route}/:id`, getUsuarioById);
+
 // Eliminar usuario (cambiar estado)
 router.delete(`${base_route}/:id`, deleteUsuario);
+
 // Actualizar usuario
 router.patch(`${base_route}/:id`, updateUsuario);
 

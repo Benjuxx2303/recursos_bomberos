@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-  getBitacora,
+  // getBitacora,
+  getBitacoraPage,
   getBitacoraById,
   createBitacora,
   deleteBitacora,
@@ -11,7 +12,13 @@ const router = Router();
 
 const base_route = "/bitacora";
 
-router.get(base_route, getBitacora);
+// router.get(base_route, getBitacora);
+router.get(base_route, getBitacoraPage); // paginado
+// http://{url}/api/bitacora
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 router.get(`${base_route}/:id`, getBitacoraById);
 
 router.post(base_route, createBitacora);

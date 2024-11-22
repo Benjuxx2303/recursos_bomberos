@@ -13,6 +13,45 @@ export const getProcedencias = async (req, res) => {
     }
 }
 
+// Obtener todas las procedencias con paginación opcional
+export const getProcedenciasPage = async (req, res) => {
+    try {
+        // Obtener los parámetros opcionales: "page" y "pageSize"
+        const page = parseInt(req.query.page) || 1; // Página por defecto es 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
+
+        // Si no se proporciona "page", devolver todos los registros sin paginación
+        if (!req.query.page) {
+            const query = `
+                SELECT * 
+                FROM procedencia 
+                WHERE isDeleted = 0
+            `;
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", se aplica paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset para la paginación
+
+        const query = `
+            SELECT * 
+            FROM procedencia 
+            WHERE isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
+        
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        res.json(rows);
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Obtener procedencia por ID
 export const getProcedenciaById = async (req, res) => {
     const { id } = req.params;

@@ -1,3 +1,12 @@
+
+# Query Params
+### Los siguientes query params estan presentes en todos los endpoints de la api:
+###### Ejemplo
+| Key       | Value  | Descripción                    |
+|-----------|--------|--------------------------------|
+| page      | 1      | Numero de pagina               |
+| pageSize  | 10     | Limite de registros por página |
+
 # 1. rol_personal
 ### "/api/rol_personal"
 ```
@@ -20,10 +29,10 @@
 ```
 {
     "rol_personal_id": 1,
+    "compania_id": 1,
     "rut": "12.345.678-9",
     "nombre": "Juan",
     "apellido": "Zarate",
-    "compania_id": 1,
     "fec_nac": "01-01-1990"
 }
 ```
@@ -50,8 +59,8 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/estado_mantencion"
 ```
 {
-    "nombre": "Pendiente",
-    "descripcion": "algo"
+    "nombre": "Test",
+    "descripcion": "Test de estado de mantencion"
 }
 ```
 
@@ -60,7 +69,7 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ```
 {
     "codigo": "0001",
-    "descripcion": "algo"
+    "descripcion": "Test"
 }
 ```
 
@@ -84,8 +93,9 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/maquina"
 ```
 {
-  "tipo_maquina_id": 1,
-  "compania_id": 1,
+  "tipo_maquina_id": 4,
+  "compania_id": 13,
+  "procedencia_id": 4,
   "codigo": "codigo 1",
   "patente": "AABB11",
   "num_chasis": "CM82633A123456",
@@ -96,7 +106,6 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
   "kmetraje": 50.0,
   "num_motor": "4G63T1234567",
   "ven_patente": "23-05-2026",
-  "procedencia_id": 1,
   "cost_rev_tec": 80000,
   "ven_rev_tec": "05-10-2025",
   "cost_seg_auto": 120000,
@@ -132,12 +141,12 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
     "compania_id": 2,
     "conductor_id": 1,
     "maquina_id": 1,
+    "clave_id": 1,
     "direccion": "123 Calle Ejemplo",
     "f_salida": "04-11-2024",
     "h_salida": "08:50",
     "f_llegada": "10-11-2024",
     "h_llegada": "10:50",
-    "clave_id": 1,
     "km_salida": 50.5,
     "km_llegada": 75.0,
     "hmetro_salida": 30.0,
@@ -170,12 +179,28 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
         "obs": "Observaciones adicionales si hay alguna"
     },
     "maquina_id": 1,
+    "taller_id": 1,
+    "estado_mantencion_id": 6,
     "ord_trabajo": "OT12345",
     "n_factura": 45678,
     "cost_ser": 50000,
-    "taller_id": 1,
-    "estado_mantencion_id": 6,
-    "fec_inicio": "01-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+    "fec_inicio": "01-01-2024",  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+    "fec_termino": "02-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+}
+```
+
+# 12.1 mantencion (legacy) POST
+### "/api/mantencion/old"
+```
+{
+    "bitacora_id": 85,
+    "maquina_id": 8,
+    "taller_id": 4,
+    "estado_mantencion_id": 13,
+    "ord_trabajo": "OT12345",
+    "n_factura": 45678,
+    "cost_ser": 50000,
+    "fec_inicio": "01-01-2024",  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
     "fec_termino": "02-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
 }
 ```
@@ -253,12 +278,12 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
         "compania_id": 2,
         "conductor_id": 1,
         "maquina_id": 1,
+        "clave_id": 1,
         "direccion": "123 Calle Ejemplo",
         "f_salida": "04-11-2024",  
         "h_salida": "08:50",        
         "f_llegada": "10-11-2024",  
         "h_llegada": "10:50",       
-        "clave_id": 1,
         "km_salida": 50,
         "km_llegada": 75.0,
         "hmetro_salida": 30.0,

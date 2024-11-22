@@ -23,6 +23,59 @@ export const getDetallesMantencion = async (req, res) => {
     }
 };
 
+// paginacion
+export const getDetallesMantencionPage = async (req, res) => {
+    try {
+        // Obtener los parámetros de paginación
+        const page = parseInt(req.query.page) || 1; // Página actual, por defecto es 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Cantidad de registros por página, por defecto es 10
+
+        // Calcular el offset
+        const offset = (page - 1) * pageSize;
+
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!req.query.page) {
+            const query = `
+                SELECT dm.*, 
+                       m.ord_trabajo, 
+                       tm.nombre AS tipo_mantencion, 
+                       s.descripcion AS servicio
+                FROM detalle_mantencion dm
+                INNER JOIN mantencion m ON dm.mantencion_id = m.id
+                INNER JOIN tipo_mantencion tm ON dm.tipo_mantencion_id = tm.id
+                INNER JOIN servicio s ON dm.servicio_id = s.id
+                WHERE dm.isDeleted = 0
+            `;
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Aplicar paginación
+        const query = `
+            SELECT dm.*, 
+                   m.ord_trabajo, 
+                   tm.nombre AS tipo_mantencion, 
+                   s.descripcion AS servicio
+            FROM detalle_mantencion dm
+            INNER JOIN mantencion m ON dm.mantencion_id = m.id
+            INNER JOIN tipo_mantencion tm ON dm.tipo_mantencion_id = tm.id
+            INNER JOIN servicio s ON dm.servicio_id = s.id
+            WHERE dm.isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
+        
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        res.json(rows); // Devuelve los registros paginados
+
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Obtener detalle de mantención por ID con joins
 export const getDetalleMantencion = async (req, res) => {
     const { id } = req.params;

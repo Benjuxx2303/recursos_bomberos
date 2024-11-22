@@ -34,6 +34,53 @@ export const getBitacora = async (req, res) => {
     }
 };
 
+// Paginado
+export const getBitacoraPage = async (req, res) => {
+    try {
+        // Obtener los parámetros de la query
+        const page = parseInt(req.query.page) || 1; // Si no se pasa 'page', por defecto será 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Si no se pasa 'pageSize', por defecto será 10
+
+        // Calcular el desplazamiento (offset)
+        const offset = (page - 1) * pageSize;
+
+        // Consulta con paginación
+        const query = `
+            SELECT b.id, 
+                    c.nombre AS compania, 
+                    p.rut AS "rut_personal", 
+                    m.patente AS "patente_maquina", 
+                    tm.clasificacion AS tipo_maquina, 
+                    DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
+                    DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
+                    cl.codigo AS clave, 
+                    b.direccion, 
+                    b.km_salida, 
+                    b.km_llegada, 
+                    b.hmetro_salida, 
+                    b.hmetro_llegada, 
+                    b.hbomba_salida, 
+                    b.hbomba_llegada, 
+                    b.obs 
+            FROM bitacora b 
+            INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
+            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
+            INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
+            INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
+            INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
+            INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
+            WHERE b.isDeleted = 0
+            LIMIT ? OFFSET ?`;
+
+        // Ejecutar la consulta con los parámetros de paginación
+        const [rows] = await pool.query(query, [pageSize, offset]);
+
+        // Retornar los resultados
+        res.json(rows);
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};
 
 // Obtener bitácora por ID
 export const getBitacoraById = async (req, res) => {

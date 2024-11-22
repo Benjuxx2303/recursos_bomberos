@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-    getCompanias,
+    // getCompanias,
+    getCompaniasPage,
     getCompania,
     createCompania,
     deleteCompania,
@@ -10,7 +11,12 @@ import {
 const router = Router();
 const base_route = '/compania';
 
-router.get(base_route, getCompanias);
+// router.get(base_route, getCompanias);
+router.get(base_route, getCompaniasPage); // paginado
+// http://{url}/api/compania
+// QueryParams:
+// page:              1
+// pageSize:          10
 
 router.get(`${base_route}/:id`, getCompania);
 

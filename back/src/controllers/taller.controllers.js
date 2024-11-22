@@ -1,7 +1,7 @@
 import { pool } from "../db.js";
 
 // Devuelve todos los talleres
-export const getTaller = async (req, res) => {
+export const getTalleres = async (req, res) => {
   try {
     const query = `
       SELECT t.id, t.nombre, t.fono
@@ -16,6 +16,44 @@ export const getTaller = async (req, res) => {
       message: "Error interno del servidor",
       error: error.message
   });
+  }
+};
+
+// Devuelve todos los talleres con paginación opcional
+export const getTalleresPage = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
+    const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño por defecto es 10
+
+    // Si no se proporciona "page", devolver todos los datos sin paginación
+    if (!req.query.page) {
+      const query = `
+        SELECT t.id, t.nombre, t.fono
+        FROM taller t
+        WHERE t.isDeleted = 0
+      `;
+      const [rows] = await pool.query(query);
+      return res.json(rows); // Devuelve todos los registros sin paginación
+    }
+
+    // Si se proporciona "page", se aplica paginación
+    const offset = (page - 1) * pageSize; // Calcular el offset
+
+    const query = `
+      SELECT t.id, t.nombre, t.fono
+      FROM taller t
+      WHERE t.isDeleted = 0
+      LIMIT ? OFFSET ?
+    `;
+    
+    const [rows] = await pool.query(query, [pageSize, offset]);
+    res.json(rows);
+  } catch (error) {
+    console.error('error: ', error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message
+    });
   }
 };
 

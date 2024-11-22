@@ -18,6 +18,46 @@ export const getSubdivisiones = async (req, res) => {
     }
 };
 
+export const getSubdivisionesPage = async (req, res) => {
+    try {
+        // Obtener los parámetros opcionales de la consulta
+        const page = parseInt(req.query.page) || 1; // Página por defecto es 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño de página por defecto es 10
+
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!req.query.page) {
+            const query = `
+                SELECT s.*, d.nombre AS division
+                FROM subdivision s
+                INNER JOIN division d ON s.division_id = d.id
+                WHERE s.isDeleted = 0 AND d.isDeleted = 0
+            `;
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", se aplica paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset para la paginación
+
+        const query = `
+            SELECT s.*, d.nombre AS division
+            FROM subdivision s
+            INNER JOIN division d ON s.division_id = d.id
+            WHERE s.isDeleted = 0 AND d.isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
+        
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        res.json(rows); // Devuelve los registros con la paginación aplicada
+    } catch (error) {
+        console.error('Error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Obtener una subdivisión por ID (solo activas) con detalles de la división
 export const getSubdivision = async (req, res) => {
     const { id } = req.params;

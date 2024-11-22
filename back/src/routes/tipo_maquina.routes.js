@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-    getTiposMaquinas,
+    // getTiposMaquinas,
+    getTiposMaquinasPage,
     getTipoMaquinaById,
     createTipoMaquina,
     deleteTipoMaquina,
@@ -11,7 +12,13 @@ const router = Router();
 
 const base_route = "/tipo_maquina";
 
-router.get(base_route, getTiposMaquinas);
+// router.get(base_route, getTiposMaquinas);
+router.get(base_route, getTiposMaquinasPage); // paginado
+// http://{url}/api/tipo_maquina
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 router.get(`${base_route}/:id`, getTipoMaquinaById);
 
 router.post(base_route, createTipoMaquina);

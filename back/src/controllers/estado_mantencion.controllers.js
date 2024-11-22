@@ -17,6 +17,42 @@ export const getEstadosMantencion = async (req, res) => {
     }
 };
 
+// paginacion
+export const getEstadosMantencionPage = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1; // Página por defecto es 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño por defecto es 10
+
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!req.query.page) {
+            const [rows] = await pool.query(`
+                SELECT id, nombre, descripcion
+                FROM estado_mantencion
+                WHERE isDeleted = 0
+            `);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", aplicar paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset
+
+        const [rows] = await pool.query(`
+            SELECT id, nombre, descripcion
+            FROM estado_mantencion
+            WHERE isDeleted = 0
+            LIMIT ? OFFSET ?
+        `, [pageSize, offset]);
+
+        res.json(rows);
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Obtener estado de mantención por ID
 export const getEstadoMantencionById = async (req, res) => {
     const { id } = req.params;

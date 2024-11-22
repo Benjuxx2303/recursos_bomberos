@@ -80,12 +80,13 @@ export const getMantencionesAllDetails = async (req, res) => {
     }
 };
 
-// con parametros de busqueda
+// con parámetros de búsqueda 
+// Paginacion
 export const getMantencionesAllDetailsSearch = async (req, res) => {
     try {
-        const { taller, estado_mantencion, ord_trabajo, compania } = req.query;
+        const { taller, estado_mantencion, ord_trabajo, compania, page, pageSize } = req.query;
 
-        // Iniciar la consulta SQL base
+        // Inicializar la consulta SQL base
         let query = `
             SELECT
                 m.id,
@@ -142,9 +143,26 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
             params.push(compania);
         }
 
+        // Si se proporciona "page", se aplica paginación
+        if (page) {
+            const currentPage = parseInt(page) || 1; // Página actual, por defecto 1
+            const currentPageSize = parseInt(pageSize) || 10; // Página tamaño, por defecto 10
+            const offset = (currentPage - 1) * currentPageSize; // Calcular el offset para la consulta
+
+            // Añadir LIMIT y OFFSET a la consulta
+            query += ' LIMIT ? OFFSET ?';
+            params.push(currentPageSize, offset);
+        }
+
         // Ejecutar la consulta con los parámetros
         const [rows] = await pool.query(query, params);
 
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!page) {
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Mapeo de resultados a la estructura deseada
         const result = rows.map(row => ({
             id: row.id,
             bitacora: {
@@ -173,7 +191,9 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
             estado_mantencion: row.estado_mantencion,
         }));
 
+        // Responder con los resultados paginados
         res.json(result);
+
     } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",

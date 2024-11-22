@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-    getCargasCombustible,
+    // getCargasCombustible,
+    getCargasCombustiblePage,
     getCargaCombustibleByID,
     // createCargaCombustible,
     createCargaCombustibleBitacora,
@@ -18,7 +19,12 @@ const upload = multer({ storage: storage });
 const router = Router();
 const base_route = '/carga_combustible';
 
-router.get(base_route, getCargasCombustible);
+// router.get(base_route, getCargasCombustible);
+router.get(base_route, getCargasCombustiblePage); // paginado
+// http://{url}/api/carga_combustible
+// QueryParams:
+// page:              1
+// pageSize:          10
 
 router.get(`${base_route}/:id`, getCargaCombustibleByID);
 

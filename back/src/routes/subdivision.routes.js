@@ -1,7 +1,8 @@
 import { Router } from "express";
 import {
+    // getSubdivisiones,
+    getSubdivisionesPage,
     getSubdivision,
-    getSubdivisiones,
     createSubdivision,
     deleteSubdivision,
     updateSubdivision,
@@ -11,7 +12,12 @@ const router = Router();
 
 const base_route = '/subdivision';
 
-router.get(base_route, getSubdivisiones);
+// router.get(base_route, getSubdivisiones);
+router.get(base_route, getSubdivisionesPage);
+// http://{url}/api/subdivision
+// QueryParams:
+// page:              1
+// pageSize:          10
 
 router.get(`${base_route}/:id`, getSubdivision);
 

@@ -13,6 +13,40 @@ export const getTiposMaquinas = async (req, res) => {
     }
 };
 
+// Devuelve todos los tipos de máquina con paginación opcional
+export const getTiposMaquinasPage = async (req, res) => {
+    try {
+        // Obtener los parámetros opcionales
+        const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
+        const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
+
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!req.query.page) {
+            const query = "SELECT * FROM tipo_maquina WHERE isDeleted = 0";
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", se aplica paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset
+
+        const query = `
+            SELECT * 
+            FROM tipo_maquina 
+            WHERE isDeleted = 0
+            LIMIT ? OFFSET ?`;
+
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error:', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Devuelve tipo de máquina por ID
 export const getTipoMaquinaById = async (req, res) => {
     const { id } = req.params;

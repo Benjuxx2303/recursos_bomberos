@@ -11,6 +11,36 @@ export const getConductorMaquina = async (req, res) => {
   }
 };
 
+// paginacion
+export const getConductorMaquinaPage = async (req, res) => {
+  try {
+    // Obtener los parámetros de la página y el tamaño de página
+    const page = parseInt(req.query.page) || 1;  // Si no se proporciona, se asume la primera página
+    const pageSize = parseInt(req.query.pageSize) || 10;  // Si no se proporciona, se asume un tamaño de página de 10
+
+    // Calcular el offset para la paginación
+    const offset = (page - 1) * pageSize;
+
+    // Consulta con paginación
+    const query = `
+      SELECT * 
+      FROM conductor_maquina 
+      WHERE isDeleted = 0
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await pool.query(query, [pageSize, offset]);
+    res.json(rows);
+
+  } catch (error) {
+    console.error('Error: ', error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message
+    });
+  }
+};
+
 export const getConductorMaquinaById = async (req, res) => {
   try {
     const { id } = req.params;

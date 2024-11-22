@@ -48,6 +48,58 @@ export const getPersonalWithDetails = async (req, res) => {
     }
 };
 
+export const getPersonalWithDetailsPage = async (req, res) => {
+    try {
+        // Obtener los parámetros opcionales
+        const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
+        const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
+
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!req.query.page) {
+            const query = `
+                SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
+                       DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
+                       DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
+                       p.img_url, p.obs, p.isDeleted,
+                       rp.nombre AS rol_personal, 
+                       c.nombre AS compania
+                FROM personal p
+                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+                INNER JOIN compania c ON p.compania_id = c.id
+                WHERE p.isDeleted = 0
+            `;
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", se aplica paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset
+
+        const query = `
+            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
+                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
+                   DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
+                   p.img_url, p.obs, p.isDeleted,
+                   rp.nombre AS rol_personal, 
+                   c.nombre AS compania
+            FROM personal p
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            INNER JOIN compania c ON p.compania_id = c.id
+            WHERE p.isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
+        
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        res.json(rows);
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 
 // Personal por id
 export const getPersonalbyID = async (req, res) => {
@@ -108,6 +160,7 @@ export const createPersonal = async (req, res) => {
         const rolPersonalIdNumber = parseInt(rol_personal_id);
         const companiaIdNumber = parseInt(compania_id);
 
+        // Validación de tipo de datos
         if (
             isNaN(rolPersonalIdNumber) ||
             isNaN(companiaIdNumber) ||
@@ -118,6 +171,14 @@ export const createPersonal = async (req, res) => {
         ) {
             return res.status(400).json({
                 message: 'Tipo de datos inválido'
+            });
+        }
+
+        // Validación de unicidad del rut
+        const [rutExists] = await pool.query("SELECT 1 FROM personal WHERE rut = ? AND isDeleted = 0", [rut]);
+        if (rutExists.length > 0) {
+            return res.status(400).json({
+                message: 'El RUT ya está registrado en el sistema.'
             });
         }
 
@@ -141,10 +202,13 @@ export const createPersonal = async (req, res) => {
         }
 
         // Validación opcional de fec_ingreso
-        if (fec_ingreso && typeof fec_ingreso === 'string' && !fechaRegex.test(fec_ingreso) || fec_ingreso.length === 0) {
-            return res.status(400).json({
-                message: 'El formato de la fecha de ingreso es inválido. Debe ser dd-mm-aaaa'
-            });
+        if (fec_ingreso) {
+            // Si fec_ingreso está definido, aseguramos que sea una cadena válida
+            if (typeof fec_ingreso !== 'string' || !fechaRegex.test(fec_ingreso)) {
+                return res.status(400).json({
+                    message: 'El formato de la fecha de ingreso es inválido. Debe ser dd-mm-aaaa'
+                });
+            }
         }
 
         // Inserción en la base de datos
@@ -176,6 +240,7 @@ export const createPersonal = async (req, res) => {
             fec_ingreso
         });
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message
@@ -257,6 +322,17 @@ export const updatePersonal = async (req, res) => {
                     message: "Tipo de dato inválido para 'rut'"
                 });
             }
+        
+            // Verificar si el rut ya existe en otro registro (independientemente del id)
+            const [rutExists] = await pool.query("SELECT 1 FROM personal WHERE rut = ? AND isDeleted = 0", [rut]);
+            
+            if (rutExists.length > 0) {
+                return res.status(400).json({
+                    message: 'El RUT ya está registrado en el sistema.'
+                });
+            }
+        
+            // Si el rut es válido y único, lo asignamos a los cambios
             updates.rut = rut;
         }
 

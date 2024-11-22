@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-    getDetallesMantencion,
+    // getDetallesMantencion,
+    getDetallesMantencionPage,
     getDetalleMantencion,
     createDetalleMantencion,
     deleteDetalleMantencion,
@@ -13,7 +14,12 @@ const router = Router();
 const base_route = '/detalle_mantencion';
 
 // Obtener todos los detalles de mantención
-router.get(base_route, getDetallesMantencion);
+// router.get(base_route, getDetallesMantencion);
+router.get(base_route, getDetallesMantencionPage); // paginado
+// http://{url}/api/detalle_mantencion
+// QueryParams:
+// page:              1
+// pageSize:          10
 
 // Obtener detalle de mantención por ID
 router.get(`${base_route}/:id`, getDetalleMantencion);

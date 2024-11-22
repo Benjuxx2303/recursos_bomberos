@@ -18,6 +18,47 @@ export const getServicios = async (req, res) => {
     }
 };
 
+// Obtener todos los servicios (activos) con información de subdivision y paginación opcional
+export const getServiciosPage = async (req, res) => {
+    try {
+        // Obtener los parámetros opcionales de la consulta
+        const page = parseInt(req.query.page) || 1; // Página por defecto 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño de página por defecto 10
+
+        // Si no se proporciona "page", devolver todos los registros sin paginación
+        if (!req.query.page) {
+            const query = `
+                SELECT s.*, sub.nombre AS subdivision
+                FROM servicio s
+                INNER JOIN subdivision sub ON s.subdivision_id = sub.id
+                WHERE s.isDeleted = 0
+            `;
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", aplicar paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset
+
+        const query = `
+            SELECT s.*, sub.nombre AS subdivision
+            FROM servicio s
+            INNER JOIN subdivision sub ON s.subdivision_id = sub.id
+            WHERE s.isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
+        
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        res.json(rows);
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Obtener un servicio por ID (solo activos) con información de subdivision
 export const getServicio = async (req, res) => {
     try {

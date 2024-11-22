@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-    getProcedencias,
+    // getProcedencias,
+    getProcedenciasPage,
     getProcedenciaById,
     createProcedencia,
     deleteProcedencia,
@@ -11,7 +12,13 @@ const router = Router();
 
 const base_route = "/procedencia";
 
-router.get(base_route, getProcedencias);
+// router.get(base_route, getProcedencias);
+router.get(base_route, getProcedenciasPage); // paginado
+// http://{url}/api/procedencia
+// QueryParams:
+// page:              1
+// pageSize:          10
+
 router.get(`${base_route}/:id`, getProcedenciaById);
 
 router.post(base_route, createProcedencia);

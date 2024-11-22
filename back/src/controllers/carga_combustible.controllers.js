@@ -50,6 +50,81 @@ export const getCargasCombustible = async (req, res) => {
     }
 };
 
+// Obtener todas las cargas de combustible con paginación
+export const getCargasCombustiblePage = async (req, res) => {
+    try {
+        // Obtener los parámetros opcionales para la paginación
+        const page = parseInt(req.query.page) || 1; // Página por defecto es 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño por defecto es 10
+
+        // Si no se proporciona "page", devolver todos los datos sin paginación
+        if (!req.query.page) {
+            const query = `
+                SELECT cc.id, cc.bitacora_id, cc.litros, cc.valor_mon, cc.img_url, cc.isDeleted,
+                       b.compania_id, c.nombre as compania, 
+                       p.rut as conductor_rut, p.nombre as conductor_nombre, p.apellido as conductor_apellido,
+                       b.direccion, 
+                       DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') as h_salida,
+                       DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') as h_llegada
+                FROM carga_combustible cc
+                INNER JOIN bitacora b ON cc.bitacora_id = b.id
+                INNER JOIN compania c ON b.compania_id = c.id
+                INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id
+                INNER JOIN personal p ON cm.personal_id = p.id
+                WHERE cc.isDeleted = 0
+            `;
+            const [rows] = await pool.query(query);
+            return res.json(rows); // Devuelve todos los registros sin paginación
+        }
+
+        // Si se proporciona "page", se aplica paginación
+        const offset = (page - 1) * pageSize; // Calcular el offset
+
+        const query = `
+            SELECT cc.id, cc.bitacora_id, cc.litros, cc.valor_mon, cc.img_url, cc.isDeleted,
+                   b.compania_id, c.nombre as compania, 
+                   p.rut as conductor_rut, p.nombre as conductor_nombre, p.apellido as conductor_apellido,
+                   b.direccion, 
+                   DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') as h_salida,
+                   DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') as h_llegada
+            FROM carga_combustible cc
+            INNER JOIN bitacora b ON cc.bitacora_id = b.id
+            INNER JOIN compania c ON b.compania_id = c.id
+            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id
+            INNER JOIN personal p ON cm.personal_id = p.id
+            WHERE cc.isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
+
+        const [rows] = await pool.query(query, [pageSize, offset]);
+        
+        // Mapeo de los resultados
+        const result = rows.map(row => ({
+            id: row.id,
+            bitacora: {
+                id: row.bitacora_id,
+                compania: row.compania,
+                conductor_rut: row.conductor_rut,
+                conductor_nombre: row.conductor_nombre,
+                conductor_apellido: row.conductor_apellido,
+                direccion: row.direccion,
+                h_salida: row.h_salida,
+                h_llegada: row.h_llegada,
+            },
+            litros: row.litros,
+            valor_mon: row.valor_mon,
+            img_url: row.img_url,
+        }));
+
+        res.json(result);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Obtener carga de combustible por ID
 export const getCargaCombustibleByID = async (req, res) => {
     const { id } = req.params;

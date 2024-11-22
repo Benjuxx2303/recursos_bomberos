@@ -40,6 +40,7 @@ export const getUsuariosWithDetailsPage = async (req, res) => {
         if (!req.query.page) {
             const query = `
                 SELECT 
+                    u.id,
                     u.username, 
                     p.nombre AS 'Nombre',
                     p.apellido AS 'Apellido'

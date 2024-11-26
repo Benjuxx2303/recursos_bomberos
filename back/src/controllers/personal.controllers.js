@@ -1,8 +1,8 @@
 import { pool } from "../db.js";
 import {
-    uploadFileToS3,
+    handleError,
     updateImageUrlInDb,
-    handleError
+    uploadFileToS3
 } from './fileUpload.js';
 
 // TODO: Validación de ruts
@@ -431,8 +431,14 @@ export const updatePersonal = async (req, res) => {
 
         // Construir la consulta de actualización
         const setClause = Object.keys(updates)
-            .map((key) => `${key} = ?`)
-            .join(", ");
+        .map((key) => {
+          if (key === 'fec_nac' || key === 'fec_ingreso') {
+            return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
+          }
+          return `${key} = ?`;
+        })
+        .join(', ');
+        //la fecha se convertirá al formato adecuado usando STR_TO_DATE, y MySQL almacenará el valor correctamente sin generar errores.
 
         if (!setClause) {
             return res.status(400).json({

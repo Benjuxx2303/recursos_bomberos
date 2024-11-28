@@ -10,6 +10,7 @@ import {
 
 const router = Router();
 const base_route = '/compania';
+import { checkRole } from "../controllers/authMiddleware.js";
 
 // router.get(base_route, getCompanias);
 router.get(base_route, getCompaniasPage); // paginado
@@ -18,12 +19,12 @@ router.get(base_route, getCompaniasPage); // paginado
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, getCompania);
+router.get(`${base_route}/:id`, checkRole(['TELECOM']), getCompania);
 
-router.post(base_route, createCompania);
+router.post(base_route, checkRole(['TELECOM']), createCompania);
 
-router.delete(`${base_route}/:id`, deleteCompania);
+router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteCompania);
 
-router.patch(`${base_route}/:id`, updateCompania);
+router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateCompania);
 
 export default router;

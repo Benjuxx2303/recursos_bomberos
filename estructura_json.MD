@@ -1,4 +1,14 @@
 
+# ANTES DE PROSEGUIR!
+## Recuerda usar el endpoint de "login" para poder acceder a las rutas.
+### "/api/usuario/login"
+```
+{
+    "username": "juanPerez",
+    "contrasena": "test123"
+}
+```
+
 # Query Params
 ### Los siguientes query params estan presentes en todos los endpoints de la api:
 ###### Ejemplo

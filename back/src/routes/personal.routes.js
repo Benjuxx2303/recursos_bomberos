@@ -21,7 +21,7 @@ const router = Router();
 const base_route = '/personal';
 
 // router.get(base_route, getPersonalWithDetails);
-router.get(base_route,  getPersonalWithDetailsPage); // con paginación
+router.get(base_route, checkRole(['TELECOM']), getPersonalWithDetailsPage); // con paginación
 // http://{url}/api/personal
 // QueryParams:
 // page:              1

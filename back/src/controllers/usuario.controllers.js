@@ -1,5 +1,7 @@
-import { pool } from "../db.js";
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
+import { pool } from "../db.js";
 
 // Obtener todos los usuarios
 export const getUsuarios = async (req, res) => {
@@ -153,6 +155,12 @@ export const loginUser = async (req, res) => {
     const { username, contrasena } = req.body;
 
     try {
+        // Validar largo del username
+        if (username.length < 4 || username.length > 25) {
+            return res.status(400).json({ message: "El nombre de usuario debe tener entre 4 y 25 caracteres" });
+        }
+
+        // Validar existencia del usuario
         const [rows] = await pool.query("SELECT * FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -163,8 +171,50 @@ export const loginUser = async (req, res) => {
         if (!isMatch) {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
+        
+        // DATOS PARA EL PAYLOAD DEL JWT
+        // Obtener rol del usuario
+        const [rolRows] = await pool.query("SELECT rp.nombre FROM rol_personal rp JOIN personal p ON rp.id = p.rol_personal_id WHERE p.id = ?", [user.personal_id]);
+        const rol = rolRows[0]?.nombre || null;
 
-        res.status(200).json({ message: 'Inicio de sesión exitoso', userId: user.id, username: user.username });
+        // Obtener compañía del usuario
+        const [companyRows] = await pool.query("SELECT c.nombre FROM compania c JOIN personal p ON c.id = p.compania_id WHERE p.id = ?", [user.personal_id]);
+        const company = companyRows[0]?.nombre || null;
+
+        // Obtener nombre completo del usuario
+        const [personalRows] = await pool.query("SELECT nombre, apellido FROM personal WHERE id = ?", [user.personal_id]);
+        const nombre = personalRows[0]?.nombre || null;
+        const apellido = personalRows[0]?.apellido || null;
+        const nombreCompleto = `${nombre} ${apellido}`;
+
+        // obtener imagen del usuario
+        const [imageRows] = await pool.query("SELECT img_url FROM personal WHERE id = ?", [user.personal_id]);
+        const img_url = imageRows[0]?.img_url || null;
+        // ----------------------------
+        
+        // JSON Web Token
+        const token = jwt.sign({
+            userId: user.id,
+            username: user.username,
+            nombre: nombreCompleto,
+            rol_personal: rol,
+            compania: company,
+            img_url: img_url,
+        }, SECRET_JWT_KEY, { expiresIn: '1h' });
+
+        //En lugar de establecer el token en una cookie,  enviarlo en el cuerpo de la respuesta
+        res.status(200).json({
+            message: 'Inicio de sesión exitoso',
+            token: token,
+            user: {
+                id: user.id,
+                username: user.username,
+                nombre: nombreCompleto,
+                rol: rol,
+                compania: company,
+                img_url: img_url,
+            }
+        });
     } catch (error) {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
@@ -181,8 +231,19 @@ export const registerUser = async (req, res) => {
             return res.status(400).json({ message: "Personal no existe o está eliminado" });
         }
 
+        // Validar largo del username
+        if(username.length < 4 || username.length > 25) {
+            return res.status(400).json({ message: "El nombre de usuario debe tener entre 4 y 25 caracteres" });
+        }
+
+        // Validar existencia del usuario
+        const [userExists] = await pool.query("SELECT 1 FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
+        if (userExists.length > 0) {
+            return res.status(400).json({ message: "El nombre de usuario ya está en uso" });
+        }
+
         // Encriptar la contraseña
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
         const hashedPassword = await bcrypt.hash(contrasena, salt);
 
         const [result] = await pool.query(
@@ -195,6 +256,7 @@ export const registerUser = async (req, res) => {
             userId: result.insertId,
         });
     } catch (error) {
+        console.error('Error: ', error);
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };

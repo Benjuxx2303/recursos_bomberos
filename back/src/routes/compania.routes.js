@@ -1,16 +1,16 @@
 import { Router } from "express";
+import { checkRole } from "../controllers/authMiddleware.js";
 import {
-    // getCompanias,
-    getCompaniasPage,
-    getCompania,
     createCompania,
     deleteCompania,
+    getCompania,
+    // getCompanias,
+    getCompaniasPage,
     updateCompania,
 } from "../controllers/compania.controllers.js";
 
 const router = Router();
 const base_route = '/compania';
-import { checkRole } from "../controllers/authMiddleware.js";
 
 // router.get(base_route, getCompanias);
 router.get(base_route, getCompaniasPage); // paginado
@@ -19,7 +19,7 @@ router.get(base_route, getCompaniasPage); // paginado
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getCompania);
+router.get(`${base_route}/:id`,getCompania);
 
 router.post(base_route, checkRole(['TELECOM']), createCompania);
 

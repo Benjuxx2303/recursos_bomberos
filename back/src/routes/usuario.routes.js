@@ -7,7 +7,10 @@ import {
     getUsuariosWithDetailsPage,
     loginUser,
     registerUser,
-    updateUsuario
+    updateUsuario,
+    recoverPassword,
+    resetPassword,
+    verifyEmail
 } from "../controllers/usuario.controllers.js";
 
 const router = Router();
@@ -40,6 +43,10 @@ router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateUsuario);
 router.post(`${base_route}/register`, registerUser);
 
 // Iniciar sesión
-router.post(`${base_route}/login`, loginUser);
+router.post(`${base_route}/login`, loginUser); // Iniciar sesión
+router.post(`${base_route}/recover-password`, recoverPassword); // Recuperar contraseña
+router.post(`${base_route}/reset-password/:token`, resetPassword); // Resetear contraseña
+router.get(`${base_route}/verify-email/:token`, verifyEmail); // Ruta para verificar correo
+
 
 export default router;

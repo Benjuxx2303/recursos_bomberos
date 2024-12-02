@@ -223,8 +223,9 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 }
 ```
 
-# 14.1 usuario (register)
+# 14.1. register
 ### "/api/usuario/register"
+Luego de registrar, revisar el correo para verificarlo.
 ```
 {
     "username": "juanPerez",
@@ -234,12 +235,28 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 }
 ```
 
-# 14.1 usuario (login)
+# 14.2. login
 ### "/api/usuario/login"
 ```
 {
     "username": "juanPerez",
     "contrasena": "test123"
+}
+```
+
+# 14.3. recuperar contraseña
+### "/api/usuario/recover-password"
+```
+{
+    "correo": "test2@test.cl"
+}
+```
+
+# 14.4. reestablecer contraseña
+### "/api/usuario/reset-password/:token"
+```
+{
+    "contrasena": "newPassword1"
 }
 ```
 
@@ -305,4 +322,39 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
     "litros": 50.00,
     "valor_mon": 1000
 }
+```
+
+# 20.1. stats (maintenance)
+### "/api/stats/maintenance"
+- Response:
+```
+
+```
+ 
+# 20.2. stats (service)
+### "/api/stats/service"
+- Response:
+```
+
+```
+ 
+# 20.3. stats (fuel)
+### "/api/stats/fuel"
+- Response:
+```
+
+```
+ 
+# 20.4. stats (company)
+### "/api/stats/company"
+- Response:
+```
+
+```
+ 
+# 20.5. stats (driver)
+### "/api/stats/driver"
+- Response:
+```
+
 ```

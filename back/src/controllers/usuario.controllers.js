@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
+import { SALT_ROUNDS, SECRET_JWT_KEY, HOST } from "../config.js";
 import { pool } from "../db.js";
+import crypto from 'crypto';
+import { sendEmail } from './mailer.js';
 
 // Obtener todos los usuarios
 export const getUsuarios = async (req, res) => {
@@ -19,6 +21,7 @@ export const getUsuariosWithDetails = async (req, res) => {
         const [rows] = await pool.query(`
             SELECT 
                 u.username, 
+                u.correo,
                 p.nombre AS 'Nombre',
                 p.apellido AS 'Apellido'
             FROM usuario u
@@ -44,6 +47,7 @@ export const getUsuariosWithDetailsPage = async (req, res) => {
                 SELECT 
                     u.id,
                     u.username, 
+                    u.correo,
                     p.nombre AS 'Nombre',
                     p.apellido AS 'Apellido'
                 FROM usuario u
@@ -60,6 +64,7 @@ export const getUsuariosWithDetailsPage = async (req, res) => {
         const query = `
             SELECT 
                 u.username, 
+                u.correo,
                 p.nombre AS 'Nombre',
                 p.apellido AS 'Apellido'
             FROM usuario u
@@ -120,7 +125,7 @@ export const updateUsuario = async (req, res) => {
         if (username !== undefined) updates.username = username;
         if (correo !== undefined) updates.correo = correo;
         if (contrasena !== undefined) {
-            const salt = await bcrypt.genSalt(10);
+            const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
             updates.contrasena = await bcrypt.hash(contrasena, salt);
         }
         if (personal_id !== undefined) {
@@ -220,7 +225,7 @@ export const loginUser = async (req, res) => {
     }
 };
 
-// Registrar nuevo usuario
+// Registrar nuevo usuario (incluye verificación de correo)
 export const registerUser = async (req, res) => {
     const { username, correo, contrasena, personal_id } = req.body;
 
@@ -232,7 +237,7 @@ export const registerUser = async (req, res) => {
         }
 
         // Validar largo del username
-        if(username.length < 4 || username.length > 25) {
+        if (username.length < 4 || username.length > 25) {
             return res.status(400).json({ message: "El nombre de usuario debe tener entre 4 y 25 caracteres" });
         }
 
@@ -246,17 +251,138 @@ export const registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
         const hashedPassword = await bcrypt.hash(contrasena, salt);
 
+        // Crear el usuario
         const [result] = await pool.query(
-            "INSERT INTO usuario (username, correo, contrasena, personal_id, isDeleted) VALUES (?, ?, ?, ?, 0)",
+            "INSERT INTO usuario (username, correo, contrasena, personal_id, isDeleted, isVerified) VALUES (?, ?, ?, ?, 0, 0)", 
             [username, correo, hashedPassword, personal_id]
         );
 
+        // Obtener el ID del usuario creado
+        const userId = result.insertId;
+
+        // Crear un token JWT para la verificación del correo
+        const verifyToken = jwt.sign(
+            { userId },
+            SECRET_JWT_KEY,
+            { expiresIn: '1d' } // El token expira en 1 día
+        );
+
+        // Crear enlace para la verificación del correo
+        const verifyLink = `${HOST}/api/usuario/verify-email/${verifyToken}`;
+
+        // Enviar correo de verificación
+        await sendEmail(
+            correo,
+            'Verificación de Correo',
+            `Para verificar tu correo, haz clic en el siguiente enlace: ${verifyLink}`,
+            `<p>Para verificar tu correo, haz clic en el siguiente enlace: <a href="${verifyLink}">Verificar Correo</a></p>`
+        );
+
         res.status(201).json({
-            message: 'Usuario registrado exitosamente',
-            userId: result.insertId,
+            message: 'Usuario registrado exitosamente. Se ha enviado un correo de verificación.',
+            userId: userId,
         });
     } catch (error) {
-        console.error('Error: ', error);
+        console.error('Error al registrar usuario: ', error);
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    }
+};
+
+
+// Recuperar Contraseña (enviar correo con link para cambiar contraseña)
+export const recoverPassword = async (req, res) => {
+    const { correo } = req.body;
+
+    try {
+        // Verificar si el correo existe en la base de datos
+        const [userRows] = await pool.query("SELECT * FROM usuario WHERE correo = ? AND isDeleted = 0", [correo]);
+
+        if (userRows.length === 0) {
+            return res.status(404).json({ message: "Correo no encontrado" });
+        }
+
+        const user = userRows[0];
+
+        // Crear un token JWT que caducará en 1 hora
+        const resetToken = jwt.sign(
+            { userId: user.id },
+            SECRET_JWT_KEY,
+            { expiresIn: '1h' }
+        );
+
+        // Generar enlace para restablecer la contraseña
+        const resetLink = `${HOST}/api/usuario/reset-password/${resetToken}`;
+
+        // Enviar el correo con el enlace de recuperación
+        await sendEmail(
+            correo, 
+            'Recuperación de Contraseña', 
+            `Para restablecer tu contraseña, haz clic en el siguiente enlace: ${resetLink}`,
+            `<p>Para restablecer tu contraseña, haz clic en el siguiente enlace: <a href="${resetLink}">Restablecer Contraseña</a></p>`
+        );
+
+        res.status(200).json({ message: "Correo de recuperación enviado" });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    }
+};
+
+// Resetear la contraseña
+export const resetPassword = async (req, res) => {
+    const { token } = req.params;  // Token enviado por el correo
+    const { contrasena } = req.body;  // Nueva contraseña
+
+    try {
+        // Verificar el token
+        const decoded = jwt.verify(token, SECRET_JWT_KEY);
+
+        // Buscar al usuario en la base de datos
+        const [userRows] = await pool.query("SELECT * FROM usuario WHERE id = ? AND isDeleted = 0", [decoded.userId]);
+
+        if (userRows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        const user = userRows[0];
+
+        // Encriptar la nueva contraseña
+        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
+        const hashedPassword = await bcrypt.hash(contrasena, salt);
+
+        // Actualizar la contraseña en la base de datos
+        await pool.query("UPDATE usuario SET contrasena = ? WHERE id = ?", [hashedPassword, user.id]);
+
+        res.status(200).json({ message: "Contraseña restablecida con éxito" });
+
+    } catch (error) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+    }
+};
+
+// Verificar Correo
+export const verifyEmail = async (req, res) => {
+    const { token } = req.params;
+
+    try {
+        // Verificar el token
+        const decoded = jwt.verify(token, SECRET_JWT_KEY);
+
+        // Buscar al usuario en la base de datos
+        const [userRows] = await pool.query("SELECT * FROM usuario WHERE id = ? AND isDeleted = 0", [decoded.userId]);
+
+        if (userRows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        const user = userRows[0];
+
+        // Marcar al usuario como verificado
+        await pool.query("UPDATE usuario SET isVerified = 1 WHERE id = ?", [user.id]);
+
+        res.status(200).json({ message: "Correo verificado con éxito" });
+
+    } catch (error) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
     }
 };

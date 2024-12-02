@@ -326,35 +326,133 @@ Luego de registrar, revisar el correo para verificarlo.
 
 # 20.1. stats (maintenance)
 ### "/api/stats/maintenance"
+- Descripción: Obtiene datos de mantenciones agrupados por mes y tipo de mantención.
+Respuesta:
 - Response:
 ```
-
+[
+  {
+    "month": "Ene",
+    "preventivo": 20,
+    "correctivo": 10,
+    "emergencia": 5
+  },
+  {
+    "month": "Feb",
+    "preventivo": 25,
+    "correctivo": 8,
+    "emergencia": 3
+  },
+  {
+    "month": "Mar",
+    "preventivo": 18,
+    "correctivo": 12,
+    "emergencia": 7
+  }
+]
 ```
  
 # 20.2. stats (service)
 ### "/api/stats/service"
+- Descripción: Obtiene datos de servicios agrupados por mes y tipo de servicio.
 - Response:
 ```
-
+[
+  {
+    "month": "Ene",
+    "incendios": 15,
+    "rescates": 8,
+    "otros": 5
+  },
+  {
+    "month": "Feb",
+    "incendios": 12,
+    "rescates": 10,
+    "otros": 7
+  },
+  {
+    "month": "Mar",
+    "incendios": 18,
+    "rescates": 6,
+    "otros": 4
+  }
+]
 ```
  
 # 20.3. stats (fuel)
 ### "/api/stats/fuel"
+- Descripción: Obtiene datos de consumo de combustible agrupados por mes y tipo de combustible.
 - Response:
 ```
-
+[
+  {
+    "month": "Ene",
+    "diesel": 1000,
+    "gasolina": 500
+  },
+  {
+    "month": "Feb",
+    "diesel": 1200,
+    "gasolina": 600
+  },
+  {
+    "month": "Mar",
+    "diesel": 900,
+    "gasolina": 450
+  }
+]
 ```
  
 # 20.4. stats (company)
 ### "/api/stats/company"
+- Descripción: Obtiene datos de compañías con el número de servicios y personal por compañía.
 - Response:
 ```
-
+[
+  {
+    "name": "Compañía 1",
+    "servicios": 50,
+    "personal": 30
+  },
+  {
+    "name": "Compañía 2",
+    "servicios": 45,
+    "personal": 28
+  },
+  {
+    "name": "Compañía 3",
+    "servicios": 55,
+    "personal": 32
+  }
+]
 ```
  
 # 20.5. stats (driver)
 ### "/api/stats/driver"
+- Descripción: Obtiene datos de los conductores con información de servicios y horas trabajadas.
 - Response:
 ```
-
+[
+  {
+    "id": 1,
+    "nombre": "Juan Pérez",
+    "compañia": "Compañía 1",
+    "servicios": 20,
+    "horas": 100
+  },
+  {
+    "id": 2,
+    "nombre": "María González",
+    "compañia": "Compañía 2",
+    "servicios": 18,
+    "horas": 90
+  },
+  {
+    "id": 3,
+    "nombre": "Carlos Rodríguez",
+    "compañia": "Compañía 3",
+    "servicios": 22,
+    "horas": 110
+  },
+]
 ```

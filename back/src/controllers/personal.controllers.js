@@ -62,14 +62,16 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                        DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                        p.img_url, p.obs, p.isDeleted,
                        rp.nombre AS rol_personal, 
-                       c.nombre AS compania
+                       c.nombre AS compania,
+                       TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
                 FROM personal p
                 INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
                 INNER JOIN compania c ON p.compania_id = c.id
                 WHERE p.isDeleted = 0
             `;
             const [rows] = await pool.query(query);
-            return res.json(rows); // Devuelve todos los registros sin paginación
+            res.json(rows);
+            return;
         }
 
         // Si se proporciona "page", se aplica paginación
@@ -81,14 +83,15 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
-                   c.nombre AS compania
+                   c.nombre AS compania,
+                   TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
             WHERE p.isDeleted = 0
             LIMIT ? OFFSET ?
         `;
-        
+
         const [rows] = await pool.query(query, [pageSize, offset]);
         res.json(rows);
     } catch (error) {

@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { SALT_ROUNDS, SECRET_JWT_KEY, HOST } from "../config.js";
 import { pool } from "../db.js";
-import crypto from 'crypto';
 import { sendEmail } from './mailer.js';
 
 // Obtener todos los usuarios

@@ -28,7 +28,10 @@ export const getPersonalWithDetails = async (req, res) => {
             SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-                   p.img_url, p.obs, p.isDeleted,
+                   p.img_url, 
+                   p.obs, 
+                   p.ven_licencia,
+                   p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania
             FROM personal p
@@ -60,7 +63,10 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                 SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
                        DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                        DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-                       p.img_url, p.obs, p.isDeleted,
+                       p.img_url, 
+                       p.obs, 
+                       p.ven_licencia,
+                       p.isDeleted,
                        rp.nombre AS rol_personal, 
                        c.nombre AS compania,
                        TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
@@ -120,9 +126,12 @@ export const getPersonalbyID = async (req, res) => {
             SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-                   p.img_url, p.obs, p.isDeleted,
+                   p.img_url, 
+                   p.obs, 
+                   p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania
+                   TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
@@ -156,7 +165,8 @@ export const createPersonal = async (req, res) => {
         fec_nac,
         img_url = '',
         obs = '',
-        fec_ingreso // Nuevo campo
+        fec_ingreso, // Nuevo campo
+        ven_licencia // campo opcional
     } = req.body;
 
     try {
@@ -214,9 +224,19 @@ export const createPersonal = async (req, res) => {
             }
         }
 
+        // validacion opcional de ven_licencia (date)
+        if (ven_licencia) {
+            // Si ven_licencia está definido, aseguramos que sea una cadena válida
+            if (typeof ven_licencia !== 'string' || !fechaRegex.test(ven_licencia)) {
+                return res.status(400).json({
+                    message: 'El formato de la fecha de vencimiento de licencia es inválido. Debe ser dd-mm-aaaa'
+                });
+            }
+        }
+
         // Inserción en la base de datos
         const [rows] = await pool.query(
-            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, fec_ingreso, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), 0)',
+            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, fec_ingreso, isDeleted, ven_licencia) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), 0, STR_TO_DATE(?, "%d-%m-%Y"))',
             [
                 rolPersonalIdNumber,
                 rut,
@@ -226,7 +246,8 @@ export const createPersonal = async (req, res) => {
                 fec_nac,
                 img_url,
                 obs,
-                fec_ingreso || null // Inserta NULL si fec_ingreso no se especifica
+                fec_ingreso || null, // Inserta NULL si fec_ingreso no se especifica
+                ven_licencia || null // Inserta NULL si ven_licencia no se especifica
             ]
         );
 
@@ -240,7 +261,8 @@ export const createPersonal = async (req, res) => {
             fec_nac,
             img_url,
             obs,
-            fec_ingreso
+            fec_ingreso,
+            ven_licencia
         });
     } catch (error) {
         console.error('error: ', error);
@@ -291,7 +313,8 @@ export const updatePersonal = async (req, res) => {
         img_url,
         obs,
         isDeleted,
-        fec_ingreso // Nuevo campo
+        fec_ingreso, // Nuevo campo
+        ven_licencia // campo opcional      
     } = req.body;
 
     try {
@@ -405,6 +428,23 @@ export const updatePersonal = async (req, res) => {
             updates.fec_ingreso = fec_ingreso;
         }
 
+        // Validación opcional de ven_licencia
+        if (ven_licencia !== undefined) {
+            if (typeof ven_licencia !== 'string') {
+                return res.status(400).json({
+                    message: "Tipo de dato inválido para 'ven_licencia'"
+                });
+            }
+            // Validación de fecha
+            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+            if (!fechaRegex.test(ven_licencia)) {
+                return res.status(400).json({
+                    message: 'El formato de la fecha de vencimiento de licencia es inválido. Debe ser dd-mm-aaaa'
+                });
+            }
+            updates.ven_licencia = ven_licencia;
+        }
+
         if (img_url !== undefined) {
             if (typeof img_url !== 'string') {
                 return res.status(400).json({
@@ -435,7 +475,7 @@ export const updatePersonal = async (req, res) => {
         // Construir la consulta de actualización
         const setClause = Object.keys(updates)
         .map((key) => {
-          if (key === 'fec_nac' || key === 'fec_ingreso') {
+          if (key === 'fec_nac' || key === 'fec_ingreso' || key === 'ven_licencia') {
             return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
           }
           return `${key} = ?`;

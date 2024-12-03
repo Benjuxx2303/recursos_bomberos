@@ -137,9 +137,7 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ```
 {
   "personal_id": 1,
-  "maquina_id": 1,
-  "tipo_maquina_id": 1,
-  "ven_licencia": "31-12-2025"
+  "maquina_id": 1
 }
 ```
 

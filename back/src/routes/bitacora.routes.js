@@ -1,13 +1,13 @@
 import { Router } from "express";
+import { checkRole } from "../controllers/authMiddleware.js";
 import {
-  // getBitacora,
-  getBitacoraPage,
-  getBitacoraById,
   createBitacora,
   deleteBitacora,
+  getBitacora,
+  getBitacoraById, // habilitado
+  getBitacoraPage,
   updateBitacora,
 } from "../controllers/bitacora.controllers.js";
-import { checkRole } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
@@ -15,6 +15,7 @@ const base_route = "/bitacora";
 
 // router.get(base_route, getBitacora);
 router.get(base_route, checkRole(['TELECOM']), getBitacoraPage); // paginado
+router.get(`${base_route}/search`, checkRole(['TELECOM']), getBitacora); // nueva ruta de búsqueda
 // http://{url}/api/bitacora
 // QueryParams:
 // page:              1

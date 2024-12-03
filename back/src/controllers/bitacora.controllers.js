@@ -1,33 +1,59 @@
 import { pool } from "../db.js";
 
+// Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
     try {
-        const [rows] = await pool.query(
-            `SELECT b.id, 
-                    c.nombre AS compania, 
-                    p.rut AS "rut_personal", 
-                    m.patente AS "patente_maquina", 
-                    tm.clasificacion AS tipo_maquina, 
-                    DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
-                    DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
-                    cl.codigo AS clave, 
-                    b.direccion, 
-                    b.km_salida, 
-                    b.km_llegada, 
-                    b.hmetro_salida, 
-                    b.hmetro_llegada, 
-                    b.hbomba_salida, 
-                    b.hbomba_llegada, 
-                    b.obs 
-             FROM bitacora b 
-             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-             INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
-             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
-             INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
-             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
-             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
-             WHERE b.isDeleted = 0`
-        );
+        const { id, compania, rut_personal, taller, fecha_salida } = req.query;
+        let query = `
+            SELECT b.id, 
+                   c.nombre AS compania, 
+                   p.rut AS "rut_personal", 
+                   m.patente AS "patente_maquina", 
+                   tm.clasificacion AS tipo_maquina, 
+                   DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
+                   DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
+                   cl.codigo AS clave, 
+                   b.direccion, 
+                   b.km_salida, 
+                   b.km_llegada, 
+                   b.hmetro_salida, 
+                   b.hmetro_llegada, 
+                   b.hbomba_salida, 
+                   b.hbomba_llegada, 
+                   b.obs 
+            FROM bitacora b 
+            INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
+            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
+            INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
+            INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
+            INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
+            INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
+            WHERE b.isDeleted = 0`;
+
+        const params = [];
+
+        if (id) {
+            query += " AND b.id = ?";
+            params.push(id);
+        }
+        if (compania) {
+            query += " AND c.nombre LIKE ?";
+            params.push(`%${compania}%`);
+        }
+        if (rut_personal) {
+            query += " AND p.rut LIKE ?";
+            params.push(`%${rut_personal}%`);
+        }
+        if (taller) {
+            query += " AND tm.clasificacion LIKE ?";
+            params.push(`%${taller}%`);
+        }
+        if (fecha_salida) {
+            query += " AND DATE_FORMAT(b.fh_salida, '%d-%m-%Y') = ?";
+            params.push(fecha_salida);
+        }
+
+        const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (error) {
         return res.status(500).json({ message: error.message });

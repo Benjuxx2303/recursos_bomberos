@@ -69,14 +69,26 @@ if (!req.query.page) {
                p.isDeleted,
                rp.nombre AS rol_personal, 
                c.nombre AS compania,
-               TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
+               TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
+               GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
         FROM personal p
         INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
         INNER JOIN compania c ON p.compania_id = c.id
+        LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
+        LEFT JOIN maquina m ON cm.maquina_id = m.id
         WHERE p.isDeleted = 0
+        GROUP BY p.id
     `;
     const [rows] = await pool.query(query);
-    res.json(rows);
+
+    // Procesar los resultados
+    const results = rows.map(row => {
+        const maquinas = row.maquinas_ids ? row.maquinas_ids.split(',').map(id => parseInt(id)) : undefined;
+        delete row.maquinas_ids;
+        return maquinas ? { ...row, maquinas } : row;
+    });
+
+    res.json(results);
     return;
 }
 
@@ -91,16 +103,28 @@ const offset = (page - 1) * pageSize; // Calcular el offset
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
                    p.compania_id, p.rol_personal_id, p.ven_licencia,
-                   TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
+                   TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
+                   GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
+            LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
+            LEFT JOIN maquina m ON cm.maquina_id = m.id
             WHERE p.isDeleted = 0
+            GROUP BY p.id
             LIMIT ? OFFSET ?
         `;
 
         const [rows] = await pool.query(query, [pageSize, offset]);
-        res.json(rows);
+
+        // Procesar los resultados
+        const results = rows.map(row => {
+            const maquinas = row.maquinas_ids ? row.maquinas_ids.split(',').map(id => parseInt(id)) : undefined;
+            delete row.maquinas_ids;
+            return maquinas ? { ...row, maquinas } : row;
+        });
+
+        res.json(results);
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({
@@ -133,11 +157,15 @@ export const getPersonalbyID = async (req, res) => {
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
                    p.compania_id, p.rol_personal_id, p.ven_licencia,
-                   TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
+                   TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
+                   GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
+            LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
+            LEFT JOIN maquina m ON cm.maquina_id = m.id
             WHERE p.id = ? AND p.isDeleted = 0
+            GROUP BY p.id
         `;
         
         const [rows] = await pool.query(query, [idNumber]);
@@ -146,7 +174,14 @@ export const getPersonalbyID = async (req, res) => {
                 message: 'Personal no encontrado'
             });
         }
-        res.json(rows[0]);
+
+        const row = rows[0];
+        const maquinas = row.maquinas_ids ? row.maquinas_ids.split(',').map(id => parseInt(id)) : undefined;
+        delete row.maquinas_ids;
+
+        const result = maquinas ? { ...row, maquinas } : row;
+
+        res.json(result);
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({
@@ -538,5 +573,59 @@ export const updateImage = async (req, res) => {
         res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
     } catch (error) {
         handleError(res, error, "Error al actualizar la imagen");
+    }
+};
+
+export const fetchConductoresByCompania = async (req, res) => {
+    try {
+        const { compania_id, maquina_id } = req.query;
+
+        let query = `
+            SELECT 
+                p.id AS personal_id,
+                p.nombre,
+                p.apellido,
+                p.rut,
+                p.compania_id,
+                c.nombre AS compania,
+                rp.nombre AS rol_personal,
+                GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
+            FROM personal p
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            INNER JOIN compania c ON p.compania_id = c.id
+            LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
+            LEFT JOIN maquina m ON cm.maquina_id = m.id
+            WHERE p.isDeleted = 0 AND rp.nombre = 'Conductor'
+        `;
+
+        const params = [];
+
+        if (compania_id) {
+            query += ' AND p.compania_id = ?';
+            params.push(compania_id);
+        }
+
+        if (maquina_id) {
+            query += ' AND m.id = ?';
+            params.push(maquina_id);
+        }
+
+        query += ' GROUP BY p.id';
+
+        const [rows] = await pool.query(query, params);
+
+        // Transformar los IDs de máquinas en un arreglo
+        const result = rows.map(row => ({
+            ...row,
+            maquinas_ids: row.maquinas_ids ? row.maquinas_ids.split(',').map(id => parseInt(id)) : []
+        }));
+
+        res.json(result);
+    } catch (error) {
+        console.error('error: ', error);
+        res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
     }
 };

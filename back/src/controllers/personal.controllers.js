@@ -204,8 +204,6 @@ export const createPersonal = async (req, res) => {
             }
         }
 
-<<<<<<< Updated upstream
-=======
         // Validación opcional de ven_licencia (date)
         if (ven_licencia) {
             if (typeof ven_licencia !== 'string' || !fechaRegex.test(ven_licencia)) {
@@ -218,7 +216,6 @@ export const createPersonal = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
->>>>>>> Stashed changes
         // Inserción en la base de datos
         const [rows] = await pool.query(
             'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, fec_ingreso, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), 0)',
@@ -393,8 +390,6 @@ export const updatePersonal = async (req, res) => {
             }
         }
 
-<<<<<<< Updated upstream
-=======
         // Validación opcional de ven_licencia
         if (ven_licencia !== undefined) {
             if (typeof ven_licencia !== 'string') {
@@ -409,7 +404,6 @@ export const updatePersonal = async (req, res) => {
             }
         }
 
->>>>>>> Stashed changes
         if (img_url !== undefined) {
             if (typeof img_url !== 'string') {
                 errors.push("Tipo de dato inválido para 'img_url'");
@@ -441,16 +435,6 @@ export const updatePersonal = async (req, res) => {
 
         // Construir la consulta de actualización
         const setClause = Object.keys(updates)
-<<<<<<< Updated upstream
-        .map((key) => {
-          if (key === 'fec_nac' || key === 'fec_ingreso') {
-            return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
-          }
-          return `${key} = ?`;
-        })
-        .join(', ');
-        //la fecha se convertirá al formato adecuado usando STR_TO_DATE, y MySQL almacenará el valor correctamente sin generar errores.
-=======
             .map((key) => {
                 if (key === 'fec_nac' || key === 'fec_ingreso' || key === 'ven_licencia') {
                     return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
@@ -458,7 +442,6 @@ export const updatePersonal = async (req, res) => {
                 return `${key} = ?`;
             })
             .join(', ');
->>>>>>> Stashed changes
 
         if (!setClause) {
             return res.status(400).json({

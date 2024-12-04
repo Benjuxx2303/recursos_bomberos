@@ -53,54 +53,20 @@ export const getPersonalWithDetails = async (req, res) => {
 
 export const getPersonalWithDetailsPage = async (req, res) => {
     try {
-// Obtener los parámetros opcionales
-const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
-const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
+        // Obtener los parámetros opcionales
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
 
-// Si no se proporciona "page", devolver todos los datos sin paginación
-if (!req.query.page) {
-    const query = `
-        SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
-               DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
-               DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-               p.img_url, 
-               p.obs, 
-               p.ven_licencia,
-               p.isDeleted,
-               rp.nombre AS rol_personal, 
-               c.nombre AS compania,
-               TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
-               GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
-        FROM personal p
-        INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-        INNER JOIN compania c ON p.compania_id = c.id
-        LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
-        LEFT JOIN maquina m ON cm.maquina_id = m.id
-        WHERE p.isDeleted = 0
-        GROUP BY p.id
-    `;
-    const [rows] = await pool.query(query);
+        // Nuevos filtros opcionales
+        const { compania_id, maquina_id, rol_personal_id, nombre } = req.query;
 
-    // Procesar los resultados
-    const results = rows.map(row => {
-        const maquinas = row.maquinas_ids ? row.maquinas_ids.split(',').map(id => parseInt(id)) : undefined;
-        delete row.maquinas_ids;
-        return maquinas ? { ...row, maquinas } : row;
-    });
-
-    res.json(results);
-    return;
-}
-
-// Si se proporciona "page", se aplica paginación
-const offset = (page - 1) * pageSize; // Calcular el offset
-
-        const query = `
-            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
+        // Inicializar la consulta y los parámetros
+        let query = `
+            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido,
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, p.obs, p.isDeleted,
-                   rp.nombre AS rol_personal, 
+                   rp.nombre AS rol_personal,
                    c.nombre AS compania,
                    p.compania_id, p.rol_personal_id, p.ven_licencia,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
@@ -111,11 +77,41 @@ const offset = (page - 1) * pageSize; // Calcular el offset
             LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
             LEFT JOIN maquina m ON cm.maquina_id = m.id
             WHERE p.isDeleted = 0
-            GROUP BY p.id
-            LIMIT ? OFFSET ?
         `;
 
-        const [rows] = await pool.query(query, [pageSize, offset]);
+        const params = [];
+
+        // Agregar filtros si se proporcionan
+        if (compania_id) {
+            query += ' AND p.compania_id = ?';
+            params.push(compania_id);
+        }
+
+        if (rol_personal_id) {
+            query += ' AND p.rol_personal_id = ?';
+            params.push(rol_personal_id);
+        }
+
+        if (nombre) {
+            query += ' AND p.nombre LIKE ?';
+            params.push(`%${nombre}%`);
+        }
+
+        if (maquina_id) {
+            query += ' AND m.id = ?';
+            params.push(maquina_id);
+        }
+
+        query += ' GROUP BY p.id';
+
+        // Si se proporciona "page", aplicar paginación
+        if (req.query.page) {
+            const offset = (page - 1) * pageSize;
+            query += ' LIMIT ? OFFSET ?';
+            params.push(pageSize, offset);
+        }
+
+        const [rows] = await pool.query(query, params);
 
         // Procesar los resultados
         const results = rows.map(row => {

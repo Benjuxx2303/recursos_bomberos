@@ -77,20 +77,40 @@ export const getDivision = async (req, res) => {
 export const createDivision = async (req, res) => {
     const { nombre } = req.body;
 
+    // Arreglo para almacenar los errores
+    const errors = [];
+
     try {
-        // Validación de datos
+        // Validación de tipo de dato para 'nombre'
         if (typeof nombre !== "string") {
-            return res.status(400).json({
-                message: "Tipo de datos inválido"
-            });
+            errors.push("El campo 'nombre' debe ser una cadena de texto.");
         }
 
-        // Se crea activo (isDeleted = 0) por defecto
+        // Validación de longitud de 'nombre'
+        if (nombre.length > 50) {
+            errors.push("La longitud del campo 'nombre' no puede ser mayor a 50 caracteres.");
+        }
+
+        // Validación de existencia de división con el mismo nombre
+        const [divisionExists] = await pool.query('SELECT * FROM division WHERE nombre = ?', [nombre]);
+        if (divisionExists.length > 0) {
+            errors.push("Ya existe una división con el mismo nombre.");
+        }
+
+        // Si existen errores, devolverlos en la respuesta
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Crear la división (isDeleted = 0 por defecto)
         const [rows] = await pool.query('INSERT INTO division (nombre, isDeleted) VALUES (?, 0)', [nombre]);
+        
+        // Responder con los datos de la nueva división
         res.status(201).json({
             id: rows.insertId,
             nombre
         });
+
     } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",
@@ -132,39 +152,61 @@ export const updateDivision = async (req, res) => {
     const { nombre, isDeleted } = req.body;
     const idNumber = parseInt(id);
 
+    // Arreglo para almacenar los errores de validación
+    const errors = [];
+
     try {
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "Tipo de datos inválido"
-            });
+            errors.push("ID inválido");
         }
 
         const updates = {};
+        
+        // Validación de nombre
         if (nombre !== undefined) {
             if (typeof nombre !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de datos inválido para 'nombre'"
-                });
+                errors.push("El campo 'nombre' debe ser una cadena de texto.");
             }
-            updates.nombre = nombre;
+
+            // Validación de longitud de nombre
+            if (nombre.length > 50) {
+                errors.push("La longitud del campo 'nombre' no puede ser mayor a 50 caracteres.");
+            }
+
+            // Validación de nombre único
+            const [divisionExists] = await pool.query('SELECT * FROM division WHERE nombre = ? AND id != ?', [nombre, idNumber]);
+            if (divisionExists.length > 0) {
+                errors.push("Ya existe una división con el mismo nombre.");
+            }
+
+            // Si pasa todas las validaciones, se agrega al objeto de actualizaciones
+            if (errors.length === 0) {
+                updates.nombre = nombre;
+            }
         }
 
+        // Validación de isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de datos inválido para 'isDeleted'"
-                });
+                errors.push("El campo 'isDeleted' debe ser 0 o 1.");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
         }
 
+        // Si existen errores, devolverlos en la respuesta
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Construir la consulta de actualización
         const setClause = Object.keys(updates)
-            .map(key => `${key} = ?`)
+            .map((key) => `${key} = ?`)
             .join(", ");
 
         if (!setClause) {
             return res.status(400).json({
-                message: "No se proporcionaron campos para actualizar"
+                message: "No se proporcionaron campos para actualizar",
             });
         }
 
@@ -173,7 +215,7 @@ export const updateDivision = async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
-                message: 'División no encontrada'
+                message: 'División no encontrada',
             });
         }
 
@@ -182,7 +224,7 @@ export const updateDivision = async (req, res) => {
     } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",
-            error: error.message
+            error: error.message,
         });
     }
 };

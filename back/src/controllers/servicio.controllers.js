@@ -92,35 +92,97 @@ export const getServicio = async (req, res) => {
     }
 };
 
-// Crear un nuevo servicio
-export const createServicio = async (req, res) => {
-    const { subdivision_id, descripcion } = req.body;
+export const updateRolPersonal = async (req, res) => {
+    const { id } = req.params;
+    const { nombre, descripcion, isDeleted } = req.body;
+
+    const errors = []; // Arreglo para acumular errores
 
     try {
-        // Validar existencia de la subdivision
-        const [subdivisionExists] = await pool.query("SELECT 1 FROM subdivision WHERE id = ? AND isDeleted = 0", [subdivision_id]);
-        if (subdivisionExists.length === 0) {
+        // Validación de ID
+        const idNumber = parseInt(id);
+
+        if (isNaN(idNumber)) {
+            errors.push("ID inválido");
+        }
+
+        // Crear un objeto para almacenar los campos que se actualizarán
+        const updates = {};
+        
+        // Validación de 'nombre'
+        if (nombre !== undefined) {
+            if (typeof nombre !== "string") {
+                errors.push("Tipo de dato inválido para 'nombre'");
+            }
+
+            // Validar si ya existe el rol_personal con ese nombre
+            const [rolPersonal] = await pool.query("SELECT * FROM rol_personal WHERE nombre = ?", [nombre]);
+            if (rolPersonal.length > 0) {
+                errors.push("Ya existe un rol_personal con el mismo nombre");
+            }
+
+            if (errors.length === 0) {
+                updates.nombre = nombre;
+            }
+        }
+
+        // Validación de 'descripcion'
+        if (descripcion !== undefined) {
+            if (typeof descripcion !== "string") {
+                errors.push("Tipo de dato inválido para 'descripcion'");
+            } else {
+                updates.descripcion = descripcion;
+            }
+        }
+
+        // Validación de 'isDeleted'
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.isDeleted = isDeleted;
+            }
+        }
+
+        // Si hubo errores, los devolvemos
+        if (errors.length > 0) {
             return res.status(400).json({
-                message: "Subdivision no existe o está eliminada"
+                errors: errors
             });
         }
 
-        if (typeof descripcion !== "string") {
+        // Construir la consulta de actualización
+        const setClause = Object.keys(updates)
+            .map((key) => `${key} = ?`)
+            .join(", ");
+
+        if (!setClause) {
             return res.status(400).json({
-                message: "Tipo de datos inválido para 'descripcion'"
+                message: "No se proporcionaron campos para actualizar"
             });
         }
 
-        const [rows] = await pool.query('INSERT INTO servicio (subdivision_id, descripcion, isDeleted) VALUES (?, ?, 0)', [subdivision_id, descripcion]);
-        res.status(201).json({
-            id: rows.insertId,
-            subdivision_id,
-            descripcion
-        });
+        const values = Object.values(updates).concat(idNumber);
+        
+        // Ejecutar la actualización en la base de datos
+        const [result] = await pool.query(`UPDATE rol_personal SET ${setClause} WHERE id = ?`, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: 'rol_personal no encontrado'
+            });
+        }
+
+        // Obtener el rol actualizado y devolverlo
+        const [rows] = await pool.query('SELECT * FROM rol_personal WHERE id = ?', [idNumber]);
+        res.json(rows[0]);
     } catch (error) {
+        console.error(error);
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: [
+                "Error interno del servidor",
+                error.message
+            ]
         });
     }
 };
@@ -157,14 +219,13 @@ export const deleteServicio = async (req, res) => {
 export const updateServicio = async (req, res) => {
     const { id } = req.params;
     const { subdivision_id, descripcion, isDeleted } = req.body;
+    const errors = []; // Arreglo para acumular errores
 
     try {
         const idNumber = parseInt(id);
 
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "Tipo de datos inválido para 'id'"
-            });
+            errors.push("Tipo de datos inválido para 'id'");
         }
 
         const updates = {};
@@ -173,33 +234,38 @@ export const updateServicio = async (req, res) => {
         if (subdivision_id !== undefined) {
             const [subdivisionExists] = await pool.query("SELECT 1 FROM subdivision WHERE id = ? AND isDeleted = 0", [subdivision_id]);
             if (subdivisionExists.length === 0) {
-                return res.status(400).json({
-                    message: "Subdivision no existe o está eliminada"
-                });
+                errors.push("Subdivision no existe o está eliminada");
+            } else {
+                updates.subdivision_id = subdivision_id;
             }
-            updates.subdivision_id = subdivision_id;
         }
 
         // Validar y agregar descripcion
         if (descripcion !== undefined) {
             if (typeof descripcion !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de datos inválido para 'descripcion'"
-                });
+                errors.push("Tipo de datos inválido para 'descripcion'");
+            } else {
+                updates.descripcion = descripcion;
             }
-            updates.descripcion = descripcion;
         }
 
         // Validar y agregar isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de datos inválido para 'isDeleted'"
-                });
+                errors.push("Tipo de datos inválido para 'isDeleted'");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
         }
 
+        // Si se han acumulado errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({
+                errors: errors
+            });
+        }
+
+        // Construir la consulta de actualización
         const setClause = Object.keys(updates)
             .map((key) => `${key} = ?`)
             .join(", ");
@@ -222,9 +288,12 @@ export const updateServicio = async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM servicio WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
+        console.error(error); // Registrar el error para depuración
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: [
+                "Error interno del servidor",
+                error.message
+            ]
         });
     }
 };

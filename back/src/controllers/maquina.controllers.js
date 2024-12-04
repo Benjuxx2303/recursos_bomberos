@@ -203,38 +203,51 @@ export const createMaquina = async (req, res) => {
     ven_seg_auto,
   } = req.body;
 
+  let errors = []; // Arreglo para guardar los errores
+
   try {
     // Validaciones de tipo de datos
-    if (
-      isNaN(parseInt(tipo_maquina_id)) ||
-      isNaN(parseInt(compania_id)) ||
-      typeof codigo !== 'string' ||
-      typeof patente !== 'string' ||
-      typeof num_chasis !== 'string' ||
-      typeof vin !== 'string' ||
-      isNaN(parseFloat(cost_rev_tec)) ||
-      isNaN(parseFloat(cost_seg_auto))
-    ) {
-      return res.status(400).json({ message: 'Tipo de datos inválido' });
+    if (isNaN(parseInt(tipo_maquina_id))) errors.push('Tipo de máquina inválido');
+    if (isNaN(parseInt(compania_id))) errors.push('Compañía inválida');
+    if (typeof codigo !== 'string') errors.push('Código inválido');
+    if (typeof patente !== 'string') errors.push('Patente inválida');
+    if (typeof num_chasis !== 'string') errors.push('Número de chasis inválido');
+    if (typeof vin !== 'string') errors.push('VIN inválido');
+    if (isNaN(parseFloat(cost_rev_tec))) errors.push('Costo de revisión técnica inválido');
+    if (isNaN(parseFloat(cost_seg_auto))) errors.push('Costo de seguro auto inválido');
+
+    // Si ya hay errores, no continuamos con las validaciones
+    if (errors.length > 0) {
+      return res.status(400).json({ message: 'Errores de validación', errors });
     }
 
     // Validación de llaves foráneas
     const [tipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
-    if (tipoMaquina.length === 0) return res.status(400).json({ message: 'Tipo de máquina no existe' });
+    if (tipoMaquina.length === 0) errors.push('Tipo de máquina no existe');
 
     const [compania] = await pool.query("SELECT * FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-    if (compania.length === 0) return res.status(400).json({ message: 'Compañía no existe' });
+    if (compania.length === 0) errors.push('Compañía no existe');
 
     const [procedencia] = await pool.query("SELECT * FROM procedencia WHERE id = ? AND isDeleted = 0", [procedencia_id]);
-    if (procedencia.length === 0) return res.status(400).json({ message: 'Procedencia no existe' });
+    if (procedencia.length === 0) errors.push('Procedencia no existe');
+
+    // Si ya hay errores, no continuamos con las validaciones
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
 
     // Validación de fechas
     const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
     const fechas = [ven_patente, ven_rev_tec, ven_seg_auto];
     for (const fecha of fechas) {
       if (fecha && !fechaRegex.test(fecha)) {
-        return res.status(400).json({ message: 'Formato de fecha inválido. Debe ser dd-mm-aaaa' });
+        errors.push('Formato de fecha inválido. Debe ser dd-mm-aaaa');
       }
+    }
+
+    // Si ya hay errores, no continuamos con la inserción
+    if (errors.length > 0) {
+      return res.status(400).json({ message: errors });
     }
 
     // Inserción en la base de datos
@@ -304,10 +317,12 @@ export const updateMaquina = async (req, res) => {
     isDeleted,
   } = req.body;
 
+  let errors = []; // Arreglo para guardar los errores
+
   try {
     const idNumber = parseInt(id);
     if (isNaN(idNumber)) {
-      return res.status(400).json({ message: "ID inválido" });
+      errors.push("ID inválido");
     }
 
     // Validaciones
@@ -315,139 +330,163 @@ export const updateMaquina = async (req, res) => {
 
     if (tipo_maquina_id !== undefined) {
       if (isNaN(parseInt(tipo_maquina_id))) {
-        return res.status(400).json({ message: "Tipo de máquina inválido" });
+        errors.push("Tipo de máquina inválido");
+      } else {
+        updates.tipo_maquina_id = tipo_maquina_id;
       }
-      updates.tipo_maquina_id = tipo_maquina_id;
     }
 
     if (compania_id !== undefined) {
       if (isNaN(parseInt(compania_id))) {
-        return res.status(400).json({ message: "Compañía inválida" });
+        errors.push("Compañía inválida");
+      } else {
+        updates.compania_id = compania_id;
       }
-      updates.compania_id = compania_id;
     }
 
     if (codigo !== undefined) {
       if (typeof codigo !== 'string') {
-        return res.status(400).json({ message: "Código inválido" });
+        errors.push("Código inválido");
+      } else {
+        updates.codigo = codigo;
       }
-      updates.codigo = codigo;
     }
 
     if (patente !== undefined) {
       if (typeof patente !== 'string') {
-        return res.status(400).json({ message: "Patente inválida" });
+        errors.push("Patente inválida");
+      } else {
+        updates.patente = patente;
       }
-      updates.patente = patente;
     }
 
     if (num_chasis !== undefined) {
       if (typeof num_chasis !== 'string') {
-        return res.status(400).json({ message: "Número de chasis inválido" });
+        errors.push("Número de chasis inválido");
+      } else {
+        updates.num_chasis = num_chasis;
       }
-      updates.num_chasis = num_chasis;
     }
 
     if (vin !== undefined) {
       if (typeof vin !== 'string') {
-        return res.status(400).json({ message: "VIN inválido" });
+        errors.push("VIN inválido");
+      } else {
+        updates.vin = vin;
       }
-      updates.vin = vin;
     }
 
     if (bomba !== undefined) {
       if (isNaN(parseFloat(bomba))) {
-        return res.status(400).json({ message: "Bomba inválida" });
+        errors.push("Bomba inválida");
+      } else {
+        updates.bomba = bomba;
       }
-      updates.bomba = bomba;
     }
 
     if (hmetro_bomba !== undefined) {
       if (isNaN(parseFloat(hmetro_bomba))) {
-        return res.status(400).json({ message: "Hmetro bomba inválido" });
+        errors.push("Hmetro bomba inválido");
+      } else {
+        updates.hmetro_bomba = hmetro_bomba;
       }
-      updates.hmetro_bomba = hmetro_bomba;
     }
 
     if (hmetro_motor !== undefined) {
       if (isNaN(parseFloat(hmetro_motor))) {
-        return res.status(400).json({ message: "Hmetro motor inválido" });
+        errors.push("Hmetro motor inválido");
+      } else {
+        updates.hmetro_motor = hmetro_motor;
       }
-      updates.hmetro_motor = hmetro_motor;
     }
 
     if (kmetraje !== undefined) {
       if (isNaN(parseFloat(kmetraje))) {
-        return res.status(400).json({ message: "Kmetraje inválido" });
+        errors.push("Kmetraje inválido");
+      } else {
+        updates.kmetraje = kmetraje;
       }
-      updates.kmetraje = kmetraje;
     }
 
     if (num_motor !== undefined) {
       if (typeof num_motor !== 'string') {
-        return res.status(400).json({ message: "Número de motor inválido" });
+        errors.push("Número de motor inválido");
+      } else {
+        updates.num_motor = num_motor;
       }
-      updates.num_motor = num_motor;
     }
 
     if (ven_patente !== undefined) {
       const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
       if (!fechaRegex.test(ven_patente)) {
-        return res.status(400).json({ message: "Formato de fecha inválido para 'ven_patente'. Debe ser dd-mm-aaaa" });
+        errors.push("Formato de fecha inválido para 'ven_patente'. Debe ser dd-mm-aaaa");
+      } else {
+        updates.ven_patente = ven_patente;
       }
-      updates.ven_patente = ven_patente;
     }
 
     if (procedencia_id !== undefined) {
       if (isNaN(parseInt(procedencia_id))) {
-        return res.status(400).json({ message: "Procedencia inválida" });
+        errors.push("Procedencia inválida");
+      } else {
+        updates.procedencia_id = procedencia_id;
       }
-      updates.procedencia_id = procedencia_id;
     }
 
     if (cost_rev_tec !== undefined) {
       if (isNaN(parseFloat(cost_rev_tec))) {
-        return res.status(400).json({ message: "Costo revisión técnica inválido" });
+        errors.push("Costo revisión técnica inválido");
+      } else {
+        updates.cost_rev_tec = cost_rev_tec;
       }
-      updates.cost_rev_tec = cost_rev_tec;
     }
 
     if (ven_rev_tec !== undefined) {
       const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
       if (!fechaRegex.test(ven_rev_tec)) {
-        return res.status(400).json({ message: "Formato de fecha inválido para 'ven_rev_tec'. Debe ser dd-mm-aaaa" });
+        errors.push("Formato de fecha inválido para 'ven_rev_tec'. Debe ser dd-mm-aaaa");
+      } else {
+        updates.ven_rev_tec = ven_rev_tec;
       }
-      updates.ven_rev_tec = ven_rev_tec;
     }
 
     if (cost_seg_auto !== undefined) {
       if (isNaN(parseFloat(cost_seg_auto))) {
-        return res.status(400).json({ message: "Costo seguro auto inválido" });
+        errors.push("Costo seguro auto inválido");
+      } else {
+        updates.cost_seg_auto = cost_seg_auto;
       }
-      updates.cost_seg_auto = cost_seg_auto;
     }
 
     if (ven_seg_auto !== undefined) {
       const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
       if (!fechaRegex.test(ven_seg_auto)) {
-        return res.status(400).json({ message: "Formato de fecha inválido para 'ven_seg_auto'. Debe ser dd-mm-aaaa" });
+        errors.push("Formato de fecha inválido para 'ven_seg_auto'. Debe ser dd-mm-aaaa");
+      } else {
+        updates.ven_seg_auto = ven_seg_auto;
       }
-      updates.ven_seg_auto = ven_seg_auto;
     }
 
     // Validación y actualización de isDeleted
     if (isDeleted !== undefined) {
       if (isDeleted !== 0 && isDeleted !== 1) {
-        return res.status(400).json({ message: "Valor inválido para 'isDeleted'. Debe ser 0 o 1." });
+        errors.push("Valor inválido para 'isDeleted'. Debe ser 0 o 1.");
+      } else {
+        updates.isDeleted = isDeleted;
       }
-      updates.isDeleted = isDeleted;
     }
-    
+
     if (disponible !== undefined) {
       if (disponible !== 0 && disponible !== 1) {
-        return res.status(400).json({ message: "Valor inválido para 'disponible'. Debe ser 0 o 1." });
+        errors.push("Valor inválido para 'disponible'. Debe ser 0 o 1.");
+      } else {
+        updates.disponible = disponible;
       }
-      updates.disponible = disponible;
+    }
+
+    // Si hay errores, retornamos la respuesta con todos los errores
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     // Construir la consulta de actualización
@@ -456,21 +495,29 @@ export const updateMaquina = async (req, res) => {
       .join(", ");
 
     if (!setClause) {
-      return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+      errors.push("No se proporcionaron campos para actualizar");
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     const values = Object.values(updates).concat(idNumber);
     const [result] = await pool.query(`UPDATE maquina SET ${setClause} WHERE id = ?`, values);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Máquina no encontrada" });
+      errors.push("Máquina no encontrada");
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     const [rows] = await pool.query('SELECT * FROM maquina WHERE id = ?', [idNumber]);
     res.json(rows[0]);
     // res.json({ message: "Máquina actualizada" });
   } catch (error) {
-    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    return res.status(500).json({ errors: [error.message] });
   }
 };
 

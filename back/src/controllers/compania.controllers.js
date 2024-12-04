@@ -72,28 +72,47 @@ export const getCompania = async(req, res)=>{
     }
 }
 
-export const createCompania = async(req, res) =>{
-    const {nombre}= req.body
-    try{
-        // validacion de datos
+// Crear compañía
+export const createCompania = async (req, res) => {
+    const { nombre } = req.body;
+
+    try {
+        const errors = [];  // Arreglo para almacenar los errores
+
+        // Validación de tipo de datos
         if (typeof nombre !== "string") {
-          return res.status(400).json({
-            message: "Tipo de datos inválido",
-          });
+            errors.push("Tipo de datos inválido para 'nombre'");
         }
-        // activo por defecto
-        const [rows] = await pool.query('INSERT INTO compania (nombre, isDeleted) VALUES (?, 0)', [nombre])
-        res.send({
+
+        // Validación de longitud de los datos
+        if (nombre.length > 50) {
+            errors.push("La longitud del campo 'nombre' no puede ser mayor a 50 caracteres");
+        }
+
+        // Validación de datos duplicados
+        const [companias] = await pool.query('SELECT * FROM compania WHERE nombre = ?', [nombre]);
+        if (companias.length > 0) {
+            errors.push("Ya existe una compañía con el nombre proporcionado");
+        }
+
+        // Si hay errores, devolver todos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Insertar la nueva compañía
+        const [rows] = await pool.query('INSERT INTO compania (nombre, isDeleted) VALUES (?, 0)', [nombre]);
+        res.status(201).json({
             id: rows.insertId,
             nombre
         });
-    } catch (error){
+    } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message
-        })
+        });
     }
-}
+};
 
 // eliminar compañia por id
 export const deleteCompania = async(req, res) =>{
@@ -121,36 +140,50 @@ export const deleteCompania = async(req, res) =>{
     }
 }
 
+// Actualizar compañía
 export const updateCompania = async (req, res) => {
     const { id } = req.params;
     const { nombre, isDeleted } = req.body;
 
     try {
+        const errors = [];  // Array para almacenar errores
+
+        // Validación de ID
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "ID inválido"
-            });
+            errors.push("ID inválido");
         }
 
-        // Validaciones
+        // Validación de nombre
         const updates = {};
         if (nombre !== undefined) {
             if (typeof nombre !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'nombre'"
-                });
+                errors.push("Tipo de dato inválido para 'nombre'");
+            } else if (nombre.length > 50) {
+                errors.push("La longitud del campo 'nombre' no puede ser mayor a 50 caracteres");
+            } else {
+                updates.nombre = nombre;
             }
-            updates.nombre = nombre;
         }
 
+        // Validación de isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'"
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'. Debe ser 0 o 1.");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
+        }
+
+        // Si se encontraron errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Verificar si la compañía existe antes de intentar actualizarla
+        const [companias] = await pool.query('SELECT * FROM compania WHERE id = ? AND isDeleted = 0', [idNumber]);
+        if (companias.length === 0) {
+            return res.status(404).json({ message: "Compañía no encontrada o ya eliminada" });
         }
 
         // Construir la consulta de actualización
@@ -169,7 +202,7 @@ export const updateCompania = async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
-                message: 'Compañía no encontrada'
+                message: "Compañía no encontrada"
             });
         }
 
@@ -178,7 +211,7 @@ export const updateCompania = async (req, res) => {
     } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",
-            error: error.message,
+            error: error.message
         });
     }
 };

@@ -144,45 +144,72 @@ export const getDetalleMantencionByMantencionID = async (req, res) => {
 // Crear un nuevo detalle de mantención
 export const createDetalleMantencion = async (req, res) => {
     const { mantencion_id, tipo_mantencion_id, observacion, servicio_id } = req.body;
-
+  
+    // Arreglo para almacenar los errores
+    const errors = [];
+  
     try {
-        // Validación de existencia de llaves foráneas
+      // Validación de existencia de llaves foráneas
+      if (isNaN(mantencion_id)) {
+        errors.push("El 'mantencion_id' debe ser un número");
+      } else {
         const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
         if (mantencionExists.length === 0) {
-            return res.status(400).json({ message: "Mantención no existe o está eliminada" });
+          errors.push("Mantención no existe o está eliminada");
         }
-
+      }
+  
+      if (isNaN(tipo_mantencion_id)) {
+        errors.push("El 'tipo_mantencion_id' debe ser un número");
+      } else {
         const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
         if (tipoMantencionExists.length === 0) {
-            return res.status(400).json({ message: "Tipo de mantención no existe o está eliminado" });
+          errors.push("Tipo de mantención no existe o está eliminado");
         }
-
+      }
+  
+      if (isNaN(servicio_id)) {
+        errors.push("El 'servicio_id' debe ser un número");
+      } else {
         const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
         if (servicioExists.length === 0) {
-            return res.status(400).json({ message: "Servicio no existe o está eliminado" });
+          errors.push("Servicio no existe o está eliminado");
         }
-
-        // Crear detalle de mantención (isDeleted = 0) por defecto
-        const [rows] = await pool.query(`
-            INSERT INTO detalle_mantencion (mantencion_id, tipo_mantencion_id, observacion, servicio_id, isDeleted) 
-            VALUES (?, ?, ?, ?, 0)
-        `, [mantencion_id, tipo_mantencion_id, observacion, servicio_id]);
-
-        res.status(201).json({
-            id: rows.insertId,
-            mantencion_id,
-            tipo_mantencion_id,
-            observacion,
-            servicio_id
-        });
+      }
+  
+      // Validación de tipo de datos
+      if (observacion !== undefined && typeof observacion !== "string") {
+        errors.push("El campo 'observacion' debe ser una cadena de texto");
+      }
+  
+      // Si hay errores de validación, devolverlos
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+  
+      // Crear detalle de mantención (isDeleted = 0) por defecto
+      const [rows] = await pool.query(`
+        INSERT INTO detalle_mantencion (mantencion_id, tipo_mantencion_id, observacion, servicio_id, isDeleted) 
+        VALUES (?, ?, ?, ?, 0)
+      `, [mantencion_id, tipo_mantencion_id, observacion, servicio_id]);
+  
+      // Respuesta exitosa
+      res.status(201).json({
+        id: rows.insertId,
+        mantencion_id,
+        tipo_mantencion_id,
+        observacion,
+        servicio_id
+      });
+  
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+      return res.status(500).json({
+        message: "Error interno del servidor",
+        error: error.message
+      });
     }
-};
-
+  };
+  
 // Eliminar detalle de mantención
 export const deleteDetalleMantencion = async (req, res) => {
     const { id } = req.params;
@@ -208,73 +235,104 @@ export const deleteDetalleMantencion = async (req, res) => {
 export const updateDetalleMantencion = async (req, res) => {
     const { id } = req.params;
     const { mantencion_id, tipo_mantencion_id, observacion, servicio_id, isDeleted } = req.body;
-
+  
+    // Arreglo para almacenar los errores
+    const errors = [];
+  
     try {
-        const idNumber = parseInt(id);
-        if (isNaN(idNumber)) {
-            return res.status(400).json({ message: "Tipo de datos inválido" });
-        }
-
-        const updates = {};
-        
-        // Validación de existencia de llaves foráneas
-        if (mantencion_id !== undefined) {
-            const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
-            if (mantencionExists.length === 0) {
-                return res.status(400).json({ message: "Mantención no existe o está eliminada" });
-            }
+      const idNumber = parseInt(id);
+      if (isNaN(idNumber)) {
+        errors.push("ID inválido");
+      }
+  
+      const updates = {};
+  
+      // Validación de existencia de llaves foráneas
+      if (mantencion_id !== undefined) {
+        if (isNaN(mantencion_id)) {
+          errors.push("El 'mantencion_id' debe ser un número");
+        } else {
+          const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
+          if (mantencionExists.length === 0) {
+            errors.push("Mantención no existe o está eliminada");
+          } else {
             updates.mantencion_id = mantencion_id;
+          }
         }
-
-        if (tipo_mantencion_id !== undefined) {
-            const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
-            if (tipoMantencionExists.length === 0) {
-                return res.status(400).json({ message: "Tipo de mantención no existe o está eliminado" });
-            }
+      }
+  
+      if (tipo_mantencion_id !== undefined) {
+        if (isNaN(tipo_mantencion_id)) {
+          errors.push("El 'tipo_mantencion_id' debe ser un número");
+        } else {
+          const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
+          if (tipoMantencionExists.length === 0) {
+            errors.push("Tipo de mantención no existe o está eliminado");
+          } else {
             updates.tipo_mantencion_id = tipo_mantencion_id;
+          }
         }
-
-        if (observacion !== undefined) {
-            if (typeof observacion !== "string") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'observacion'" });
-            }
-            updates.observacion = observacion;
+      }
+  
+      if (observacion !== undefined) {
+        if (typeof observacion !== "string") {
+          errors.push("El campo 'observacion' debe ser una cadena de texto");
+        } else {
+          updates.observacion = observacion;
         }
-
-        if (servicio_id !== undefined) {
-            const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
-            if (servicioExists.length === 0) {
-                return res.status(400).json({ message: "Servicio no existe o está eliminado" });
-            }
+      }
+  
+      if (servicio_id !== undefined) {
+        if (isNaN(servicio_id)) {
+          errors.push("El 'servicio_id' debe ser un número");
+        } else {
+          const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
+          if (servicioExists.length === 0) {
+            errors.push("Servicio no existe o está eliminado");
+          } else {
             updates.servicio_id = servicio_id;
+          }
         }
-
-        if (isDeleted !== undefined) {
-            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
-            }
-            updates.isDeleted = isDeleted;
+      }
+  
+      if (isDeleted !== undefined) {
+        if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+          errors.push("El valor de 'isDeleted' debe ser 0 o 1");
+        } else {
+          updates.isDeleted = isDeleted;
         }
-
-        const setClause = Object.keys(updates)
-            .map((key) => `${key} = ?`)
-            .join(", ");
-
-        if (!setClause) {
-            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
-        }
-
-        const values = Object.values(updates).concat(idNumber);
-        const [result] = await pool.query(`UPDATE detalle_mantencion SET ${setClause} WHERE id = ?`, values);
-
-        if (result.affectedRows === 0) return res.status(404).json({ message: 'Detalle de mantención no encontrado' });
-
-        const [rows] = await pool.query('SELECT * FROM detalle_mantencion WHERE id = ?', [idNumber]);
-        res.json(rows[0]);
+      }
+  
+      // Si hay errores, devolverlos en la respuesta
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+  
+      // Construir la consulta de actualización
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+  
+      if (!setClause) {
+        return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+      }
+  
+      const values = Object.values(updates).concat(idNumber);
+      const [result] = await pool.query(`UPDATE detalle_mantencion SET ${setClause} WHERE id = ?`, values);
+  
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Detalle de mantención no encontrado" });
+      }
+  
+      // Recuperar y devolver el detalle actualizado
+      const [rows] = await pool.query("SELECT * FROM detalle_mantencion WHERE id = ?", [idNumber]);
+      res.json(rows[0]);
+  
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+      return res.status(500).json({
+        message: "Error interno del servidor",
+        error: error.message
+      });
     }
-};
+  };
+  

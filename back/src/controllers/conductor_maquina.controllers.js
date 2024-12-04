@@ -66,14 +66,23 @@ export const getConductorMaquinaById = async (req, res) => {
 };
 
 export const createConductorMaquina = async (req, res) => {
+<<<<<<< Updated upstream
   const { personal_id, maquina_id, tipo_maquina_id, ven_licencia } = req.body;
+=======
+  const { personal_id, maquina_id } = req.body;
+>>>>>>> Stashed changes
 
+  
   try {
-    // Validación de datos
+    // Arreglo para almacenar los errores
+    const errors = [];
+
+    // Validación de tipos de datos
     const personalIdNumber = parseInt(personal_id);
     const maquinaIdNumber = parseInt(maquina_id);
     const tipoMaquinaIdNumber = parseInt(tipo_maquina_id);
 
+<<<<<<< Updated upstream
     if (
       isNaN(personalIdNumber) ||
       isNaN(maquinaIdNumber) ||
@@ -81,14 +90,37 @@ export const createConductorMaquina = async (req, res) => {
       typeof ven_licencia !== 'string' // Debe ser un string para validación de fecha
     ) {
       return res.status(400).json({ message: 'Tipo de datos inválido' });
+=======
+    if (isNaN(personalIdNumber)) {
+      errors.push('El campo "personal_id" debe ser un número válido.');
+>>>>>>> Stashed changes
     }
 
-    // Validación de existencia de llaves foráneas
-    const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
-    if (checkPersonal.length === 0) return res.status(400).json({ message: "ID de personal no válido" });
+    if (isNaN(maquinaIdNumber)) {
+      errors.push('El campo "maquina_id" debe ser un número válido.');
+    }
 
+    // Si existen errores de tipo de datos, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Validación de existencia de personal
+    const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
+    if (checkPersonal.length === 0) {
+      errors.push('ID de personal no válido o personal eliminado.');
+    }
+
+    // Validación de existencia de máquina
     const [checkMaquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
-    if (checkMaquina.length === 0) return res.status(400).json({ message: "ID de máquina no válido" });
+    if (checkMaquina.length === 0) {
+      errors.push('ID de máquina no válido o máquina eliminada.');
+    }
+
+    // Si existen errores de validación, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
 
     const [checkTipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipoMaquinaIdNumber]);
     if (checkTipoMaquina.length === 0) return res.status(400).json({ message: "ID de tipo de máquina no válido" });
@@ -103,6 +135,7 @@ export const createConductorMaquina = async (req, res) => {
 
     // Inserción en la base de datos
     const [rows] = await pool.query(
+<<<<<<< Updated upstream
       "INSERT INTO conductor_maquina (personal_id, maquina_id, tipo_maquina_id, ven_licencia, isDeleted) VALUES (?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), 0)",
       [
         personalIdNumber,
@@ -110,8 +143,13 @@ export const createConductorMaquina = async (req, res) => {
         tipoMaquinaIdNumber,
         ven_licencia
       ]
+=======
+      "INSERT INTO conductor_maquina (personal_id, maquina_id, isDeleted) VALUES (?, ?, 0)",
+      [personalIdNumber, maquinaIdNumber]
+>>>>>>> Stashed changes
     );
 
+    // Respuesta exitosa
     res.status(201).json({
       id: rows.insertId,
       personal_id: personalIdNumber,
@@ -120,7 +158,10 @@ export const createConductorMaquina = async (req, res) => {
       ven_licencia,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message
+    });
   }
 };
 
@@ -153,23 +194,41 @@ export const deleteConductorMaquina = async (req, res) => {
 
 export const updateConductorMaquina = async (req, res) => {
   const { id } = req.params;
+<<<<<<< Updated upstream
   const { personal_id, rol_personal_id, maquina_id, tipo_maquina_id, ven_licencia, isDeleted } = req.body;
+=======
+  const { personal_id, maquina_id, isDeleted } = req.body;
+>>>>>>> Stashed changes
 
+  
   try {
+    // Arreglo para almacenar los errores
+    const errors = [];
+    
     // Validación de datos
     const idNumber = parseInt(id);
     if (isNaN(idNumber)) {
-      return res.status(400).json({ message: "ID inválido" });
+      errors.push('ID inválido');
     }
 
     const updates = {};
+<<<<<<< Updated upstream
     if (personal_id !== undefined) {
       if (typeof personal_id !== "number") {
         return res.status(400).json({ message: "Tipo de dato inválido para 'personal_id'" });
+=======
+
+    // Validar personal_id
+    if (personal_id !== undefined) {
+      if (typeof personal_id !== "number") {
+        errors.push("Tipo de dato inválido para 'personal_id'");
+      } else {
+        updates.personal_id = personal_id;
+>>>>>>> Stashed changes
       }
-      updates.personal_id = personal_id;
     }
 
+<<<<<<< Updated upstream
     if (rol_personal_id !== undefined) {
       if (typeof rol_personal_id !== "number") {
         return res.status(400).json({ message: "Tipo de dato inválido para 'rol_personal_id'" });
@@ -180,6 +239,14 @@ export const updateConductorMaquina = async (req, res) => {
     if (maquina_id !== undefined) {
       if (typeof maquina_id !== "number") {
         return res.status(400).json({ message: "Tipo de dato inválido para 'maquina_id'" });
+=======
+    // Validar maquina_id
+    if (maquina_id !== undefined) {
+      if (typeof maquina_id !== "number") {
+        errors.push("Tipo de dato inválido para 'maquina_id'");
+      } else {
+        updates.maquina_id = maquina_id;
+>>>>>>> Stashed changes
       }
     }
 
@@ -202,13 +269,24 @@ export const updateConductorMaquina = async (req, res) => {
 
     if (isDeleted !== undefined) {
       if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+<<<<<<< Updated upstream
         return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
+=======
+        errors.push("Tipo de dato inválido para 'isDeleted'. Debe ser 0 o 1.");
+      } else {
+        updates.isDeleted = isDeleted;
+>>>>>>> Stashed changes
       }
-      updates.isDeleted = isDeleted;
     }
 
-    // Validación de llaves foráneas
+    // Si hay errores de validación, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Validación de existencia de llaves foráneas
     if (personal_id) {
+<<<<<<< Updated upstream
       const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
       if (checkPersonal.length === 0) return res.status(400).json({ message: "ID de personal no válido" });
     }
@@ -221,16 +299,44 @@ export const updateConductorMaquina = async (req, res) => {
     if (tipo_maquina_id) {
       const [checkTipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
       if (checkTipoMaquina.length === 0) return res.status(400).json({ message: "ID de tipo de máquina no válido" });
+=======
+      const [checkPersonal] = await pool.query(
+        "SELECT * FROM personal WHERE id = ? AND isDeleted = 0",
+        [personal_id]
+      );
+      if (checkPersonal.length === 0) {
+        errors.push("ID de personal no válido o personal eliminado.");
+      }
+    }
+
+    if (maquina_id) {
+      const [checkMaquina] = await pool.query(
+        "SELECT * FROM maquina WHERE id = ? AND isDeleted = 0",
+        [maquina_id]
+      );
+      if (checkMaquina.length === 0) {
+        errors.push("ID de máquina no válido o máquina eliminada.");
+      }
+    }
+
+    // Si hay errores en la validación de las llaves foráneas, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+>>>>>>> Stashed changes
     }
 
     // Construir la consulta de actualización
     const setClause = Object.keys(updates)
+<<<<<<< Updated upstream
       .map((key) => {
         if (key === 'ven_licencia') {
           return `ven_licencia = STR_TO_DATE(?, '%d-%m-%Y')`;
         }
         return `${key} = ?`;
       })
+=======
+      .map((key) => `${key} = ?`)
+>>>>>>> Stashed changes
       .join(", ");
 
     if (!setClause) {

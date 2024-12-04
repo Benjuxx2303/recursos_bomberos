@@ -317,6 +317,8 @@ export const createMantencionBitacora = async (req, res) => {
         obs
     } = bitacora;
 
+    const errors = []; // Arreglo para acumular errores
+
     try {
         // Concatenar fecha y hora para formatear como datetime
         let fh_salida = null;
@@ -342,28 +344,28 @@ export const createMantencionBitacora = async (req, res) => {
             isNaN(claveIdNumber) ||
             typeof direccion !== "string"
         ) {
-            return res.status(400).json({ message: "Tipo de datos inválido en la bitácora" });
+            errors.push("Tipo de datos inválido en la bitácora");
         }
 
         // Validación de existencia de llaves foráneas para la bitácora
         const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
         if (companiaExists.length === 0) {
-            return res.status(400).json({ message: "Compañía no existe o está eliminada" });
+            errors.push("Compañía no existe o está eliminada");
         }
 
         const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductorIdNumber]);
         if (conductorExists.length === 0) {
-            return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+            errors.push("Conductor no existe o está eliminado");
         }
 
         const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
         if (maquinaExists.length === 0) {
-            return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+            errors.push("Máquina no existe o está eliminada");
         }
 
         const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
         if (claveExists.length === 0) {
-            return res.status(400).json({ message: "Clave no existe o está eliminada" });
+            errors.push("Clave no existe o está eliminada");
         }
 
         // Validación de fecha y hora si están presentes
@@ -371,15 +373,11 @@ export const createMantencionBitacora = async (req, res) => {
         const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
 
         if (f_salida && h_salida && (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida))) {
-            return res.status(400).json({
-                message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
-            });
+            errors.push("El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm");
         }
 
         if (f_llegada && h_llegada && (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada))) {
-            return res.status(400).json({
-                message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
-            });
+            errors.push("El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm");
         }
 
         // Validación de valores numéricos para los kilómetros y otros campos
@@ -398,10 +396,65 @@ export const createMantencionBitacora = async (req, res) => {
             isNaN(hbombaSalida) || hbombaSalida < 0 ||
             isNaN(hbombaLlegada) || hbombaLlegada < 0
         ) {
-            return res.status(400).json({ message: "Los valores no pueden ser negativos" });
+            errors.push("Los valores no pueden ser negativos");
         }
 
-        // Inserción de la bitácora en la base de datos
+        // Validaciones para mantención
+        const [tallerExists] = await pool.query("SELECT 1 FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
+        if (tallerExists.length === 0) {
+            errors.push("Taller no existe o está eliminado");
+        }
+
+        const [estadoExists] = await pool.query("SELECT 1 FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
+        if (estadoExists.length === 0) {
+            errors.push("Estado de mantención no existe");
+        }
+
+        // Validar y formatear fec_termino si está presente
+        let formattedFecTermino = null;
+        if (fec_termino) {
+            if (!fechaRegex.test(fec_termino)) {
+                errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+            } else {
+                const dateParts = fec_termino.split("-");
+                const [day, month, year] = dateParts.map(Number);
+                formattedFecTermino = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+            }
+        }
+
+        // Validar y formatear fec_inicio si está presente
+        let formattedFecInicio = null;
+        if (fec_inicio) {
+            if (!fechaRegex.test(fec_inicio)) {
+                errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
+            } else {
+                const dateParts = fec_inicio.split("-");
+                const [day, month, year] = dateParts.map(Number);
+                formattedFecInicio = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+            }
+        }
+
+        // Validar el costo del servicio solo si existe el "n_factura"
+        if (n_factura) {
+            if (n_factura <= 0) {
+                errors.push("El número de factura no es válido");
+            }
+
+            if (cost_ser === undefined || cost_ser === null) {
+                errors.push("El costo del servicio es obligatorio cuando se proporciona un número de factura");
+            } else if (cost_ser <= 0) {
+                errors.push("El costo no puede ser negativo o menor a cero");
+            }
+        } else if (cost_ser) {
+            errors.push("Debe ingresar el número de factura primero");
+        }
+
+        // Si hay errores, devolverlos sin continuar
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Inserción de la bitácora
         const [bitacoraResult] = await pool.query(
             `INSERT INTO bitacora (
                 compania_id, conductor_id, maquina_id, direccion,
@@ -420,62 +473,6 @@ export const createMantencionBitacora = async (req, res) => {
 
         const bitacora_id = bitacoraResult.insertId;
 
-        // Validaciones para mantención
-        const [tallerExists] = await pool.query("SELECT 1 FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
-        if (tallerExists.length === 0) {
-            return res.status(400).json({ message: "Taller no existe o está eliminado" });
-        }
-
-        const [estadoExists] = await pool.query("SELECT 1 FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
-        if (estadoExists.length === 0) {
-            return res.status(400).json({ message: "Estado de mantención no existe" });
-        }
-
-        // Validar y formatear fec_termino si está presente
-        let formattedFecTermino = null;
-        if (fec_termino) {
-            if (!fechaRegex.test(fec_termino)) {
-                return res.status(400).json({
-                    message: "El formato de la fecha es inválido. Debe ser dd-mm-yyyy"
-                });
-            }
-
-            const dateParts = fec_termino.split("-");
-            const [day, month, year] = dateParts.map(Number);
-            formattedFecTermino = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-        }
-
-        // Validar y formatear fec_inicio si está presente
-        let formattedFecInicio = null;
-        if (fec_inicio) {
-            if (!fechaRegex.test(fec_inicio)) {
-                return res.status(400).json({
-                    message: "El formato de la fecha es inválido. Debe ser dd-mm-yyyy"
-                });
-            }
-
-            const dateParts = fec_inicio.split("-");
-            const [day, month, year] = dateParts.map(Number);
-            formattedFecInicio = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-        }
-
-        // validar el costo del servicio solo si existe el "n_factura"
-        if (n_factura) {
-            if (n_factura <= 0) {
-                return res.status(400).json({ message: "El número de factura no es válido" });
-            }
-
-            if (cost_ser === undefined || cost_ser === null) {
-                return res.status(400).json({ message: "El costo del servicio es obligatorio cuando se proporciona un número de factura" });
-            }
-
-            if (cost_ser <= 0) {
-                return res.status(400).json({ message: "El costo no puede ser negativo o menor a cero" });
-            }
-        } else if (cost_ser) {
-            return res.status(400).json({ message: "Debe ingresar el número de factura primero" });
-        }
-
         // Inserción en la tabla mantención
         const [mantencionResult] = await pool.query(
             `INSERT INTO mantencion (
@@ -483,26 +480,22 @@ export const createMantencionBitacora = async (req, res) => {
                 cost_ser, taller_id, estado_mantencion_id, fec_inicio, fec_termino, isDeleted
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
             [
-                bitacora_id, maquina_id, ord_trabajo, n_factura,
-                cost_ser, taller_id, estado_mantencion_id, formattedFecInicio, formattedFecTermino || null
+                bitacora_id, maquinaIdNumber, ord_trabajo || null, n_factura || null,
+                cost_ser || null, taller_id, estado_mantencion_id,
+                formattedFecInicio, formattedFecTermino
             ]
         );
 
-        res.status(201).json({
-            mantencion_id: mantencionResult.insertId,
-            bitacora_id,
-            maquina_id,
-            ord_trabajo,
-            n_factura,
-            cost_ser,
-            taller_id,
-            estado_mantencion_id,
-            fec_inicio: formattedFecInicio,
-            fec_termino: formattedFecTermino
+        return res.json({
+            message: "Mantención creada con éxito",
+            id: mantencionResult.insertId
         });
+
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Error en la creación de la mantención y bitácora", error: error.message });
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
     }
 };
 
@@ -611,82 +604,92 @@ export const updateMantencion = async (req, res) => {
         taller_id,
         estado_mantencion_id,
         isDeleted,
-        fec_inicio, // Nueva columna
+        fec_inicio,
         fec_termino
     } = req.body;
+
+    const errors = [];
+    const updates = {};
 
     try {
         // Validación de existencia de llaves foráneas
         const foreignKeyValidations = [
-            { field: 'bitacora_id', table: 'bitacora' },
-            { field: 'maquina_id', table: 'maquina' },
-            { field: 'taller_id', table: 'taller' },
-            { field: 'estado_mantencion_id', table: 'estado_mantencion' }
+            { field: 'bitacora_id', table: 'bitacora', value: bitacora_id },
+            { field: 'maquina_id', table: 'maquina', value: maquina_id },
+            { field: 'taller_id', table: 'taller', value: taller_id },
+            { field: 'estado_mantencion_id', table: 'estado_mantencion', value: estado_mantencion_id }
         ];
 
-        const updates = {};
-
-        // Validaciones para llaves foráneas
-        for (const { field, table } of foreignKeyValidations) {
-            if (req.body[field] !== undefined) {
-                const [result] = await pool.query(`SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`, [req.body[field]]);
+        for (const { field, table, value } of foreignKeyValidations) {
+            if (value !== undefined) {
+                const [result] = await pool.query(
+                    `SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`,
+                    [value]
+                );
                 if (result.length === 0) {
-                    return res.status(400).json({ message: `${table.charAt(0).toUpperCase() + table.slice(1)} no existe o está eliminada` });
+                    errors.push(`${table.charAt(0).toUpperCase() + table.slice(1)} no existe o está eliminada`);
+                } else {
+                    updates[field] = value;
                 }
-                updates[field] = req.body[field];
             }
         }
 
-        // Validaciones para los campos específicos
+        // Validaciones específicas
         if (ord_trabajo !== undefined) {
-            if (typeof ord_trabajo !== "string") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'ord_trabajo'" });
+            if (typeof ord_trabajo !== 'string') {
+                errors.push("Tipo de dato inválido para 'ord_trabajo'");
+            } else {
+                updates.ord_trabajo = ord_trabajo;
             }
-            updates.ord_trabajo = ord_trabajo;
         }
 
         if (n_factura !== undefined) {
-            if (typeof n_factura !== "number") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'n_factura'" });
+            if (typeof n_factura !== 'number') {
+                errors.push("Tipo de dato inválido para 'n_factura'");
+            } else {
+                updates.n_factura = n_factura;
             }
-            updates.n_factura = n_factura;
         }
 
         if (cost_ser !== undefined) {
-            if (typeof cost_ser !== "number") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'cost_ser'" });
+            if (typeof cost_ser !== 'number') {
+                errors.push("Tipo de dato inválido para 'cost_ser'");
+            } else {
+                updates.cost_ser = cost_ser;
             }
-            updates.cost_ser = cost_ser;
         }
 
-        // Validar y agregar fec_inicio
+        // Validar fechas
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+
         if (fec_inicio !== undefined) {
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
             if (!fechaRegex.test(fec_inicio)) {
-                return res.status(400).json({ message: "El formato de la fecha es inválido. Debe ser dd-mm-aaaa" });
+                errors.push("El formato de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa");
+            } else {
+                updates.fec_inicio = fec_inicio;
             }
-            updates.fec_inicio = fec_inicio;  // Pasar solo el valor, sin STR_TO_DATE
         }
 
-        // Validar y agregar fec_termino
         if (fec_termino !== undefined) {
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
             if (!fechaRegex.test(fec_termino)) {
-                return res.status(400).json({
-                    message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
-                });
+                errors.push("El formato de 'fec_termino' es inválido. Debe ser dd-mm-aaaa");
+            } else {
+                updates.fec_termino = fec_termino;
             }
-            updates.fec_termino = fec_termino;  // Pasar solo el valor, sin STR_TO_DATE
         }
 
-        // Validar y agregar isDeleted
+        // Validar isDeleted
         if (isDeleted !== undefined) {
-            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'"
-                });
+            if (typeof isDeleted !== 'number' || (isDeleted !== 0 && isDeleted !== 1)) {
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
+        }
+
+        // Si hay errores, retornar todos juntos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Verificar si la mantención existe
@@ -695,43 +698,31 @@ export const updateMantencion = async (req, res) => {
             return res.status(404).json({ message: "Mantención no encontrada" });
         }
 
-        
         // Construir la cláusula SET para la actualización
         const setClause = Object.keys(updates)
-        .map((key) => {
-            if (key === 'fec_inicio' || key === 'fec_termino') {
-                return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
-            }
-            return `${key} = ?`;
-        })
-        .join(", ");
-        
+            .map((key) => (key === 'fec_inicio' || key === 'fec_termino'
+                ? `${key} = STR_TO_DATE(?, '%d-%m-%Y')`
+                : `${key} = ?`
+            ))
+            .join(", ");
+
         if (!setClause) {
             return res.status(400).json({
                 message: "No se proporcionaron campos para actualizar"
             });
         }
-        
-        
+
         // Preparar los valores para la actualización
-        const values = Object.keys(updates).map(key => {
-            if (key === 'fec_inicio' || key === 'fec_termino') {
-                return req.body[key];
-            }
-            return updates[key];
-        }).concat(id);
-        
-        // Mostrar valores que se están actualizando
-        // console.log("SET clause generada: ", setClause);
-        // console.log("Valores para actualizar: ", updates);
-        // console.log("Valores a enviar a la base de datos: ", values);
+        const values = Object.keys(updates).map((key) =>
+            key === 'fec_inicio' || key === 'fec_termino' ? updates[key] : updates[key]
+        ).concat(id);
 
         // Realizar la actualización
         const [result] = await pool.query(`UPDATE mantencion SET ${setClause} WHERE id = ?`, values);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
-                message: "Mantención no encontrada"
+                message: "No se pudo actualizar la mantención"
             });
         }
 

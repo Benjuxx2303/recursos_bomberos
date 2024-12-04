@@ -76,14 +76,26 @@ export const getTipoMaquinaById = async (req, res) => {
 // Crear tipo de máquina
 export const createTipoMaquina = async (req, res) => {
     const { clasificacion } = req.body;
+    const errors = [];  // Arreglo para almacenar los errores de validación
 
     try {
+        // Validar clasificacion
         if (typeof clasificacion !== 'string') {
-            return res.status(400).json({
-                message: 'Tipo de datos inválido'
-            });
+            errors.push("Tipo de dato inválido para 'clasificacion'");
         }
 
+        // Validar si el tipo de máquina ya existe
+        const [tipoMaquinaExists] = await pool.query("SELECT * FROM tipo_maquina WHERE clasificacion = ? AND isDeleted = 0", [clasificacion]);
+        if (tipoMaquinaExists.length > 0) {
+            errors.push("El tipo de máquina ya existe");
+        }
+
+        // Si hay errores, devolver todos juntos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Insertar nuevo tipo de máquina
         const [rows] = await pool.query("INSERT INTO tipo_maquina (clasificacion, isDeleted) VALUES (?, 0)", [clasificacion]);
         res.status(201).json({
             id: rows.insertId,
@@ -129,33 +141,40 @@ export const deleteTipoMaquina = async (req, res) => {
 export const updateTipoMaquina = async (req, res) => {
     const { id } = req.params;
     const { clasificacion, isDeleted } = req.body;
+    const errors = [];  // Arreglo para almacenar los errores de validación
 
     try {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "ID inválido"
-            });
+            errors.push("ID inválido");
         }
 
-        // Validaciones
         const updates = {};
+
+        // Validar clasificacion
         if (clasificacion !== undefined) {
             if (typeof clasificacion !== 'string') {
-                return res.status(400).json({
-                    message: 'Tipo de dato inválido para "clasificacion"'
-                });
+                errors.push('Tipo de dato inválido para "clasificacion"');
+            }
+            // Verificar si el tipo de máquina ya existe
+            const [tipoMaquinaExists] = await pool.query("SELECT * FROM tipo_maquina WHERE clasificacion = ? AND isDeleted = 0", [clasificacion]);
+            if (tipoMaquinaExists.length > 0) {
+                errors.push("El tipo de máquina ya existe");
             }
             updates.clasificacion = clasificacion;
         }
 
+        // Validar isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'"
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
             }
             updates.isDeleted = isDeleted;
+        }
+
+        // Si hay errores, devolverlos todos juntos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Construir la consulta de actualización
@@ -180,6 +199,7 @@ export const updateTipoMaquina = async (req, res) => {
 
         const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ?", [idNumber]);
         res.json(rows[0]);
+
     } catch (error) {
         return res.status(500).json({
             message: "Error interno del servidor",

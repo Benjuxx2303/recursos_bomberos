@@ -92,32 +92,47 @@ export const getSubdivision = async (req, res) => {
 // Crear una nueva subdivisión
 export const createSubdivision = async (req, res) => {
     const { division_id, nombre } = req.body;
+    const errors = []; // Arreglo para acumular errores
 
     try {
         // Validación de datos
-        if (typeof nombre !== "string" || typeof division_id !== "number") {
-            return res.status(400).json({
-                message: "Tipo de datos inválido",
-            });
+        if (typeof nombre !== "string") {
+            errors.push("Tipo de datos inválido para 'nombre'");
+        }
+
+        if (typeof division_id !== "number") {
+            errors.push("Tipo de datos inválido para 'division_id'");
         }
 
         // Validación de existencia de la división
         const [divisionExists] = await pool.query("SELECT 1 FROM division WHERE id = ? AND isDeleted = 0", [division_id]);
         if (divisionExists.length === 0) {
-            return res.status(400).json({ message: "División no existe o está eliminada" });
+            errors.push("División no existe o está eliminada");
         }
 
-        // Se crea activo (isDeleted = 0) por defecto
+        // Si se han acumulado errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({
+                errors: errors
+            });
+        }
+
+        // Crear la subdivisión
         const [rows] = await pool.query('INSERT INTO subdivision (division_id, nombre, isDeleted) VALUES (?, ?, 0)', [division_id, nombre]);
+        
+        // Respuesta exitosa
         res.status(201).json({
             id: rows.insertId,
             division_id,
             nombre
         });
     } catch (error) {
+        console.error(error); // Registrar el error para depuración
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: [
+                "Error interno del servidor",
+                error.message
+            ]
         });
     }
 };
@@ -152,39 +167,46 @@ export const updateSubdivision = async (req, res) => {
     const { id } = req.params;
     const { division_id, nombre, isDeleted } = req.body;
     const idNumber = parseInt(id);
-
-    if (isNaN(idNumber)) {
-        return res.status(400).json({
-            message: "Tipo de datos inválido",
-        });
-    }
+    const errors = []; // Arreglo para almacenar los errores
 
     try {
+        if (isNaN(idNumber)) {
+            errors.push("Tipo de datos inválido para 'id'");
+        }
+
         const updates = {};
 
         // Validación de existencia de la división
         if (division_id !== undefined) {
             const [divisionExists] = await pool.query("SELECT 1 FROM division WHERE id = ? AND isDeleted = 0", [division_id]);
             if (divisionExists.length === 0) {
-                return res.status(400).json({ message: "División no existe o está eliminada" });
+                errors.push("División no existe o está eliminada");
+            } else {
+                updates.division_id = division_id;
             }
-            updates.division_id = division_id;
         }
 
+        // Validación de nombre
         if (nombre !== undefined) {
             if (typeof nombre !== "string") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'nombre'" });
+                errors.push("Tipo de dato inválido para 'nombre'");
+            } else {
+                updates.nombre = nombre;
             }
-            updates.nombre = nombre;
         }
 
+        // Validación de isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'"
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
+        }
+
+        // Si se han acumulado errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors: errors });
         }
 
         const setClause = Object.keys(updates)
@@ -193,23 +215,25 @@ export const updateSubdivision = async (req, res) => {
 
         if (!setClause) {
             return res.status(400).json({
-                message: "No se proporcionaron campos para actualizar"
+                message: "No se proporcionaron campos para actualizar",
             });
         }
 
         const values = Object.values(updates).concat(idNumber);
         const [result] = await pool.query(`UPDATE subdivision SET ${setClause} WHERE id = ?`, values);
 
-        if (result.affectedRows === 0) return res.status(404).json({
-            message: 'Subdivisión no encontrada'
-        });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: "Subdivisión no encontrada",
+            });
+        }
 
-        const [rows] = await pool.query('SELECT * FROM subdivision WHERE id = ?', [idNumber]);
+        const [rows] = await pool.query("SELECT * FROM subdivision WHERE id = ?", [idNumber]);
         res.json(rows[0]);
     } catch (error) {
+        console.error(error); // Registrar el error para depuración
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: ["Error interno del servidor", error.message],
         });
     }
 };

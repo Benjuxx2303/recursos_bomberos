@@ -159,41 +159,50 @@ export const createBitacora = async (req, res) => {
             fh_llegada = `${f_llegada} ${h_llegada}`;
         }
 
+        // Arreglo para almacenar los errores
+        const errors = [];
+
         // Validación de datos
         const companiaIdNumber = parseInt(compania_id);
         const conductorIdNumber = parseInt(conductor_id);
         const maquinaIdNumber = parseInt(maquina_id);
         const claveIdNumber = parseInt(clave_id);
 
-        if (
-            isNaN(companiaIdNumber) ||
-            isNaN(conductorIdNumber) ||
-            isNaN(maquinaIdNumber) ||
-            isNaN(claveIdNumber) ||
-            typeof direccion !== 'string'
-        ) {
-            return res.status(400).json({ message: 'Tipo de datos inválido' });
+        if (isNaN(companiaIdNumber)) {
+            errors.push('ID de la compañía inválido');
+        }
+        if (isNaN(conductorIdNumber)) {
+            errors.push('ID del conductor inválido');
+        }
+        if (isNaN(maquinaIdNumber)) {
+            errors.push('ID de la máquina inválido');
+        }
+        if (isNaN(claveIdNumber)) {
+            errors.push('ID de la clave inválido');
+        }
+        if (typeof direccion !== 'string') {
+            errors.push('La dirección debe ser un texto');
         }
 
         // Validación de existencia de llaves foráneas
         const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
         if (companiaExists.length === 0) {
-            return res.status(400).json({ message: "Compania no existe o está eliminada" });
+            errors.push("Compañía no existe o está eliminada");
         }
 
         const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductorIdNumber]);
         if (conductorExists.length === 0) {
-            return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+            errors.push("Conductor no existe o está eliminado");
         }
 
         const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
         if (maquinaExists.length === 0) {
-            return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+            errors.push("Máquina no existe o está eliminada");
         }
 
         const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
         if (claveExists.length === 0) {
-            return res.status(400).json({ message: "Clave no existe o está eliminada" });
+            errors.push("Clave no existe o está eliminada");
         }
 
         // Validación de fecha y hora si están presentes
@@ -201,15 +210,16 @@ export const createBitacora = async (req, res) => {
         const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
 
         if (f_salida && h_salida && (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida))) {
-            return res.status(400).json({
-                message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
-            });
+            errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
 
         if (f_llegada && h_llegada && (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada))) {
-            return res.status(400).json({
-                message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
-            });
+            errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
+        }
+
+        // Si existen errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ message: errors });
         }
 
         // Preparar el valor de obs; si es nulo o no viene, se omitirá
@@ -310,38 +320,40 @@ export const updateBitacora = async (req, res) => {
 
         const updates = [];
         const values = [];
+        const errors = []; // Arreglo para almacenar todos los errores
 
         // Actualizar solo los campos que están en el body
         if (direccion !== undefined) {
-            updates.push("direccion = ?");
-            values.push(direccion);
+            if (typeof direccion !== 'string') {
+                errors.push("La dirección debe ser un texto");
+            } else {
+                updates.push("direccion = ?");
+                values.push(direccion);
+            }
         }
 
         // Manejar fechas y horas
+        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+        const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+
         if (f_salida !== undefined && h_salida !== undefined) {
             const fh_salida = `${f_salida} ${h_salida}`;
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
-                return res.status(400).json({
-                    message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
-                });
+                errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            } else {
+                updates.push("fh_salida = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
+                values.push(fh_salida);
             }
-            updates.push("fh_salida = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
-            values.push(fh_salida);
         }
 
         if (f_llegada !== undefined && h_llegada !== undefined) {
             const fh_llegada = `${f_llegada} ${h_llegada}`;
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada)) {
-                return res.status(400).json({
-                    message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
-                });
+                errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            } else {
+                updates.push("fh_llegada = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
+                values.push(fh_llegada);
             }
-            updates.push("fh_llegada = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
-            values.push(fh_llegada);
         }
 
         // Validaciones y actualizaciones para los demás campos numéricos
@@ -350,10 +362,11 @@ export const updateBitacora = async (req, res) => {
             if (req.body[field] !== undefined) {
                 const value = parseFloat(req.body[field]);
                 if (isNaN(value)) {
-                    return res.status(400).json({ message: `Tipo de dato inválido para '${field}'` });
+                    errors.push(`Tipo de dato inválido para '${field}'`);
+                } else {
+                    updates.push(`${field} = ?`);
+                    values.push(value);
                 }
-                updates.push(`${field} = ?`);
-                values.push(value);
             }
         }
 
@@ -361,37 +374,41 @@ export const updateBitacora = async (req, res) => {
         if (compania_id !== undefined) {
             const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
             if (companiaExists.length === 0) {
-                return res.status(400).json({ message: "Compania no existe o está eliminada" });
+                errors.push("Compañía no existe o está eliminada");
+            } else {
+                updates.push("compania_id = ?");
+                values.push(compania_id);
             }
-            updates.push("compania_id = ?");
-            values.push(compania_id);
         }
 
         if (conductor_id !== undefined) {
             const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductor_id]);
             if (conductorExists.length === 0) {
-                return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+                errors.push("Conductor no existe o está eliminado");
+            } else {
+                updates.push("conductor_id = ?");
+                values.push(conductor_id);
             }
-            updates.push("conductor_id = ?");
-            values.push(conductor_id);
         }
 
         if (maquina_id !== undefined) {
             const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
             if (maquinaExists.length === 0) {
-                return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+                errors.push("Máquina no existe o está eliminada");
+            } else {
+                updates.push("maquina_id = ?");
+                values.push(maquina_id);
             }
-            updates.push("maquina_id = ?");
-            values.push(maquina_id);
         }
 
         if (clave_id !== undefined) {
             const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [clave_id]);
             if (claveExists.length === 0) {
-                return res.status(400).json({ message: "Clave no existe o está eliminada" });
+                errors.push("Clave no existe o está eliminada");
+            } else {
+                updates.push("clave_id = ?");
+                values.push(clave_id);
             }
-            updates.push("clave_id = ?");
-            values.push(clave_id);
         }
 
         // Incluir obs en la actualización
@@ -403,10 +420,16 @@ export const updateBitacora = async (req, res) => {
         // Validación y asignación de isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.push("isDeleted = ?");
+                values.push(isDeleted);
             }
-            updates.push("isDeleted = ?");
-            values.push(isDeleted);
+        }
+
+        // Si existen errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ message: errors });
         }
 
         // Construir la consulta de actualización

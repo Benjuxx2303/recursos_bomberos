@@ -78,25 +78,36 @@ export const getTipoMantencionById = async (req, res) => {
 // Crear tipo de mantención
 export const createTipoMantencion = async (req, res) => {
     const { nombre } = req.body;
+    const errors = [];  // Arreglo para almacenar los errores de validación
 
     // Validación de datos
     if (typeof nombre !== "string") {
-        return res.status(400).json({
-            message: "Tipo de datos inválido",
-        });
+        errors.push("Tipo de dato inválido para 'nombre'");
     }
 
     try {
+        // Validar si ya existe el tipo de mantención
+        const [tipoMantencion] = await pool.query("SELECT * FROM tipo_mantencion WHERE nombre = ? AND isDeleted = 0", [nombre]);
+        if (tipoMantencion.length > 0) {
+            errors.push("Ya existe un tipo de mantención con ese nombre");
+        }
+
+        // Si hay errores, devolver todos juntos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
         // Se crea activo (isDeleted = 0) por defecto
         const [rows] = await pool.query("INSERT INTO tipo_mantencion (nombre, isDeleted) VALUES (?, 0)", [nombre]);
-        res.status(201).send({
+
+        res.status(201).json({
             id: rows.insertId,
             nombre,
         });
     } catch (error) {
+        console.error('Error:', error);
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: ['Error interno del servidor', error.message],
         });
     }
 };
@@ -133,6 +144,7 @@ export const deleteTipoMantencion = async (req, res) => {
 export const updateTipoMantencion = async (req, res) => {
     const { id } = req.params;
     const { nombre, isDeleted } = req.body;
+    const errors = [];  // Arreglo para almacenar los errores de validación
 
     try {
         // Validación de existencia de llaves foráneas
@@ -140,17 +152,32 @@ export const updateTipoMantencion = async (req, res) => {
 
         if (nombre !== undefined) {
             if (typeof nombre !== "string") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'nombre'" });
+                errors.push("Tipo de dato inválido para 'nombre'");
             }
-            updates.nombre = nombre;
+
+            // Validar si ya existe el tipo de mantención
+            const [tipoMantencion] = await pool.query("SELECT * FROM tipo_mantencion WHERE nombre = ? AND isDeleted = 0", [nombre]);
+            if (tipoMantencion.length > 0) {
+                errors.push("Ya existe un tipo de mantención con ese nombre");
+            }
+
+            if (errors.length === 0) {
+                updates.nombre = nombre;
+            }
         }
 
         // Validar y agregar isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
+        }
+
+        // Si hay errores, devolver todos juntos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Verificar si hay campos a actualizar
@@ -178,4 +205,3 @@ export const updateTipoMantencion = async (req, res) => {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
-

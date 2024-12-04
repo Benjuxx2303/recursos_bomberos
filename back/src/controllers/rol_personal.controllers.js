@@ -75,30 +75,53 @@ export const getRolPersonal = async(req, res)=>{
     }
 }
 
-export const createRolPersonal = async(req, res) =>{
-    const {nombre, descripcion} = req.body
-    try{
-        // validacion de datos
-        if (typeof nombre !== "string" || typeof descripcion !== "string") {
-          res.status(400).json({
-            message: "Tipo de datos inválido",
-          });
+export const createRolPersonal = async (req, res) => {
+    const { nombre, descripcion } = req.body;
+    const errors = [];  // Array para acumular errores
+
+    try {
+        // Validación de datos
+        if (typeof nombre !== "string") {
+            errors.push("El campo 'nombre' debe ser una cadena válida.");
+        }
+        if (typeof descripcion !== "string") {
+            errors.push("El campo 'descripcion' debe ser una cadena válida.");
         }
 
-        // se crea activo (isDeleted = 0) por defecto
-        const [rows] = await pool.query('INSERT INTO rol_personal (nombre, descripcion, isDeleted) VALUES (?, ?, 0)', [nombre, descripcion])
-        res.send({
+        
+        // Validar si ya existe el rol
+        const [rolPersonalExists] = await pool.query('SELECT * FROM rol_personal WHERE nombre = ? AND isDeleted = 0', [nombre]);
+        if (rolPersonalExists.length > 0) {
+            errors.push("El rol_personal ya existe");
+        }
+        
+        // Si hay errores de validación, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({
+                errors: errors
+            });
+        }
+        
+        // Se crea activo (isDeleted = 0) por defecto
+        const [rows] = await pool.query('INSERT INTO rol_personal (nombre, descripcion, isDeleted) VALUES (?, ?, 0)', [nombre, descripcion]);
+
+        // Respuesta exitosa
+        return res.status(201).json({
             id: rows.insertId,
             nombre,
             descripcion
         });
-    } catch (error){
+    } catch (error) {
+        console.error(error);
+        // Si ocurre un error interno, devolverlo en el formato de errores
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: [
+                "Error interno del servidor",
+                error.message
+            ]
         });
     }
-}
+};
 
 export const deleteRolPersonal = async(req, res) =>{
     const {id} = req.params;
@@ -129,44 +152,59 @@ export const updateRolPersonal = async (req, res) => {
     const { id } = req.params;
     const { nombre, descripcion, isDeleted } = req.body;
 
+    const errors = []; // Arreglo para acumular errores
+
     try {
-        // Validación de datos
+        // Validación de ID
         const idNumber = parseInt(id);
 
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "ID inválido",
-            });
+            errors.push("ID inválido");
         }
 
         // Crear un objeto para almacenar los campos que se actualizarán
         const updates = {};
         
+        // Validación de 'nombre'
         if (nombre !== undefined) {
             if (typeof nombre !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'nombre'",
-                });
+                errors.push("Tipo de dato inválido para 'nombre'");
             }
-            updates.nombre = nombre;
+
+            // Validar si ya existe el rol_personal con ese nombre
+            const [rolPersonal] = await pool.query("SELECT * FROM rol_personal WHERE nombre = ?", [nombre]);
+            if (rolPersonal.length > 0) {
+                errors.push("Ya existe un rol_personal con el mismo nombre");
+            }
+
+            if (errors.length === 0) {
+                updates.nombre = nombre;
+            }
         }
 
+        // Validación de 'descripcion'
         if (descripcion !== undefined) {
             if (typeof descripcion !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'descripcion'",
-                });
+                errors.push("Tipo de dato inválido para 'descripcion'");
+            } else {
+                updates.descripcion = descripcion;
             }
-            updates.descripcion = descripcion;
         }
 
+        // Validación de 'isDeleted'
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'",
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.isDeleted = isDeleted;
             }
-            updates.isDeleted = isDeleted;
+        }
+
+        // Si hubo errores, los devolvemos
+        if (errors.length > 0) {
+            return res.status(400).json({
+                errors: errors
+            });
         }
 
         // Construir la consulta de actualización
@@ -176,12 +214,13 @@ export const updateRolPersonal = async (req, res) => {
 
         if (!setClause) {
             return res.status(400).json({
-                message: "No se proporcionaron campos para actualizar",
+                message: "No se proporcionaron campos para actualizar"
             });
         }
 
         const values = Object.values(updates).concat(idNumber);
         
+        // Ejecutar la actualización en la base de datos
         const [result] = await pool.query(`UPDATE rol_personal SET ${setClause} WHERE id = ?`, values);
 
         if (result.affectedRows === 0) {
@@ -190,12 +229,16 @@ export const updateRolPersonal = async (req, res) => {
             });
         }
 
+        // Obtener el rol actualizado y devolverlo
         const [rows] = await pool.query('SELECT * FROM rol_personal WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
+        console.error(error);
         return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
+            errors: [
+                "Error interno del servidor",
+                error.message
+            ]
         });
     }
 };

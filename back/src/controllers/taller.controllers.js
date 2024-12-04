@@ -80,13 +80,31 @@ export const getTallerById = async (req, res) => {
 // Crear nuevo taller
 export const createTaller = async (req, res) => {
   const { nombre, fono } = req.body;
+  const errors = []; // Arreglo para almacenar errores de validación
 
   try {
     // Validaciones
-    if (typeof nombre !== 'string' || typeof fono !== 'string') {
-      return res.status(400).json({
-        message: 'Tipo de datos inválido',
-      });
+    if (typeof nombre !== 'string') {
+      errors.push('El campo "nombre" debe ser una cadena de texto válida');
+    }
+    if (typeof fono !== 'string') {
+      errors.push('El campo "fono" debe ser una cadena de texto válida');
+    }
+
+    // Si hay errores de validación, responder con 400 y los errores
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Validar que no exista un taller con el mismo nombre
+    const [talleres] = await pool.query("SELECT * FROM taller WHERE nombre = ? AND isDeleted = 0", [nombre]);
+    if (talleres.length > 0) {
+      errors.push("Ya existe un taller con ese nombre");
+    }
+
+    // Si hay errores de validación, responder con 400 y los errores
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     // Inserción en la base de datos
@@ -95,17 +113,17 @@ export const createTaller = async (req, res) => {
       [nombre, fono]
     );
 
+    // Responder con el taller creado
     res.status(201).json({
       id: rows.insertId,
       nombre,
       fono,
     });
   } catch (error) {
-    console.error('error: ', error);
+    console.error('Error:', error);
     return res.status(500).json({
-      message: "Error interno del servidor",
-      error: error.message
-  });
+      errors: ['Error interno del servidor', error.message],
+    });
   }
 };
 
@@ -134,42 +152,48 @@ export const deleteTaller = async (req, res) => {
 export const updateTaller = async (req, res) => {
   const { id } = req.params;
   const { nombre, fono, isDeleted } = req.body;
+  const errors = [];  // Arreglo para almacenar errores de validación
 
   try {
     const idNumber = parseInt(id);
     if (isNaN(idNumber)) {
-      return res.status(400).json({
-        message: "ID inválido"
-      });
+      errors.push("ID inválido");
     }
 
-    // Validaciones
     const updates = {};
+
+    // Validación de 'nombre'
     if (nombre !== undefined) {
       if (typeof nombre !== "string") {
-        return res.status(400).json({
-          message: "Tipo de dato inválido para 'nombre'"
-        });
+        errors.push("Tipo de dato inválido para 'nombre'");
+      }
+      // Validar que no exista un taller con el mismo nombre
+      const [talleres] = await pool.query("SELECT * FROM taller WHERE nombre = ? AND isDeleted = 0", [nombre]);
+      if (talleres.length > 0) {
+        errors.push("Ya existe un taller con ese nombre");
       }
       updates.nombre = nombre;
     }
 
+    // Validación de 'fono'
     if (fono !== undefined) {
       if (typeof fono !== "string") {
-        return res.status(400).json({
-          message: "Tipo de dato inválido para 'fono'"
-        });
+        errors.push("Tipo de dato inválido para 'fono'");
       }
       updates.fono = fono;
     }
 
+    // Validación de 'isDeleted'
     if (isDeleted !== undefined) {
       if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-        return res.status(400).json({
-          message: "Tipo de dato inválido para 'isDeleted'"
-        });
+        errors.push("Tipo de dato inválido para 'isDeleted'");
       }
       updates.isDeleted = isDeleted;
+    }
+
+    // Si hay errores de validación, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     // Construir la consulta de actualización
@@ -198,10 +222,9 @@ export const updateTaller = async (req, res) => {
     const [rows] = await pool.query("SELECT * FROM taller WHERE id = ?", [idNumber]);
     res.json(rows[0]);
   } catch (error) {
-    console.error('error: ', error);
+    console.error('Error:', error);
     return res.status(500).json({
-      message: "Error interno del servidor",
-      error: error.message
-  });
+      errors: ['Error interno del servidor', error.message],
+    });
   }
 };

@@ -53,35 +53,35 @@ export const getPersonalWithDetails = async (req, res) => {
 
 export const getPersonalWithDetailsPage = async (req, res) => {
     try {
-        // Obtener los parámetros opcionales
-        const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
-        const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
+// Obtener los parámetros opcionales
+const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
+const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
 
-        // Si no se proporciona "page", devolver todos los datos sin paginación
-        if (!req.query.page) {
-            const query = `
-                SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
-                       DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
-                       DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-                       p.img_url, 
-                       p.obs, 
-                       p.ven_licencia,
-                       p.isDeleted,
-                       rp.nombre AS rol_personal, 
-                       c.nombre AS compania,
-                       TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
-                FROM personal p
-                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                INNER JOIN compania c ON p.compania_id = c.id
-                WHERE p.isDeleted = 0
-            `;
-            const [rows] = await pool.query(query);
-            res.json(rows);
-            return;
-        }
+// Si no se proporciona "page", devolver todos los datos sin paginación
+if (!req.query.page) {
+    const query = `
+        SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
+               DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
+               DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
+               p.img_url, 
+               p.obs, 
+               p.ven_licencia,
+               p.isDeleted,
+               rp.nombre AS rol_personal, 
+               c.nombre AS compania,
+               TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
+        FROM personal p
+        INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+        INNER JOIN compania c ON p.compania_id = c.id
+        WHERE p.isDeleted = 0
+    `;
+    const [rows] = await pool.query(query);
+    res.json(rows);
+    return;
+}
 
-        // Si se proporciona "page", se aplica paginación
-        const offset = (page - 1) * pageSize; // Calcular el offset
+// Si se proporciona "page", se aplica paginación
+const offset = (page - 1) * pageSize; // Calcular el offset
 
         const query = `
             SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
@@ -90,6 +90,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
+                   p.compania_id, p.rol_personal_id, p.ven_licencia,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
@@ -130,7 +131,8 @@ export const getPersonalbyID = async (req, res) => {
                    p.obs, 
                    p.isDeleted,
                    rp.nombre AS rol_personal, 
-                   c.nombre AS compania
+                   c.nombre AS compania,
+                   p.compania_id, p.rol_personal_id, p.ven_licencia,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id

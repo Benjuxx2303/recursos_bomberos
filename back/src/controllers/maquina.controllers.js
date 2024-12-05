@@ -1,8 +1,8 @@
 import { pool } from "../db.js";
 import {
-  uploadFileToS3,
+  handleError,
   updateImageUrlInDb,
-  handleError
+  uploadFileToS3
 } from './fileUpload.js';
 
 // Obtener todas las máquinas

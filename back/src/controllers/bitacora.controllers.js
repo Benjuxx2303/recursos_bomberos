@@ -23,9 +23,8 @@ export const getBitacora = async (req, res) => {
                    b.obs 
             FROM bitacora b 
             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
+            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0 
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
-            INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
             WHERE b.isDeleted = 0`;
@@ -90,9 +89,8 @@ export const getBitacoraPage = async (req, res) => {
                     b.obs 
             FROM bitacora b 
             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-            INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
+            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
-            INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
             WHERE b.isDeleted = 0
@@ -131,9 +129,8 @@ export const getBitacoraById = async (req, res) => {
                     b.obs 
              FROM bitacora b 
              INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-             INNER JOIN conductor_maquina cm ON b.conductor_id = cm.id AND cm.isDeleted = 0 
+            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
              INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
-             INNER JOIN personal p ON cm.personal_id = p.id AND p.isDeleted = 0
              INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
              INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
              WHERE b.isDeleted = 0 AND b.id = ?`,
@@ -150,13 +147,11 @@ export const getBitacoraById = async (req, res) => {
     }
 };
 
-
-
 // Crear una nueva bitácora
 export const createBitacora = async (req, res) => {
     const {
         compania_id,
-        conductor_id,
+        personal_id,
         maquina_id,
         direccion,
         f_salida,
@@ -187,13 +182,13 @@ export const createBitacora = async (req, res) => {
 
         // Validación de datos
         const companiaIdNumber = parseInt(compania_id);
-        const conductorIdNumber = parseInt(conductor_id);
+        const personalIdNumber = parseInt(personal_id);
         const maquinaIdNumber = parseInt(maquina_id);
         const claveIdNumber = parseInt(clave_id);
 
         if (
             isNaN(companiaIdNumber) ||
-            isNaN(conductorIdNumber) ||
+            isNaN(personalIdNumber) ||
             isNaN(maquinaIdNumber) ||
             isNaN(claveIdNumber) ||
             typeof direccion !== 'string'
@@ -207,9 +202,9 @@ export const createBitacora = async (req, res) => {
             return res.status(400).json({ message: "Compania no existe o está eliminada" });
         }
 
-        const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductorIdNumber]);
-        if (conductorExists.length === 0) {
-            return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+        const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
+        if (personalExists.length === 0) {
+            return res.status(400).json({ message: "Personal no existe o está eliminado" });
         }
 
         const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
@@ -238,15 +233,15 @@ export const createBitacora = async (req, res) => {
             });
         }
 
-        // Preparar el valor de obs; si es nulo o no viene, se omitirá
+        // Preparar el valor de obs
         const obsValue = obs || null;
 
         // Inserción en la base de datos
         const [rows] = await pool.query(
-            'INSERT INTO bitacora (compania_id, conductor_id, maquina_id, direccion, fh_salida, fh_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)',
+            'INSERT INTO bitacora (compania_id, personal_id, maquina_id, direccion, fh_salida, fh_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)',
             [
                 companiaIdNumber,
-                conductorIdNumber,
+                personalIdNumber,
                 maquinaIdNumber,
                 direccion,
                 fh_salida,
@@ -264,27 +259,26 @@ export const createBitacora = async (req, res) => {
 
         res.status(201).json({
             id: rows.insertId,
-            companiaIdNumber,
-            conductorIdNumber,
-            maquinaIdNumber,
+            compania_id: companiaIdNumber,
+            personal_id: personalIdNumber,
+            maquina_id: maquinaIdNumber,
             direccion,
             fh_salida,
             fh_llegada,
-            claveIdNumber,
+            clave_id: claveIdNumber,
             km_salida,
             km_llegada,
             hmetro_salida,
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obsValue
+            obs: obsValue
         });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Error en la creación de la bitácora' });
     }
 };
-
 
 // Dar de baja (marcar como inactivo)
 export const deleteBitacora = async (req, res) => {
@@ -309,7 +303,7 @@ export const updateBitacora = async (req, res) => {
     const { id } = req.params;
     const {
         compania_id,
-        conductor_id,
+        personal_id,
         maquina_id,
         clave_id,
         direccion,
@@ -393,13 +387,13 @@ export const updateBitacora = async (req, res) => {
             values.push(compania_id);
         }
 
-        if (conductor_id !== undefined) {
-            const [conductorExists] = await pool.query("SELECT 1 FROM conductor_maquina WHERE id = ? AND isDeleted = 0", [conductor_id]);
-            if (conductorExists.length === 0) {
-                return res.status(400).json({ message: "Conductor no existe o está eliminado" });
+        if (personal_id !== undefined) {
+            const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
+            if (personalExists.length === 0) {
+                return res.status(400).json({ message: "Personal no existe o está eliminado" });
             }
-            updates.push("conductor_id = ?");
-            values.push(conductor_id);
+            updates.push("personal_id = ?");
+            values.push(personal_id);
         }
 
         if (maquina_id !== undefined) {

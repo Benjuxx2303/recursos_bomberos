@@ -3,5 +3,4 @@ back/.env.example
 back/node_modules
 .vscode
 back/config.js
-apis-documentadas.md
-apis-documentadas-get.md
+documentacion-apis

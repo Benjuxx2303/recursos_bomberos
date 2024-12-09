@@ -189,6 +189,25 @@ export const getPersonalbyID = async (req, res) => {
 
 
 export const createPersonal = async (req, res) => {
+    // Log de datos crudos recibidos
+    console.log('Datos crudos recibidos:', {
+        body: req.body,
+        files: req.files ? {
+            imagen: req.files.imagen ? {
+                fieldname: req.files.imagen[0].fieldname,
+                originalname: req.files.imagen[0].originalname,
+                mimetype: req.files.imagen[0].mimetype,
+                size: req.files.imagen[0].size
+            } : null,
+            licencia_imagen: req.files.licencia_imagen ? {
+                fieldname: req.files.licencia_imagen[0].fieldname,
+                originalname: req.files.licencia_imagen[0].originalname,
+                mimetype: req.files.licencia_imagen[0].mimetype,
+                size: req.files.licencia_imagen[0].size
+            } : null
+        } : null
+    });
+
     const {
         rol_personal_id,
         rut,
@@ -196,13 +215,28 @@ export const createPersonal = async (req, res) => {
         apellido,
         compania_id,
         fec_nac,
-        img_url = '',
         obs = '',
-        fec_ingreso, // Nuevo campo
-        ven_licencia // campo opcional
+        fec_ingreso = null, 
+        ven_licencia = null
     } = req.body;
 
     try {
+        // Manejar la carga de archivos si existen
+        let imgUrl = null;
+        let imgLicenciaUrl = null;
+
+        if (req.files) {
+            if (req.files.imagen) {
+                const imgData = await uploadFileToS3(req.files.imagen[0], 'personal');
+                imgUrl = imgData.Location;
+            }
+            if (req.files.licencia_imagen) {
+                const licenciaData = await uploadFileToS3(req.files.licencia_imagen[0], 'licencias');
+                imgLicenciaUrl = licenciaData.Location;
+            }
+        }
+
+        // Parsear los datos numéricos
         const rolPersonalIdNumber = parseInt(rol_personal_id);
         const companiaIdNumber = parseInt(compania_id);
 
@@ -267,22 +301,50 @@ export const createPersonal = async (req, res) => {
             }
         }
 
+        // Preparar los valores para la inserción
+        const insertValues = [
+            rolPersonalIdNumber,
+            rut,
+            nombre,
+            apellido,
+            companiaIdNumber,
+            fec_nac,
+            imgUrl,
+            obs,
+            fec_ingreso,
+            ven_licencia,
+            imgLicenciaUrl
+        ];
+
+        console.log('Valores preparados para inserción:', insertValues);
+
+        // Construir la consulta SQL con manejo explícito de fechas
+        const insertQuery = `
+            INSERT INTO personal (
+                rol_personal_id, rut, nombre, apellido, compania_id, 
+                fec_nac, img_url, obs, fec_ingreso, isDeleted, 
+                ven_licencia, imgLicencia
+            ) VALUES (
+                ?, ?, ?, ?, ?, 
+                STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, 
+                ${fec_ingreso ? "STR_TO_DATE(?, '%d-%m-%Y')" : 'NULL'}, 0, 
+                ${ven_licencia ? "STR_TO_DATE(?, '%d-%m-%Y')" : 'NULL'}, 
+                ?
+            )`;
+
+        console.log('Query SQL:', insertQuery);
+        console.log('Valores finales:', insertValues.map(v => v === null ? 'NULL' : v));
+
         // Inserción en la base de datos
         const [rows] = await pool.query(
-            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, fec_ingreso, isDeleted, ven_licencia) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), 0, STR_TO_DATE(?, "%d-%m-%Y"))',
-            [
-                rolPersonalIdNumber,
-                rut,
-                nombre,
-                apellido,
-                companiaIdNumber,
-                fec_nac,
-                img_url,
-                obs,
-                fec_ingreso || null, // Inserta NULL si fec_ingreso no se especifica
-                ven_licencia || null // Inserta NULL si ven_licencia no se especifica
-            ]
+            insertQuery,
+            insertValues.filter(v => v !== null) // Removemos los valores null cuando usamos NULL directo en la query
         );
+
+        console.log('Resultado de la inserción:', {
+            insertId: rows.insertId,
+            affectedRows: rows.affectedRows
+        });
 
         return res.status(201).json({
             id: rows.insertId,
@@ -292,13 +354,19 @@ export const createPersonal = async (req, res) => {
             apellido,
             compania_id: companiaIdNumber,
             fec_nac,
-            img_url,
+            img_url: imgUrl,
             obs,
-            fec_ingreso,
-            ven_licencia
+            fec_ingreso: fec_ingreso || null,
+            ven_licencia: ven_licencia || null,
+            imgLicencia: imgLicenciaUrl
         });
     } catch (error) {
-        console.error('error: ', error);
+        console.error('Error detallado:', {
+            message: error.message,
+            stack: error.stack,
+            sqlMessage: error.sqlMessage,
+            sqlState: error.sqlState
+        });
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message
@@ -346,8 +414,8 @@ export const updatePersonal = async (req, res) => {
         img_url,
         obs,
         isDeleted,
-        fec_ingreso, // Nuevo campo
-        ven_licencia // campo opcional      
+        fec_ingreso, 
+        ven_licencia       
     } = req.body;
 
     try {

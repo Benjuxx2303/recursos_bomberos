@@ -13,7 +13,17 @@ import {
 
 // Configuración de multer
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ 
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        // Permitir solo imágenes
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos de imagen'));
+        }
+    }
+});
 
 // TODO: Resto de rutas: busqueda con LIKE (sql)
 
@@ -29,7 +39,29 @@ router.get(base_route, checkRole(['TELECOM']), getPersonalWithDetailsPage); // c
 
 router.get(`${base_route}/:id`, checkRole(['TELECOM']), getPersonalbyID);
 
-router.post(base_route, checkRole(['TELECOM']), createPersonal);
+// Ruta para crear personal con manejo de errores de Multer
+router.post(base_route, checkRole(['TELECOM']), (req, res, next) => {
+    upload.fields([
+        { name: 'imagen', maxCount: 1 },
+        { name: 'licencia_imagen', maxCount: 1 }
+    ])(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            // Error de Multer
+            return res.status(400).json({
+                message: "Error al subir el archivo",
+                error: err.message
+            });
+        } else if (err) {
+            // Otro tipo de error   
+            return res.status(400).json({
+                message: "Error al procesar el archivo",
+                error: err.message
+            });
+        }
+        // Si no hay error, continuar con el controlador
+        next();
+    });
+}, createPersonal);
 
 // Dar de baja (marcar como inactivo)
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']), downPersonal);

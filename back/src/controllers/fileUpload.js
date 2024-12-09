@@ -1,7 +1,7 @@
 // fileUpload.js
-import { Upload } from "@aws-sdk/lib-storage";
 import { S3 } from "@aws-sdk/client-s3";
-import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_BUCKET_NAME } from "../config.js";
+import { Upload } from "@aws-sdk/lib-storage";
+import { AWS_ACCESS_KEY_ID, AWS_BUCKET_NAME, AWS_REGION, AWS_SECRET_ACCESS_KEY } from "../config.js";
 import { pool } from "../db.js";
 
 

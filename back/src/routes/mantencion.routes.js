@@ -9,15 +9,13 @@ import {
   deleteMantencion,
   updateMantencion,
   updateImage,
-  // ---- reportes
-  getMantencionCostosByAnio,
-  getReporteMantencionesEstadoCosto,
-  getReporteGeneral,
+
 } from "../controllers/mantencion.controllers.js";
+import { getMantencionCostosByAnio ,getReporteGeneral, getReporteMantencionesEstadoCosto} from "../controllers/stats_mantencion.js";
 import multer from 'multer';
 import { checkRole } from "../controllers/authMiddleware.js";
 
-// Configuración de multer
+// Configuración de multers
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 

@@ -400,3 +400,76 @@ export const getDriverData = async (req, res) => {
     res.status(500).json({ message: 'Error al obtener los datos de conductores' });
   }
 };
+
+export const getSummaryData = async (req, res) => {
+  try {
+    // Obtener mantenimientos pendientes y programados
+    const [pendingMaintenance] = await pool.query(`
+      SELECT COUNT(*) as total 
+      FROM mantencion m
+      WHERE m.isDeleted = 0 
+      AND (
+        m.estado_mantencion_id IN (
+          SELECT id FROM estado_mantencion 
+          WHERE nombre LIKE '%pendiente%' AND isDeleted = 0
+        )
+        OR m.fec_inicio > CURRENT_DATE()
+      )
+    `);
+
+    // Obtener servicios del mes actual
+    const [servicesThisMonth] = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM bitacora b 
+      WHERE b.isDeleted = 0
+      AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
+      AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
+    `);
+
+    // Obtener consumo total de combustible del mes actual relacionado con bitácora
+    const [fuelConsumption] = await pool.query(`
+      SELECT COALESCE(SUM(cc.litros), 0) as total
+      FROM carga_combustible cc
+      INNER JOIN bitacora b ON cc.bitacora_id = b.id
+      WHERE cc.isDeleted = 0 
+      AND b.isDeleted = 0
+      AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
+      AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
+    `);
+
+    // Obtener total de compañías
+    const [totalCompanies] = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM compania
+      WHERE isDeleted = 0
+    `);
+
+    // Obtener conductores activos (que han tenido servicios en el último mes)
+    const [activeDrivers] = await pool.query(`
+      SELECT COUNT(DISTINCT p.id) as total
+      FROM personal p
+      INNER JOIN bitacora b ON p.id = b.personal_id
+      WHERE p.isDeleted = 0
+      AND b.isDeleted = 0
+      AND b.fh_salida >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+    `);
+
+    const summaryData = {
+      pendingMaintenance: pendingMaintenance[0].total,
+      servicesThisMonth: servicesThisMonth[0].total,
+      fuelConsumption: Number(fuelConsumption[0].total),
+      totalCompanies: totalCompanies[0].total,
+      activeDrivers: activeDrivers[0].total
+    };
+
+    res.json({ success: true, data: summaryData });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al obtener los datos de resumen',
+      error: error.message 
+    });
+  }
+};

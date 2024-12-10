@@ -294,40 +294,34 @@ export const getFuelData = async (req, res) => {
   }
 };
 
+//Datos del ultimo mes
 export const getCompanyData = async (req, res) => {
   try {
     const { startDate, endDate, companiaId } = req.query;
     const params = [];
 
-    const dateFilter = startDate && endDate ? 
-      'AND b.fh_salida BETWEEN ? AND ?' : 
-      'AND b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
-    
-    if (startDate && endDate) {
-      params.push(startDate, endDate);
-    }
-
-    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
-
     const query = `
       SELECT
         c.nombre AS compania,
-        COUNT(DISTINCT b.id) AS total_servicios,
-        COUNT(DISTINCT b.maquina_id) AS total_maquinas,
-        COUNT(DISTINCT b.personal_id) AS total_personal,
-        ROUND(AVG(TIMESTAMPDIFF(MINUTE, b.fh_salida, b.fh_llegada)), 2) AS promedio_minutos_servicio
+        COALESCE(COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN b.id END), 0) AS total_servicios,
+        COALESCE(COUNT(DISTINCT CASE WHEN b.maquina_id IS NOT NULL THEN b.maquina_id END), 0) AS total_maquinas,
+        COALESCE(COUNT(DISTINCT CASE WHEN b.personal_id IS NOT NULL THEN b.personal_id END), 0) AS total_personal,
+        COALESCE(ROUND(AVG(CASE 
+          WHEN b.fh_salida IS NOT NULL AND b.fh_llegada IS NOT NULL AND b.fh_llegada > b.fh_salida
+          THEN ABS(TIMESTAMPDIFF(MINUTE, b.fh_salida, b.fh_llegada))
+          END), 2), 0) AS promedio_minutos_servicio
       FROM
         compania c
       LEFT JOIN bitacora b ON c.id = b.compania_id AND b.isDeleted = 0
+        ${startDate && endDate ? 'AND b.fh_salida BETWEEN ? AND ?' : 
+          'AND (b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) OR b.fh_salida IS NULL)'}
+        ${companiaId ? 'AND b.compania_id = ?' : ''}
       WHERE
         c.isDeleted = 0
-        ${dateFilter}
-        ${companyFilter}
       GROUP BY
         c.id, c.nombre
       ORDER BY
-        total_servicios DESC
+        total_servicios DESC, c.nombre ASC
     `;
 
     const [rows] = await pool.query(query, params);

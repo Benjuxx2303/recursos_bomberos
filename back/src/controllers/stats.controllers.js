@@ -19,6 +19,11 @@ export const getMaintenanceData = async (req, res) => {
     const machineFilter = maquinaId ? 'AND m.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
 
+    // First, get all maintenance types
+    const [maintenanceTypes] = await pool.query(
+      'SELECT nombre FROM tipo_mantencion WHERE isDeleted = 0'
+    );
+
     const query = `
       SELECT
         MONTH(m.fec_inicio) AS mes,
@@ -26,8 +31,7 @@ export const getMaintenanceData = async (req, res) => {
         COUNT(*) AS total
       FROM
         mantencion m
-      INNER JOIN detalle_mantencion dm ON m.id = dm.mantencion_id
-      INNER JOIN tipo_mantencion tm ON dm.tipo_mantencion_id = tm.id
+      INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
       WHERE
         m.isDeleted = 0
         ${dateFilter}
@@ -42,26 +46,29 @@ export const getMaintenanceData = async (req, res) => {
     const [rows] = await pool.query(query, params);
 
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const defaultTypes = {};
+    maintenanceTypes.forEach(type => {
+      defaultTypes[type.nombre.toLowerCase()] = 0;
+    });
+
     const maintenanceData = meses.map((mes) => ({
       month: mes,
-      preventivo: 0,
-      correctivo: 0,
-      emergencia: 0,
+      ...defaultTypes
     }));
 
     rows.forEach((row) => {
       const index = row.mes - 1;
       const tipo = row.tipo_mantencion.toLowerCase();
-      if (tipo === 'preventivo') {
-        maintenanceData[index].preventivo = row.total;
-      } else if (tipo === 'correctivo') {
-        maintenanceData[index].correctivo = row.total;
-      } else if (tipo === 'emergencia') {
-        maintenanceData[index].emergencia = row.total;
-      }
+      maintenanceData[index][tipo] = row.total;
     });
 
-    res.json({ data: maintenanceData.slice(0, 6) });
+    const currentMonth = new Date().getMonth();
+    const lastSixMonths = [...maintenanceData.slice(currentMonth - 5, currentMonth + 1)];
+    if (lastSixMonths.length < 6) {
+      lastSixMonths.unshift(...maintenanceData.slice(-(6 - lastSixMonths.length)));
+    }
+
+    res.json({ data: lastSixMonths });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener los datos de mantención' });

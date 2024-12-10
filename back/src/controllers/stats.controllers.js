@@ -144,16 +144,16 @@ export const getServiceData = async (req, res) => {
 };
 
 export const getServiceDataWithClaves = async (req, res) => {
-    try {
-      const { startDate, endDate, companiaId, maquinaId } = req.query;
+  try {
+    const { startDate, endDate, companiaId, maquinaId } = req.query;
     const params = [];
 
     const dateFilter = startDate && endDate ? 
-      'AND b.fh_salida BETWEEN ? AND ?' : 
-      'AND b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
+    'AND b.fh_salida BETWEEN ? AND ?' : 
+    'AND b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
     
     if (startDate && endDate) {
-      params.push(startDate, endDate);
+    params.push(startDate, endDate);
     }
 
     const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
@@ -162,51 +162,58 @@ export const getServiceDataWithClaves = async (req, res) => {
     const machineFilter = maquinaId ? 'AND b.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
 
+    // First, get all tipos_clave
+    const [tiposClaves] = await pool.query(
+    'SELECT id, nombre FROM tipo_clave WHERE isDeleted = 0'
+    );
+
     const query = `
-      SELECT
-        MONTH(b.fh_salida) AS mes,
-        b.clave_id,
-        COUNT(*) AS total
-      FROM
-        bitacora b
-      WHERE
-        b.isDeleted = 0
-        ${dateFilter}
-        ${companyFilter}
-        ${machineFilter}
-      GROUP BY
-        mes, b.clave_id
-      ORDER BY
-        mes
+    SELECT
+      MONTH(b.fh_salida) AS mes,
+      tc.nombre AS tipo_clave,
+      COUNT(*) AS total
+    FROM
+      bitacora b
+      INNER JOIN clave c ON b.clave_id = c.id
+      INNER JOIN tipo_clave tc ON c.tipo_clave_id = tc.id
+    WHERE
+      b.isDeleted = 0
+      ${dateFilter}
+      ${companyFilter}
+      ${machineFilter}
+    GROUP BY
+      mes, tc.nombre
+    ORDER BY
+      mes
     `;
 
     const [rows] = await pool.query(query, params);
 
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    
+    // Create default structure with all tipos_clave set to 0
+    const defaultTypes = {};
+    tiposClaves.forEach(tipo => {
+    defaultTypes[tipo.nombre.toLowerCase()] = 0;
+    });
+
     const serviceData = meses.map((mes) => ({
-      month: mes,
-      incendios: 0,
-      rescates: 0,
-      otros: 0,
+    month: mes,
+    ...defaultTypes
     }));
 
-    const clavesIncendio = [13, 14, 15, 16, 17];
-    const clavesRescate = [18, 19, 20, 21, 22];
-    const clavesOtros = [4, 5, 6, 7, 8, 9, 10, 11, 12];
-
+    // Fill in the actual data
     rows.forEach((row) => {
-      const index = row.mes - 1;
-      if (clavesIncendio.includes(row.clave_id)) {
-        serviceData[index].incendios += row.total;
-      } else if (clavesRescate.includes(row.clave_id)) {
-        serviceData[index].rescates += row.total;
-      } else if (clavesOtros.includes(row.clave_id)) {
-        serviceData[index].otros += row.total;
-      }
+    const index = row.mes - 1;
+    const tipo = row.tipo_clave.toLowerCase();
+    serviceData[index][tipo] = row.total;
     });
 
     const currentMonth = new Date().getMonth();
     const lastSixMonthsData = serviceData.slice(currentMonth - 5, currentMonth + 1);
+    if (lastSixMonthsData.length < 6) {
+    lastSixMonthsData.unshift(...serviceData.slice(-(6 - lastSixMonthsData.length)));
+    }
 
     res.json({ data: lastSixMonthsData });
   } catch (error) {

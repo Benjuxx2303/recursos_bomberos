@@ -20,6 +20,7 @@ import procedenciaRoutes from './routes/procedencia.routes.js';
 import rol_personalRoutes from './routes/rol_personal.routes.js';
 import servicioRoutes from './routes/servicio.routes.js';
 import statsRoutes from './routes/stats.routes.js';
+import statsMantencionesRoutes from './routes/stats_mantenciones.routes.js';
 import subdivisionRoutes from './routes/subdivision.routes.js';
 import tallerRoutes from './routes/taller.routes.js';
 import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
@@ -58,6 +59,7 @@ app.use(base_route, servicioRoutes);
 app.use(base_route, detalle_mantencionRoutes);
 app.use(base_route, carga_combustibleRoutes);
 app.use(base_route, statsRoutes);
+app.use(base_route,statsMantencionesRoutes);
 // endpoint
 app.use((req, res) =>{
     res.status(404).json({

@@ -141,47 +141,57 @@ export const getDetalleMantencionByMantencionID = async (req, res) => {
 };
 
 
+// TODO: validacion en observacion?
 // Crear un nuevo detalle de mantención
 export const createDetalleMantencion = async (req, res) => {
     const { mantencion_id, tipo_mantencion_id, observacion, servicio_id } = req.body;
-
+    const errors = []; // Arreglo para capturar errores
+  
     try {
-        // Validación de existencia de llaves foráneas
-        const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
-        if (mantencionExists.length === 0) {
-            return res.status(400).json({ message: "Mantención no existe o está eliminada" });
-        }
-
-        const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
-        if (tipoMantencionExists.length === 0) {
-            return res.status(400).json({ message: "Tipo de mantención no existe o está eliminado" });
-        }
-
-        const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
-        if (servicioExists.length === 0) {
-            return res.status(400).json({ message: "Servicio no existe o está eliminado" });
-        }
-
-        // Crear detalle de mantención (isDeleted = 0) por defecto
-        const [rows] = await pool.query(`
-            INSERT INTO detalle_mantencion (mantencion_id, tipo_mantencion_id, observacion, servicio_id, isDeleted) 
-            VALUES (?, ?, ?, ?, 0)
-        `, [mantencion_id, tipo_mantencion_id, observacion, servicio_id]);
-
-        res.status(201).json({
-            id: rows.insertId,
-            mantencion_id,
-            tipo_mantencion_id,
-            observacion,
-            servicio_id
-        });
+      // Validación de existencia de mantención
+      const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
+      if (mantencionExists.length === 0) {
+        errors.push("Mantención no existe o está eliminada");
+      }
+  
+      // Validación de existencia de tipo de mantención
+      const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
+      if (tipoMantencionExists.length === 0) {
+        errors.push("Tipo de mantención no existe o está eliminado");
+      }
+  
+      // Validación de existencia de servicio
+      const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
+      if (servicioExists.length === 0) {
+        errors.push("Servicio no existe o está eliminado");
+      }
+  
+      // Si se encontraron errores, devolverlos
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+  
+      // Crear detalle de mantención (isDeleted = 0) por defecto
+      const [rows] = await pool.query(`
+        INSERT INTO detalle_mantencion (mantencion_id, tipo_mantencion_id, observacion, servicio_id, isDeleted) 
+        VALUES (?, ?, ?, ?, 0)
+      `, [mantencion_id, tipo_mantencion_id, observacion, servicio_id]);
+  
+      res.status(201).json({
+        id: rows.insertId,
+        mantencion_id,
+        tipo_mantencion_id,
+        observacion,
+        servicio_id
+      });
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+      errors.push(error.message);
+      return res.status(500).json({
+        message: "Error interno del servidor",
+        errors
+      });
     }
-};
+  };  
 
 // Eliminar detalle de mantención
 export const deleteDetalleMantencion = async (req, res) => {
@@ -208,73 +218,84 @@ export const deleteDetalleMantencion = async (req, res) => {
 export const updateDetalleMantencion = async (req, res) => {
     const { id } = req.params;
     const { mantencion_id, tipo_mantencion_id, observacion, servicio_id, isDeleted } = req.body;
-
+    const errors = []; // Arreglo para capturar errores
+  
     try {
-        const idNumber = parseInt(id);
-        if (isNaN(idNumber)) {
-            return res.status(400).json({ message: "Tipo de datos inválido" });
+      const idNumber = parseInt(id);
+      if (isNaN(idNumber)) {
+        errors.push("ID inválido");
+      }
+  
+      const updates = {};
+  
+      // Validación de existencia de mantención
+      if (mantencion_id !== undefined) {
+        const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
+        if (mantencionExists.length === 0) {
+          errors.push("Mantención no existe o está eliminada");
         }
-
-        const updates = {};
-        
-        // Validación de existencia de llaves foráneas
-        if (mantencion_id !== undefined) {
-            const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
-            if (mantencionExists.length === 0) {
-                return res.status(400).json({ message: "Mantención no existe o está eliminada" });
-            }
-            updates.mantencion_id = mantencion_id;
+        updates.mantencion_id = mantencion_id;
+      }
+  
+      // Validación de existencia de tipo de mantención
+      if (tipo_mantencion_id !== undefined) {
+        const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
+        if (tipoMantencionExists.length === 0) {
+          errors.push("Tipo de mantención no existe o está eliminado");
         }
-
-        if (tipo_mantencion_id !== undefined) {
-            const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
-            if (tipoMantencionExists.length === 0) {
-                return res.status(400).json({ message: "Tipo de mantención no existe o está eliminado" });
-            }
-            updates.tipo_mantencion_id = tipo_mantencion_id;
+        updates.tipo_mantencion_id = tipo_mantencion_id;
+      }
+  
+      // Validación de observación
+      if (observacion !== undefined) {
+        if (typeof observacion !== "string") {
+          errors.push("Tipo de dato inválido para 'observacion'");
         }
-
-        if (observacion !== undefined) {
-            if (typeof observacion !== "string") {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'observacion'" });
-            }
-            updates.observacion = observacion;
+        updates.observacion = observacion;
+      }
+  
+      // Validación de existencia de servicio
+      if (servicio_id !== undefined) {
+        const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
+        if (servicioExists.length === 0) {
+          errors.push("Servicio no existe o está eliminado");
         }
-
-        if (servicio_id !== undefined) {
-            const [servicioExists] = await pool.query("SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0", [servicio_id]);
-            if (servicioExists.length === 0) {
-                return res.status(400).json({ message: "Servicio no existe o está eliminado" });
-            }
-            updates.servicio_id = servicio_id;
+        updates.servicio_id = servicio_id;
+      }
+  
+      // Validación de isDeleted
+      if (isDeleted !== undefined) {
+        if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+          errors.push("Tipo de dato inválido para 'isDeleted'");
         }
-
-        if (isDeleted !== undefined) {
-            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
-            }
-            updates.isDeleted = isDeleted;
-        }
-
-        const setClause = Object.keys(updates)
-            .map((key) => `${key} = ?`)
-            .join(", ");
-
-        if (!setClause) {
-            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
-        }
-
-        const values = Object.values(updates).concat(idNumber);
-        const [result] = await pool.query(`UPDATE detalle_mantencion SET ${setClause} WHERE id = ?`, values);
-
-        if (result.affectedRows === 0) return res.status(404).json({ message: 'Detalle de mantención no encontrado' });
-
-        const [rows] = await pool.query('SELECT * FROM detalle_mantencion WHERE id = ?', [idNumber]);
-        res.json(rows[0]);
+        updates.isDeleted = isDeleted;
+      }
+  
+      // Si se encontraron errores, devolverlos
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+  
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+  
+      if (!setClause) {
+        return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+      }
+  
+      const values = Object.values(updates).concat(idNumber);
+      const [result] = await pool.query(`UPDATE detalle_mantencion SET ${setClause} WHERE id = ?`, values);
+  
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Detalle de mantención no encontrado' });
+      }
+  
+      const [rows] = await pool.query('SELECT * FROM detalle_mantencion WHERE id = ?', [idNumber]);
+      res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+      errors.push(error.message);
+      return res.status(500).json({ message: "Error interno del servidor", errors });
     }
-};
+  };
+  

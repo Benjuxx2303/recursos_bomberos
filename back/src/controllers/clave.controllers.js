@@ -66,16 +66,49 @@ export const getClaveById = async (req, res) => {
 
 // Crear nueva clave
 export const createClave = async (req, res) => {
-    const { codigo, descripcion } = req.body;
+    let { nombre, descripcion } = req.body;
+    const errors = []; // Arreglo para capturar errores
+
     try {
-        if (typeof codigo !== 'string' || typeof descripcion !== 'string') {
-            return res.status(400).json({ message: 'Tipo de datos inválido' });
+        nombre = String(nombre).trim();
+        descripcion = String(descripcion).trim();
+
+        // Validar tipos de datos
+        if (typeof nombre !== 'string') {
+            errors.push('Tipo de dato inválido para "nombre"');
         }
 
-        const [rows] = await pool.query("INSERT INTO clave (codigo, descripcion, isDeleted) VALUES (?, ?, 0)", [codigo, descripcion]);
-        res.status(201).json({ id: rows.insertId, codigo, descripcion });
+        if (typeof descripcion !== 'string') {
+            errors.push('Tipo de dato inválido para "descripcion"');
+        }
+
+        // Validar largo de campos
+        if (nombre && nombre.length > 10) {
+            errors.push('El largo del código no debe exceder 10 caracteres');
+        }
+        if (descripcion && descripcion.length > 100) {
+            errors.push('El largo de la descripción no debe exceder 100 caracteres');
+        }
+
+        // Validar si ya existe una clave con el mismo código
+        if (nombre) {
+            const [claveExists] = await pool.query('SELECT * FROM clave WHERE nombre = ? AND isDeleted = 0', [nombre]);
+            if (claveExists.length > 0) {
+                errors.push('Ya existe una clave con el mismo código');
+            }
+        }
+
+        // Si hay errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Insertar nueva clave
+        const [rows] = await pool.query("INSERT INTO clave (nombre, descripcion, isDeleted) VALUES (?, ?, 0)", [nombre, descripcion]);
+        res.status(201).json({ id: rows.insertId, nombre, descripcion });
     } catch (error) {
-        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+        errors.push(error.message);
+        return res.status(500).json({ message: 'Error interno del servidor', errors });
     }
 };
 
@@ -99,41 +132,58 @@ export const deleteClave = async (req, res) => {
 // Actualizar clave
 export const updateClave = async (req, res) => {
     const { id } = req.params;
-    const { codigo, descripcion, isDeleted } = req.body;
+    let { nombre, descripcion, isDeleted } = req.body;
+    const errors = []; // Arreglo para capturar errores
 
     try {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
-            return res.status(400).json({ message: "ID inválido" });
+            errors.push("ID inválido");
         }
 
         // Validaciones
         const updates = {};
-        if (codigo !== undefined) {
-            if (typeof codigo !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'codigo'"
-                });
+        if (nombre !== undefined) {
+            nombre = String(nombre).trim();
+            // Validar tipo de dato
+            if (typeof nombre !== "string") {
+                errors.push("Tipo de dato inválido para 'nombre'");
             }
-            updates.codigo = codigo;
+
+            // Validar largo de campo
+            if (nombre && nombre.length > 10) {
+                errors.push("Largo de campo excedido para 'nombre'");
+            }
+
+            // Validar si ya existe clave con el mismo código
+            if (nombre) {
+                const [claveExists] = await pool.query('SELECT * FROM clave WHERE nombre = ? AND isDeleted = 0', [nombre]);
+                if (claveExists.length > 0) {
+                    errors.push("Ya existe una clave con el mismo código");
+                }
+            }
+
+            updates.nombre = nombre;
         }
 
         if (descripcion !== undefined) {
+            descripcion = String(descripcion).trim();
             if (typeof descripcion !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'descripcion'"
-                });
+                errors.push("Tipo de dato inválido para 'descripcion'");
             }
             updates.descripcion = descripcion;
         }
 
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'. Debe ser 0 o 1."
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'. Debe ser 0 o 1.");
             }
             updates.isDeleted = isDeleted;
+        }
+
+        // Si hay errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Construir la consulta de actualización
@@ -157,6 +207,7 @@ export const updateClave = async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM clave WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+        errors.push(error.message);
+        return res.status(500).json({ message: "Error interno del servidor", errors });
     }
 };

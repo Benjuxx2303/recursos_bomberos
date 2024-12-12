@@ -1,10 +1,20 @@
 import { pool } from "../db.js";
+import { validateRUT, validateEmail } from "../utils/validations.js";
 
 // Devuelve todos los talleres
 export const getTalleres = async (req, res) => {
   try {
     const query = `
-      SELECT t.id, t.nombre, t.fono
+      SELECT
+        t.id,
+        t.tipo,
+        t.razon_social,
+        t.rut,
+        t.telefono,
+        t.contacto,
+        t.tel_contacto,
+        t.direccion,
+        t.correo
       FROM taller t
       WHERE t.isDeleted = 0
     `;
@@ -28,7 +38,16 @@ export const getTalleresPage = async (req, res) => {
     // Si no se proporciona "page", devolver todos los datos sin paginación
     if (!req.query.page) {
       const query = `
-        SELECT t.id, t.nombre, t.fono
+        SELECT 
+          t.id, 
+          t.tipo, 
+          t.razon_social,
+          t.rut,
+          t.telefono,
+          t.contacto,
+          t.tel_contacto,
+          t.direccion,
+          t.correo
         FROM taller t
         WHERE t.isDeleted = 0
       `;
@@ -40,7 +59,16 @@ export const getTalleresPage = async (req, res) => {
     const offset = (page - 1) * pageSize; // Calcular el offset
 
     const query = `
-      SELECT t.id, t.nombre, t.fono
+      SELECT
+        t.id,
+        t.tipo,
+        t.razon_social,
+        t.rut,
+        t.telefono,
+        t.contacto,
+        t.tel_contacto,
+        t.direccion,
+        t.correo
       FROM taller t
       WHERE t.isDeleted = 0
       LIMIT ? OFFSET ?
@@ -79,33 +107,162 @@ export const getTallerById = async (req, res) => {
 
 // Crear nuevo taller
 export const createTaller = async (req, res) => {
-  const { nombre, fono } = req.body;
+  let { 
+    tipo,
+    razon_social,
+    rut,
+    telefono,
+    contacto,
+    tel_contacto,
+    direccion,
+    correo,
+   } = req.body;
+  let errors = [];
 
   try {
-    // Validaciones
-    if (typeof nombre !== 'string' || typeof fono !== 'string') {
-      return res.status(400).json({
-        message: 'Tipo de datos inválido',
-      });
+    tipo = String(tipo).trim();
+    razon_social = String(razon_social).trim();
+
+    // Validaciones de tipo de datos
+    if (typeof tipo !== 'string'){
+      errors.push('Tipo de datos inválido para "tipo"');
+    } 
+
+    if (tipo.length > 50){
+      errors.push('El campo "tipo" no puede tener más de 50 caracteres');
     }
 
-    // Inserción en la base de datos
+    if (typeof razon_social !== 'string'){
+      errors.push('Tipo de datos inválido para "razon_social"');
+    }
+
+    if (razon_social.length > 45){
+      errors.push('El campo "razon_social" no puede tener más de 45 caracteres');
+    }
+
+    // Validación campos opcionales
+    if (rut !== undefined){
+      rut = String(rut).trim();
+
+      if (typeof rut !== 'string'){
+        errors.push('Tipo de datos inválido para "rut"');
+      }
+
+      if (rut.length > 13){
+        errors.push('El campo "rut" no puede tener más de 13 caracteres');
+      }
+
+      if (!validateRUT(rut)){
+        errors.push('El campo "rut" no es válido');
+      }
+    }
+
+    if (telefono !== undefined){
+      telefono = String(telefono).trim();
+
+      if (typeof telefono !== 'string'){
+        errors.push('Tipo de datos inválido para "telefono"');
+      }
+
+      if (telefono.length > 15){
+        errors.push('El campo "telefono" no puede tener más de 15 caracteres');
+      }
+    }
+
+    if (contacto !== undefined){
+      contacto = String(contacto).trim();
+
+      if (typeof contacto !== 'string'){
+        errors.push('Tipo de datos inválido para "contacto"');
+      }
+
+      if (contacto.length > 50){
+        errors.push('El campo "contacto" no puede tener más de 50 caracteres');
+      }
+    }
+
+    if (tel_contacto !== undefined){
+      tel_contacto = String(tel_contacto).trim();
+
+      if (typeof tel_contacto !== 'string'){
+        errors.push('Tipo de datos inválido para "tel_contacto"');
+      }
+
+      if (tel_contacto.length > 15){
+        errors.push('El campo "tel_contacto" no puede tener más de 15 caracteres');
+      }
+    }
+
+    if (direccion !== undefined){
+      direccion = String(direccion).trim();
+
+      if (typeof direccion !== 'string'){
+        errors.push('Tipo de datos inválido para "direccion"');
+      }
+
+      if (direccion.length > 100){
+        errors.push('El campo "direccion" no puede tener más de 100 caracteres');
+      }
+    }
+
+    if (correo !== undefined){
+      correo = String(correo).trim();
+
+      if (typeof correo !== 'string'){
+        errors.push('Tipo de datos inválido para "correo"');
+      }
+
+      if (correo.length > 50){
+        errors.push('El campo "correo" no puede tener más de 50 caracteres');
+      }
+
+      if (!validateEmail(correo)){
+        errors.push('El campo "correo" no es válido');
+      }
+    }
+
+    // Validar que no exista un taller con el mismo razon_social
+    const [talleres] = await pool.query("SELECT 1 FROM taller WHERE razon_social = ? AND isDeleted = 0", [razon_social]);
+    if (talleres.length > 0) {
+      errors.push('Ya existe un taller con el mismo razon_social');
+    }
+
+    // Si hay errores de validación, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Inserción en la base de datos con valores predeterminados o NULL para campos opcionales
     const [rows] = await pool.query(
-      "INSERT INTO taller (nombre, fono, isDeleted) VALUES (?, ?, 0)",
-      [nombre, fono]
+      `INSERT INTO taller 
+      (tipo, razon_social, rut, telefono, contacto, tel_contacto, direccion, correo, isDeleted)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [
+        tipo, 
+        razon_social, 
+        rut || null, 
+        telefono || null, 
+        contacto || null, 
+        tel_contacto || null, 
+        direccion || null, 
+        correo || null
+      ]
     );
 
     res.status(201).json({
       id: rows.insertId,
-      nombre,
-      fono,
+      tipo,
+      razon_social,
+      rut,
+      telefono,
+      contacto,
+      tel_contacto,
+      direccion,
+      correo,
     });
   } catch (error) {
     console.error('error: ', error);
-    return res.status(500).json({
-      message: "Error interno del servidor",
-      error: error.message
-  });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
@@ -119,7 +276,6 @@ export const deleteTaller = async (req, res) => {
         message: "Taller no encontrado",
       });
     }
-
     res.status(204).end();
   } catch (error) {
     console.error('error: ', error);
@@ -133,55 +289,145 @@ export const deleteTaller = async (req, res) => {
 // Actualizar taller
 export const updateTaller = async (req, res) => {
   const { id } = req.params;
-  const { nombre, fono, isDeleted } = req.body;
+  let { 
+    tipo,
+    razon_social,
+    rut,
+    telefono,
+    contacto,
+    tel_contacto,
+    direccion,
+    correo,
+    isDeleted
+   } = req.body;
+  let errors = [];
 
   try {
     const idNumber = parseInt(id);
     if (isNaN(idNumber)) {
-      return res.status(400).json({
-        message: "ID inválido"
-      });
+      errors.push("ID inválido");
     }
 
     // Validaciones
     const updates = {};
-    if (nombre !== undefined) {
-      if (typeof nombre !== "string") {
-        return res.status(400).json({
-          message: "Tipo de dato inválido para 'nombre'"
-        });
+
+    // Validar campos requeridos y opcionales
+    if (tipo !== undefined) {
+      tipo = String(tipo).trim();
+      if (typeof tipo !== 'string') {
+        errors.push('Tipo de datos inválido para "tipo"');
+      } else if (tipo.length > 50) {
+        errors.push('El campo "tipo" no puede tener más de 50 caracteres');
+      } else {
+        updates.tipo = tipo;
       }
-      updates.nombre = nombre;
     }
 
-    if (fono !== undefined) {
-      if (typeof fono !== "string") {
-        return res.status(400).json({
-          message: "Tipo de dato inválido para 'fono'"
-        });
+    if (razon_social !== undefined) {
+      razon_social = String(razon_social).trim();
+      if (typeof razon_social !== 'string') {
+        errors.push('Tipo de datos inválido para "razon_social"');
+      } else if (razon_social.length > 45) {
+        errors.push('El campo "razon_social" no puede tener más de 45 caracteres');
+      } else {
+        updates.razon_social = razon_social;
       }
-      updates.fono = fono;
+    }
+
+    if (rut !== undefined) {
+      rut = String(rut).trim();
+      if (typeof rut !== 'string') {
+        errors.push('Tipo de datos inválido para "rut"');
+      } else if (rut.length > 13) {
+        errors.push('El campo "rut" no puede tener más de 13 caracteres');
+      } else if (!validateRUT(rut)) {
+        errors.push('El campo "rut" no es válido');
+      } else {
+        updates.rut = rut;
+      }
+    }
+
+    if (telefono !== undefined) {
+      telefono = String(telefono).trim();
+      if (typeof telefono !== 'string') {
+        errors.push('Tipo de datos inválido para "telefono"');
+      } else if (telefono.length > 15) {
+        errors.push('El campo "telefono" no puede tener más de 15 caracteres');
+      } else {
+        updates.telefono = telefono;
+      }
+    }
+
+    if (contacto !== undefined) {
+      contacto = String(contacto).trim();
+      if (typeof contacto !== 'string') {
+        errors.push('Tipo de datos inválido para "contacto"');
+      } else if (contacto.length > 50) {
+        errors.push('El campo "contacto" no puede tener más de 50 caracteres');
+      } else {
+        updates.contacto = contacto;
+      }
+    }
+
+    if (tel_contacto !== undefined) {
+      tel_contacto = String(tel_contacto).trim();
+      if (typeof tel_contacto !== 'string') {
+        errors.push('Tipo de datos inválido para "tel_contacto"');
+      } else if (tel_contacto.length > 15) {
+        errors.push('El campo "tel_contacto" no puede tener más de 15 caracteres');
+      } else {
+        updates.tel_contacto = tel_contacto;
+      }
+    }
+
+    if (direccion !== undefined) {
+      direccion = String(direccion).trim();
+      if (typeof direccion !== 'string') {
+        errors.push('Tipo de datos inválido para "direccion"');
+      } else if (direccion.length > 100) {
+        errors.push('El campo "direccion" no puede tener más de 100 caracteres');
+      } else {
+        updates.direccion = direccion;
+      }
+    }
+
+    if (correo !== undefined) {
+      correo = String(correo).trim();
+      if (typeof correo !== 'string') {
+        errors.push('Tipo de datos inválido para "correo"');
+      } else if (correo.length > 50) {
+        errors.push('El campo "correo" no puede tener más de 50 caracteres');
+      } else if (!validateEmail(correo)) {
+        errors.push('El campo "correo" no es válido');
+      } else {
+        updates.correo = correo;
+      }
     }
 
     if (isDeleted !== undefined) {
       if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-        return res.status(400).json({
-          message: "Tipo de dato inválido para 'isDeleted'"
-        });
+        errors.push("Tipo de dato inválido para 'isDeleted'");
+      } else {
+        updates.isDeleted = isDeleted;
       }
-      updates.isDeleted = isDeleted;
     }
 
-    // Construir la consulta de actualización
-    const setClause = Object.keys(updates)
-      .map((key) => `${key} = IFNULL(?, ${key})`)
-      .join(", ");
+    // Si hay errores, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
 
-    if (!setClause) {
+    // Si no hay nada que actualizar, devolver un mensaje
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         message: "No se proporcionaron campos para actualizar"
       });
     }
+
+    // Construir la consulta de actualización
+    const setClause = Object.keys(updates)
+      .map((key) => `${key} = ?`)
+      .join(", ");
 
     const values = Object.values(updates).concat(idNumber);
     const [result] = await pool.query(
@@ -195,13 +441,11 @@ export const updateTaller = async (req, res) => {
       });
     }
 
+    // Obtener el taller actualizado
     const [rows] = await pool.query("SELECT * FROM taller WHERE id = ?", [idNumber]);
     res.json(rows[0]);
   } catch (error) {
     console.error('error: ', error);
-    return res.status(500).json({
-      message: "Error interno del servidor",
-      error: error.message
-  });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };

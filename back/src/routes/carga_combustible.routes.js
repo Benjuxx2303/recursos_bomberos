@@ -1,13 +1,10 @@
 import { Router } from "express";
 import {
-    // getCargasCombustible,
-    getCargasCombustiblePage,
     getCargaCombustibleByID,
-    // createCargaCombustible,
+    getCargaCombustibleDetailsSearch,
     createCargaCombustibleBitacora,
     downCargaCombustible,
     updateCargaCombustible,
-    updateImage,
 } from "../controllers/carga_combustible.controllers.js";
 import multer from 'multer';
 import { checkRole } from "../controllers/authMiddleware.js";
@@ -16,26 +13,24 @@ import { checkRole } from "../controllers/authMiddleware.js";
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Configuración de multer para los campos o "key" de imagen
+const uploadFields = upload.fields([
+    { name: 'imagen' }
+]);
 
 const router = Router();
 const base_route = '/carga_combustible';
 
 // router.get(base_route, getCargasCombustible);
-router.get(base_route, checkRole(['TELECOM']), getCargasCombustiblePage); // paginado
+router.get(base_route, checkRole(['TELECOM']), getCargaCombustibleDetailsSearch); // paginado
 // http://{url}/api/carga_combustible
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getCargaCombustibleByID);
-
-// router.post(base_route, createCargaCombustible);
-router.post(base_route, checkRole(['TELECOM']), createCargaCombustibleBitacora);
-
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), downCargaCombustible);
-
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateCargaCombustible);
-// Nueva ruta para actualizar la imagen
-router.patch(`${base_route}/:id/image`, checkRole(['TELECOM']), upload.single('file'), updateImage); // Ruta para actualizar la imagen
+router.get(`${base_route}/:id`, checkRole(['TELECOM']), getCargaCombustibleByID); // Obtener una carga de combustible por ID
+router.post(base_route, checkRole(['TELECOM']), uploadFields, createCargaCombustibleBitacora); // Crear una nueva carga de combustible
+router.delete(`${base_route}/:id`, checkRole(['TELECOM']), downCargaCombustible); // dar de baja una carga de combustible
+router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateCargaCombustible); // actualizar la carga de combustible
 
 export default router;

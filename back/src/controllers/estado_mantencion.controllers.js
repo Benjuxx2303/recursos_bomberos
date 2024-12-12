@@ -80,9 +80,46 @@ export const getEstadoMantencionById = async (req, res) => {
 
 // Crear estado de mantención
 export const createEstadoMantencion = async (req, res) => {
-    const { nombre, descripcion } = req.body;
+    let { nombre, descripcion } = req.body;
+    const errors = []; // Arreglo para capturar errores
 
     try {
+        nombre = String(nombre).trim();
+        descripcion = String(descripcion).trim();
+        // Validar tipos de datos
+        if (typeof nombre !== 'string') {
+            errors.push('Tipo de dato inválido para "nombre"');
+        }
+
+        if (typeof descripcion !== 'string') {
+            errors.push('Tipo de dato inválido para "descripcion"');
+        }
+
+        // Validar largo de campos
+        if (nombre && nombre.length > 50) {
+            errors.push('El largo del nombre no debe exceder 50 caracteres');
+        }
+
+        if (descripcion && descripcion.length > 100) {
+            errors.push('El largo de la descripción no debe exceder 100 caracteres');
+        }
+
+        // Si se encontraron errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ message: 'Errores de validación', errors });
+        }
+
+        // Validar si ya existe un estado de mantención con el mismo nombre
+        const [estados] = await pool.query('SELECT * FROM estado_mantencion WHERE nombre = ?', [nombre]);
+        if (estados.length > 0) {
+            errors.push('Ya existe un estado de mantención con el mismo nombre');
+        }
+
+        // Si se encontraron errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
         const [rows] = await pool.query(`
             INSERT INTO estado_mantencion (nombre, descripcion, isDeleted) 
             VALUES (?, ?, 0)
@@ -94,10 +131,8 @@ export const createEstadoMantencion = async (req, res) => {
             descripcion
         });
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+        errors.push(error.message);
+        return res.status(500).json({ message: "Error interno del servidor", errors });
     }
 };
 
@@ -124,12 +159,57 @@ export const deleteEstadoMantencion = async (req, res) => {
 // Actualizar estado de mantención
 export const updateEstadoMantencion = async (req, res) => {
     const { id } = req.params;
-    const { nombre, descripcion } = req.body;
+    let { nombre, descripcion, isDeleted } = req.body;
+    const errors = []; // Arreglo para capturar errores
 
     try {
         const updates = {};
-        if (nombre !== undefined) updates.nombre = nombre;
-        if (descripcion !== undefined) updates.descripcion = descripcion;
+
+        // validaciones "nombre"
+        if (nombre !== undefined) {
+            nombre = String(nombre).trim();
+            // Validar tipo de dato
+            if (typeof nombre !== 'string') {
+                errors.push('Tipo de dato inválido para "nombre"');
+            }
+            // Validar largo de campo
+            if (nombre.length > 50) {
+                errors.push('El largo del nombre no debe exceder 50 caracteres');
+            }
+            // Validar si ya existe un estado de mantención con el mismo nombre
+            const [estados] = await pool.query('SELECT * FROM estado_mantencion WHERE nombre = ? ', [nombre]);
+            if (estados.length > 0) {
+                errors.push('Ya existe un estado de mantención con el mismo nombre');
+            }
+            updates.nombre = nombre;
+        }
+
+        // validaciones "descripcion"
+        if (descripcion !== undefined) {
+            descripcion = String(descripcion).trim();
+            // Validar tipo de dato
+            if (typeof descripcion !== 'string') {
+                errors.push('Tipo de dato inválido para "descripcion"');
+            }
+            // Validar largo de campo
+            if (descripcion.length > 100) {
+                errors.push('El largo de la descripción no debe exceder 100 caracteres');
+            }
+            updates.descripcion = descripcion;
+        }
+
+        // Validación de isDeleted
+        if (isDeleted !== undefined) {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
+                errors.push("Tipo de datos inválido para 'isDeleted'");
+            }
+            updates.isDeleted = isDeleted;
+        }
+
+        // Si se encontraron errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
 
         const setClause = Object.keys(updates)
             .map((key) => `${key} = ?`)
@@ -153,9 +233,7 @@ export const updateEstadoMantencion = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM estado_mantencion WHERE id = ?", [id]);
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+        errors.push(error.message);
+        return res.status(500).json({ message: "Error interno del servidor", errors });
     }
 };

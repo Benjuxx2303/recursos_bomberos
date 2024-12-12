@@ -1,8 +1,8 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { HOST, SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
+import { SALT_ROUNDS, SECRET_JWT_KEY, HOST } from "../config.js";
 import { pool } from "../db.js";
-import { sendEmail } from './mailer.js';
+import { sendEmail } from '../utils/mailer.js';
 
 // Obtener todos los usuarios
 export const getUsuarios = async (req, res) => {
@@ -204,7 +204,7 @@ export const loginUser = async (req, res) => {
             rol_personal: rol,
             compania: company,
             img_url: img_url,
-        }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 12 horas de duración para desarrollo
+        }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 5 dias de duración para desarrollo
 
         //En lugar de establecer el token en una cookie,  enviarlo en el cuerpo de la respuesta
         res.status(200).json({

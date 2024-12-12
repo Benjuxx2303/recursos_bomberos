@@ -75,30 +75,56 @@ export const getRolPersonal = async(req, res)=>{
     }
 }
 
-export const createRolPersonal = async(req, res) =>{
-    const {nombre, descripcion} = req.body
-    try{
-        // validacion de datos
-        if (typeof nombre !== "string" || typeof descripcion !== "string") {
-          res.status(400).json({
-            message: "Tipo de datos inválido",
-          });
+export const createRolPersonal = async (req, res) => {
+    let { nombre, descripcion } = req.body;
+    let errors = [];
+
+    try {
+        nombre = String(nombre).trim();
+        descripcion = String(descripcion).trim();
+
+        // Validación de datos
+        if (typeof nombre !== "string") {
+            errors.push("Tipo de datos inválido para 'nombre'");
         }
 
-        // se crea activo (isDeleted = 0) por defecto
-        const [rows] = await pool.query('INSERT INTO rol_personal (nombre, descripcion, isDeleted) VALUES (?, ?, 0)', [nombre, descripcion])
-        res.send({
+        if (typeof descripcion !== "string") {
+            errors.push("Tipo de datos inválido para 'descripcion'");
+        }
+
+        // Validar longitud
+        if (nombre.length > 50) {
+            errors.push("Datos muy largos para 'nombre' (máximo 50 caracteres)");
+        }
+
+        if (descripcion.length > 100) {
+            errors.push("Datos muy largos para 'descripcion' (máximo 100 caracteres)");
+        }
+        
+        // Validar que no exista ya el rol con el mismo nombre
+        const [rolExists] = await pool.query('SELECT * FROM rol_personal WHERE nombre = ?', [nombre]);
+        if (rolExists.length > 0) {
+            errors.push("Ya existe un rol_personal con ese nombre");
+        }
+
+        // Si hay errores de validación, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Crear el rol (activo por defecto, isDeleted = 0)
+        const [rows] = await pool.query('INSERT INTO rol_personal (nombre, descripcion, isDeleted) VALUES (?, ?, 0)', [nombre, descripcion]);
+
+        // Responder con el rol creado
+        res.status(201).json({
             id: rows.insertId,
             nombre,
             descripcion
         });
-    } catch (error){
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+    } catch (error) {
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
-}
+};
 
 export const deleteRolPersonal = async(req, res) =>{
     const {id} = req.params;
@@ -127,46 +153,65 @@ export const deleteRolPersonal = async(req, res) =>{
 
 export const updateRolPersonal = async (req, res) => {
     const { id } = req.params;
-    const { nombre, descripcion, isDeleted } = req.body;
+    let { nombre, descripcion, isDeleted } = req.body;
+    let errors = [];
 
     try {
-        // Validación de datos
+        // Validación de ID
         const idNumber = parseInt(id);
-
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "ID inválido",
-            });
+            errors.push("ID inválido");
         }
 
         // Crear un objeto para almacenar los campos que se actualizarán
         const updates = {};
-        
+
         if (nombre !== undefined) {
+            nombre = String(nombre).trim();
+
             if (typeof nombre !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'nombre'",
-                });
+                errors.push("Tipo de dato inválido para 'nombre'");
             }
+
+            // Validar longitud de nombre
+            if (nombre.length > 50) {
+                errors.push("Nombre no puede tener más de 50 caracteres");
+            }
+
+            // Validar que no exista ya el rol con el mismo nombre
+            const [rolExists] = await pool.query('SELECT * FROM rol_personal WHERE nombre = ? AND id != ?', [nombre, idNumber]);
+            if (rolExists.length > 0) {
+                errors.push("Ya existe un rol_personal con ese nombre");
+            }
+
             updates.nombre = nombre;
         }
 
         if (descripcion !== undefined) {
+            descripcion = String(descripcion).trim();
+            
             if (typeof descripcion !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'descripcion'",
-                });
+                errors.push("Tipo de dato inválido para 'descripcion'");
             }
+
+            // Validar longitud de descripcion
+            if (descripcion.length > 100) {
+                errors.push("Descripción no puede tener más de 100 caracteres");
+            }
+
             updates.descripcion = descripcion;
         }
 
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'",
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
             }
             updates.isDeleted = isDeleted;
+        }
+
+        // Si hay errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Construir la consulta de actualización
@@ -193,9 +238,6 @@ export const updateRolPersonal = async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM rol_personal WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };

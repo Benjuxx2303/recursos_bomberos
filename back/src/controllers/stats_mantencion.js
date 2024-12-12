@@ -55,10 +55,6 @@ export const getMantencionCostosByAnio = async (req, res) => {
     }
 };
 
-
-
-
-// stats
 // stats
 export const getReporteMantencionesEstadoCosto = async (req, res) => {
     const { startDate, endDate, companiaId } = req.query; // startDate y endDate filtra por "fec_inicio"

@@ -26,7 +26,6 @@ router.post(base_route, checkRole(['TELECOM']), createClave);
 
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteClave);
 
-// TODO: reemplazar PUT por PATCH
 router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateClave);
 
 export default router;

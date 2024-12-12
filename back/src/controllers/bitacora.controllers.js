@@ -1,4 +1,5 @@
 import { pool } from "../db.js";
+import { validateFloat } from "../utils/validations.js";
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -7,7 +8,7 @@ export const getBitacora = async (req, res) => {
         let query = `
             SELECT b.id, 
                    c.nombre AS compania, 
-                   p.rut AS "rut_personal", 
+                   p.rut AS "rut_conductor", 
                    m.patente AS "patente_maquina", 
                    tm.nombre AS tipo_maquina, 
                    DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
@@ -23,8 +24,8 @@ export const getBitacora = async (req, res) => {
                    b.obs 
             FROM bitacora b 
             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0 
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
+            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
             WHERE b.isDeleted = 0`;
@@ -73,14 +74,15 @@ export const getBitacoraPage = async (req, res) => {
         const query = `
             SELECT b.id, 
                     c.nombre AS compania, 
-                    p.rut AS "rut_personal", 
+                    p.rut AS "rut_conductor", 
                     m.patente AS "patente_maquina", 
                     tm.nombre AS tipo_maquina, 
                     DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
                     DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
                     cl.nombre AS clave, 
                     b.direccion, 
-                    b.km_salida,                     b.km_llegada, 
+                    b.km_salida, 
+                    b.km_llegada, 
                     b.hmetro_salida, 
                     b.hmetro_llegada, 
                     b.hbomba_salida, 
@@ -88,8 +90,8 @@ export const getBitacoraPage = async (req, res) => {
                     b.obs 
             FROM bitacora b 
             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
+            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
             WHERE b.isDeleted = 0
@@ -112,7 +114,7 @@ export const getBitacoraById = async (req, res) => {
         const [rows] = await pool.query(
             `SELECT b.id, 
                     c.nombre AS compania, 
-                    p.rut AS "rut_personal", 
+                    p.rut AS "rut_conductor", 
                     m.patente AS "patente_maquina", 
                     tm.nombre AS tipo_maquina, 
                     DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
@@ -128,8 +130,8 @@ export const getBitacoraById = async (req, res) => {
                     b.obs 
              FROM bitacora b 
              INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
-            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
              INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
+             INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
              INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
              INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
              WHERE b.isDeleted = 0 AND b.id = ?`,
@@ -146,9 +148,11 @@ export const getBitacoraById = async (req, res) => {
     }
 };
 
+
+
 // Crear una nueva bitácora
 export const createBitacora = async (req, res) => {
-    const {
+    let {
         compania_id,
         personal_id,
         maquina_id,
@@ -167,7 +171,11 @@ export const createBitacora = async (req, res) => {
         obs,
     } = req.body;
 
+    const errors = []; // Array para capturar errores
+
     try {
+        direccion = String(direccion).trim();
+
         // Concatenar fecha y hora solo si ambas están presentes
         let fh_salida = null;
         let fh_llegada = null;
@@ -192,47 +200,110 @@ export const createBitacora = async (req, res) => {
             isNaN(claveIdNumber) ||
             typeof direccion !== 'string'
         ) {
-            return res.status(400).json({ message: 'Tipo de datos inválido' });
+            errors.push('Tipo de datos inválido');
         }
 
         // Validación de existencia de llaves foráneas
         const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
         if (companiaExists.length === 0) {
-            return res.status(400).json({ message: "Compania no existe o está eliminada" });
+            errors.push("Compania no existe o está eliminada");
         }
 
+        // TODO: validacion de conductor (si existe valor en el campo 'ven_licencia')
         const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
         if (personalExists.length === 0) {
-            return res.status(400).json({ message: "Personal no existe o está eliminado" });
+            errors.push("Personal no existe o está eliminado");
         }
 
         const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
         if (maquinaExists.length === 0) {
-            return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+            errors.push("Máquina no existe o está eliminada");
         }
 
         const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
         if (claveExists.length === 0) {
-            return res.status(400).json({ message: "Clave no existe o está eliminada" });
+            errors.push("Clave no existe o está eliminada");
         }
 
+        if (direccion.length > 100) {
+            errors.push('La dirección no puede tener más de 100 caracteres');
+        }
+
+        // TODO: Validar que los datos no sean menores a los de la última bitácora del mismo vehículo
+        // validación de números
+        if(km_llegada !== undefined) {
+            const error = validateFloat(km_llegada);
+            if (error) {
+                errors.push(`Km llegada: ${error}`);
+            }
+        } else {
+            errors.push('Km llegada es requerido');
+        }
+
+        if(km_salida !== undefined) {
+            const error = validateFloat(km_salida);
+            if (error) {
+                errors.push(`Km salida: ${error}`);
+            }
+        } else {
+            errors.push('Km salida es requerido');
+        }
+
+        if(hmetro_llegada !== undefined) {
+            const error = validateFloat(hmetro_llegada);
+            if (error) {
+                errors.push(`Hmetro llegada: ${error}`);
+            }
+        } else {
+            errors.push('Hmetro llegada es requerido');
+        }
+
+        if(hmetro_salida !== undefined) {
+            const error = validateFloat(hmetro_salida);
+            if (error) {
+                errors.push(`Hmetro salida: ${error}`);
+            }
+        } else {
+            errors.push('Hmetro salida es requerido');
+        }
+
+        if(hbomba_llegada !== undefined) {
+            const error = validateFloat(hbomba_llegada);
+            if (error) {
+                errors.push(`Hbomba llegada: ${error}`);
+            }
+        } else {
+            errors.push('Hbomba llegada es requerido');
+        }
+
+        if(hbomba_salida !== undefined) {
+            const error = validateFloat(hbomba_salida);
+            if (error) {
+                errors.push(`Hbomba salida: ${error}`);
+            }
+        } else {
+            errors.push('Hbomba salida es requerido');
+        }
+
+        // TODO: Validar que la fecha y hora de salida no sea mayor a la de llegada y viceversa
         // Validación de fecha y hora si están presentes
         const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
         const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
 
         if (f_salida && h_salida && (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida))) {
-            return res.status(400).json({
-                message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
-            });
+            errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
 
         if (f_llegada && h_llegada && (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada))) {
-            return res.status(400).json({
-                message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
-            });
+            errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
 
-        // Preparar el valor de obs
+        // Si hay errores, devolverlos sin proceder con la inserción
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Preparar el valor de obs; si es nulo o no viene, se omitirá
         const obsValue = obs || null;
 
         // Inserción en la base de datos
@@ -258,26 +329,27 @@ export const createBitacora = async (req, res) => {
 
         res.status(201).json({
             id: rows.insertId,
-            compania_id: companiaIdNumber,
-            personal_id: personalIdNumber,
-            maquina_id: maquinaIdNumber,
+            companiaIdNumber,
+            personalIdNumber,
+            maquinaIdNumber,
             direccion,
             fh_salida,
             fh_llegada,
-            clave_id: claveIdNumber,
+            claveIdNumber,
             km_salida,
             km_llegada,
             hmetro_salida,
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obs: obsValue
+            obsValue
         });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: 'Error en la creación de la bitácora' });
+        return res.status(500).json({ message: 'Error en la creación de la bitácora', error: error.message });
     }
 };
+
 
 // Dar de baja (marcar como inactivo)
 export const deleteBitacora = async (req, res) => {
@@ -297,10 +369,10 @@ export const deleteBitacora = async (req, res) => {
     }
 };
 
-// Actualizar una bitácora
+/// Actualizar una bitácora
 export const updateBitacora = async (req, res) => {
     const { id } = req.params;
-    const {
+    let {
         compania_id,
         personal_id,
         maquina_id,
@@ -320,6 +392,8 @@ export const updateBitacora = async (req, res) => {
         isDeleted,
     } = req.body;
 
+    const errors = []; // Array para capturar errores
+
     try {
         // Obtener la bitácora existente
         const [current] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
@@ -332,6 +406,13 @@ export const updateBitacora = async (req, res) => {
 
         // Actualizar solo los campos que están en el body
         if (direccion !== undefined) {
+            direccion = String(direccion).trim();
+            if(typeof direccion !== 'string') {
+                errors.push('Tipo de dato inválido para "direccion"');
+            }
+            if (direccion.length > 100) {
+                errors.push('La dirección no puede tener más de 100 caracteres');
+            }
             updates.push("direccion = ?");
             values.push(direccion);
         }
@@ -342,12 +423,11 @@ export const updateBitacora = async (req, res) => {
             const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
             const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
-                return res.status(400).json({
-                    message: 'El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm'
-                });
+                errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            } else {
+                updates.push("fh_salida = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
+                values.push(fh_salida);
             }
-            updates.push("fh_salida = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
-            values.push(fh_salida);
         }
 
         if (f_llegada !== undefined && h_llegada !== undefined) {
@@ -355,24 +435,71 @@ export const updateBitacora = async (req, res) => {
             const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
             const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
             if (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada)) {
-                return res.status(400).json({
-                    message: 'El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm'
-                });
+                errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            } else {
+                updates.push("fh_llegada = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
+                values.push(fh_llegada);
             }
-            updates.push("fh_llegada = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
-            values.push(fh_llegada);
         }
 
-        // Validaciones y actualizaciones para los demás campos numéricos
-        const floatFields = ['km_salida', 'km_llegada', 'hmetro_salida', 'hmetro_llegada', 'hbomba_salida', 'hbomba_llegada'];
-        for (const field of floatFields) {
-            if (req.body[field] !== undefined) {
-                const value = parseFloat(req.body[field]);
-                if (isNaN(value)) {
-                    return res.status(400).json({ message: `Tipo de dato inválido para '${field}'` });
-                }
-                updates.push(`${field} = ?`);
-                values.push(value);
+        // Validar y agregar los campos numéricos
+        if (km_llegada !== undefined) {
+            const error = validateFloat(km_llegada);
+            if (error) {
+                errors.push(`Km llegada: ${error}`);
+            } else {
+                updates.push("km_llegada = ?");
+                values.push(km_llegada);
+            }
+        }
+
+        if (km_salida !== undefined) {
+            const error = validateFloat(km_salida);
+            if (error) {
+                errors.push(`Km salida: ${error}`);
+            } else {
+                updates.push("km_salida = ?");
+                values.push(km_salida);
+            }
+        }
+        
+        if (hmetro_llegada !== undefined) {
+            const error = validateFloat(hmetro_llegada);
+            if (error) {
+                errors.push(`Hmetro llegada: ${error}`);
+            } else {
+                updates.push("hmetro_llegada = ?");
+                values.push(hmetro_llegada);
+            }
+        }
+
+        if (hmetro_salida !== undefined) {
+            const error = validateFloat(hmetro_salida);
+            if (error) {
+                errors.push(`Hmetro salida: ${error}`);
+            } else {
+                updates.push("hmetro_salida = ?");
+                values.push(hmetro_salida);
+            }
+        }
+
+        if (hbomba_llegada !== undefined) {
+            const error = validateFloat(hbomba_llegada);
+            if (error) {
+                errors.push(`Hbomba llegada: ${error}`);
+            } else {
+                updates.push("hbomba_llegada = ?");
+                values.push(hbomba_llegada);
+            }
+        }
+
+        if (hbomba_salida !== undefined) {
+            const error = validateFloat(hbomba_salida);
+            if (error) {
+                errors.push(`Hbomba salida: ${error}`);
+            } else {
+                updates.push("hbomba_salida = ?");
+                values.push(hbomba_salida);
             }
         }
 
@@ -380,37 +507,41 @@ export const updateBitacora = async (req, res) => {
         if (compania_id !== undefined) {
             const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
             if (companiaExists.length === 0) {
-                return res.status(400).json({ message: "Compania no existe o está eliminada" });
+                errors.push("Compania no existe o está eliminada");
+            } else {
+                updates.push("compania_id = ?");
+                values.push(compania_id);
             }
-            updates.push("compania_id = ?");
-            values.push(compania_id);
         }
 
         if (personal_id !== undefined) {
             const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
             if (personalExists.length === 0) {
-                return res.status(400).json({ message: "Personal no existe o está eliminado" });
+                errors.push("Personal no existe o está eliminado");
+            } else {
+                updates.push("personal_id = ?");
+                values.push(personal_id);
             }
-            updates.push("personal_id = ?");
-            values.push(personal_id);
         }
 
         if (maquina_id !== undefined) {
             const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
             if (maquinaExists.length === 0) {
-                return res.status(400).json({ message: "Máquina no existe o está eliminada" });
+                errors.push("Máquina no existe o está eliminada");
+            } else {
+                updates.push("maquina_id = ?");
+                values.push(maquina_id);
             }
-            updates.push("maquina_id = ?");
-            values.push(maquina_id);
         }
 
         if (clave_id !== undefined) {
             const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [clave_id]);
             if (claveExists.length === 0) {
-                return res.status(400).json({ message: "Clave no existe o está eliminada" });
+                errors.push("Clave no existe o está eliminada");
+            } else {
+                updates.push("clave_id = ?");
+                values.push(clave_id);
             }
-            updates.push("clave_id = ?");
-            values.push(clave_id);
         }
 
         // Incluir obs en la actualización
@@ -422,18 +553,22 @@ export const updateBitacora = async (req, res) => {
         // Validación y asignación de isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
+            } else {
+                updates.push("isDeleted = ?");
+                values.push(isDeleted);
             }
-            updates.push("isDeleted = ?");
-            values.push(isDeleted);
+        }
+
+        // Si hay errores, devolverlos sin proceder con la actualización
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Construir la consulta de actualización
         const setClause = updates.join(", ");
         if (!setClause) {
-            return res.status(400).json({
-                message: "No se proporcionaron campos para actualizar"
-            });
+            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
         }
 
         // Agregar el ID a los valores

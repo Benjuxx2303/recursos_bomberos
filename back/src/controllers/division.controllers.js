@@ -75,29 +75,43 @@ export const getDivision = async (req, res) => {
 
 // Crear una nueva división
 export const createDivision = async (req, res) => {
-    const { nombre } = req.body;
-
+    let { nombre } = req.body;
+    const errors = []; // Arreglo para capturar errores
+  
     try {
-        // Validación de datos
+        nombre = String(nombre).trim();
+        // Validación de tipo de datos
         if (typeof nombre !== "string") {
-            return res.status(400).json({
-                message: "Tipo de datos inválido"
-            });
+          errors.push("Tipo de datos inválido para 'nombre'");
         }
-
-        // Se crea activo (isDeleted = 0) por defecto
+  
+        // Validación de longitud del nombre
+        if (nombre.length < 3 || nombre.length > 45) {
+          errors.push("La longitud del nombre debe estar entre 3 y 45 caracteres");
+        }
+      
+        // Validación si ya existe una división con el mismo nombre
+        const [divisionExists] = await pool.query('SELECT * FROM division WHERE nombre = ?', [nombre]);
+        if (divisionExists.length > 0) {
+          errors.push("Ya existe una división con el mismo nombre");
+        }
+      
+        // Si se encontraron errores, devolverlos
+        if (errors.length > 0) {
+          return res.status(400).json({ errors });
+        }
+      
+        // Crear la división con isDeleted = 0 por defecto
         const [rows] = await pool.query('INSERT INTO division (nombre, isDeleted) VALUES (?, 0)', [nombre]);
         res.status(201).json({
-            id: rows.insertId,
-            nombre
+          id: rows.insertId,
+          nombre
         });
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+        errors.push(error.message);
+        return res.status(500).json({ message: "Error interno del servidor", errors });
     }
-};
+  };  
 
 // Eliminar una división (marcar como eliminada)
 export const deleteDivision = async (req, res) => {
@@ -129,60 +143,75 @@ export const deleteDivision = async (req, res) => {
 // Actualizar una división
 export const updateDivision = async (req, res) => {
     const { id } = req.params;
-    const { nombre, isDeleted } = req.body;
+    let { nombre, isDeleted } = req.body;
     const idNumber = parseInt(id);
+    const errors = []; // Arreglo para capturar errores
 
     try {
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "Tipo de datos inválido"
-            });
+            errors.push("Tipo de datos inválido para el id");
         }
 
         const updates = {};
+        
+        // Validación de nombre
         if (nombre !== undefined) {
+            nombre = String(nombre).trim();
+            // Validar tipo de datos
             if (typeof nombre !== "string") {
-                return res.status(400).json({
-                    message: "Tipo de datos inválido para 'nombre'"
-                });
+                errors.push("Tipo de datos inválido para 'nombre'");
             }
+
+            // Validar longitud del nombre
+            if (nombre.length < 3 || nombre.length > 45) {
+                errors.push("La longitud del nombre debe estar entre 3 y 45 caracteres");
+            }
+
+            // Validar si ya existe una división con el mismo nombre
+            const [divisionExists] = await pool.query('SELECT * FROM division WHERE nombre = ? AND id != ?', [nombre, idNumber]);
+            if (divisionExists.length > 0) {
+                errors.push("Ya existe una división con el mismo nombre");
+            }
+
             updates.nombre = nombre;
         }
 
+        // Validación de isDeleted
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de datos inválido para 'isDeleted'"
-                });
+                errors.push("Tipo de datos inválido para 'isDeleted'");
             }
             updates.isDeleted = isDeleted;
         }
 
+        // Si se encontraron errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ message: "Errores de validación", errors });
+        }
+
+        // Generar la cláusula SET
         const setClause = Object.keys(updates)
             .map(key => `${key} = ?`)
             .join(", ");
 
         if (!setClause) {
-            return res.status(400).json({
-                message: "No se proporcionaron campos para actualizar"
-            });
+            errors.push("No se proporcionaron campos para actualizar");
+            return res.status(400).json({ errors }); // Devolver errores de validación
         }
 
         const values = Object.values(updates).concat(idNumber);
         const [result] = await pool.query(`UPDATE division SET ${setClause} WHERE id = ?`, values);
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({
-                message: 'División no encontrada'
-            });
+            errors.push("División no encontrada");
+            return res.status(404).json({ message: "Errores de validación", errors });
         }
 
         const [rows] = await pool.query('SELECT * FROM division WHERE id = ?', [idNumber]);
         res.json(rows[0]);
+
     } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
+        errors.push(error.message);
+        return res.status(500).json({ message: "Error interno del servidor", errors });
     }
 };

@@ -75,27 +75,59 @@ export const getTipoMaquinaById = async (req, res) => {
 
 // Crear tipo de máquina
 export const createTipoMaquina = async (req, res) => {
-    const { clasificacion } = req.body;
+    let { nombre, descripcion } = req.body;
+    let errors = [];
 
     try {
-        if (typeof clasificacion !== 'string') {
-            return res.status(400).json({
-                message: 'Tipo de datos inválido'
-            });
+        nombre = String(nombre).trim();
+        descripcion = String(descripcion).trim();
+
+        // Validación de datos
+        if (typeof nombre !== 'string') {
+            errors.push('Tipo de datos inválido para "nombre"');
         }
 
-        const [rows] = await pool.query("INSERT INTO tipo_maquina (clasificacion, isDeleted) VALUES (?, 0)", [clasificacion]);
+        if (typeof descripcion !== 'string') {
+            errors.push('Tipo de datos inválido para "descripcion"');
+        }
+
+        // Validar largo de nombre
+        if (nombre.length > 50) {
+            errors.push('La clasificación debe tener un largo máximo de 50 caracteres');
+        }
+
+        // Validar largo de descripción
+        if (descripcion.length > 100) {
+            errors.push('La descripción debe tener un largo máximo de 100 caracteres');
+        }
+
+        // Validar si existe tipo de máquina con la misma clasificación
+        const [tipoMaquinaExists] = await pool.query("SELECT * FROM tipo_maquina WHERE nombre = ? AND isDeleted = 0", [nombre]);
+        if (tipoMaquinaExists.length > 0) {
+            errors.push('Ya existe un tipo de máquina con esa clasificación');
+        }
+
+        // Si hay errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Crear el tipo de máquina
+        const [rows] = await pool.query("INSERT INTO tipo_maquina (nombre, isDeleted) VALUES (?, 0)", [nombre]);
         res.status(201).json({
             id: rows.insertId,
-            clasificacion
+            nombre
         });
+
     } catch (error) {
+        console.error('error: ', error);
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message
         });
     }
 };
+
 
 // Dar de baja tipo de máquina
 export const deleteTipoMaquina = async (req, res) => {
@@ -128,34 +160,61 @@ export const deleteTipoMaquina = async (req, res) => {
 // Actualizar tipo de máquina
 export const updateTipoMaquina = async (req, res) => {
     const { id } = req.params;
-    const { clasificacion, isDeleted } = req.body;
+    let { nombre, descripcion, isDeleted } = req.body;
+    let errors = [];
 
     try {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
-            return res.status(400).json({
-                message: "ID inválido"
-            });
+            errors.push("ID inválido");
         }
 
         // Validaciones
         const updates = {};
-        if (clasificacion !== undefined) {
-            if (typeof clasificacion !== 'string') {
-                return res.status(400).json({
-                    message: 'Tipo de dato inválido para "clasificacion"'
-                });
+        if (nombre !== undefined) {
+            nombre = String(nombre).trim();
+            if (typeof nombre !== 'string') {
+                errors.push('Tipo de dato inválido para "nombre"');
             }
-            updates.clasificacion = clasificacion;
+
+            // Validar largo de nombre
+            if (nombre.length > 50) {
+                errors.push('La clasificación debe tener un largo máximo de 50 caracteres');
+            }
+
+            // Validar si existe tipo de maquina con la misma nombre
+            const [tipoMaquinaExists] = await pool.query("SELECT * FROM tipo_maquina WHERE nombre = ? AND id != ?", [nombre, idNumber]);
+            if (tipoMaquinaExists.length > 0) {
+                errors.push('Ya existe un tipo de máquina con esa clasificación');
+            }
+
+            updates.nombre = nombre;
+        }
+
+        if (descripcion !== undefined) {
+            descripcion = String(descripcion).trim();
+            if (typeof descripcion !== 'string') {
+                errors.push('Tipo de dato inválido para "descripcion"');
+            }
+
+            // Validar largo de descripción
+            if (descripcion.length > 100) {
+                errors.push('La descripción debe tener un largo máximo de 100 caracteres');
+            }
+
+            updates.descripcion = descripcion;
         }
 
         if (isDeleted !== undefined) {
             if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                return res.status(400).json({
-                    message: "Tipo de dato inválido para 'isDeleted'"
-                });
+                errors.push("Tipo de dato inválido para 'isDeleted'");
             }
             updates.isDeleted = isDeleted;
+        }
+
+        // Si hay errores, devolverlos
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Construir la consulta de actualización
@@ -181,6 +240,7 @@ export const updateTipoMaquina = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ?", [idNumber]);
         res.json(rows[0]);
     } catch (error) {
+        console.error('Error: ', error);
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message

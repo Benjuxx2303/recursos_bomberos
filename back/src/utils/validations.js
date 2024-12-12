@@ -10,6 +10,7 @@ import { parse, isValid, isBefore } from 'date-fns';
  * @param {string} rut - The RUT to be validated. It can contain dots and hyphens.
  * @returns {boolean} - Returns `true` if the RUT is valid, otherwise `false`.
  */
+// TODO: Formatear rut con puntos
 export function validateRUT(rut) {
   // Eliminar los puntos y el guion
   const cleanRUT = rut.replace(/[.\-]/g, "");

@@ -555,7 +555,6 @@ export const createMantencion = async (req, res) => {
       return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
-¿
   
 
 // Eliminar mantencion (cambiar estado)

@@ -598,8 +598,8 @@ export const updatePersonal = async (req, res) => {
             updates.ultima_fec_servicio = `${ultima_fec_servicio_fecha} ${ultima_fec_servicio_hora}`;
         }
 
-        console.log("Updates:", updates);
-        console.log("Files: ", req.files)
+        // console.log("Updates:", updates);
+        // console.log("Files: ", req.files)
 
         if (errors.length > 0) {
             return res.status(400).json({ errors }); // Devuelve los errores

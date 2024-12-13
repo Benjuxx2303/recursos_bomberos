@@ -172,7 +172,7 @@ export const loginUser = async (req, res) => {
 
         // Eliminar espacios en blanco al inicio y al final de la contraseña
         contrasena = contrasena.trim();
-        
+
         const user = rows[0];
         const isMatch = await bcrypt.compare(contrasena, user.contrasena);
         if (!isMatch) {
@@ -229,9 +229,16 @@ export const loginUser = async (req, res) => {
 
 // Registrar nuevo usuario (incluye verificación de correo)
 export const registerUser = async (req, res) => {
-    const { username, correo, contrasena, personal_id } = req.body;
+    let { username, correo, contrasena, personal_id } = req.body;
 
     try {
+        // eliminar espacios en los campos de texto
+        username = username.trim();
+        correo = correo.trim();
+        contrasena = contrasena.trim();
+        
+        // TODO: Validar formato del correo
+
         // Validar existencia del personal
         const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
         if (personalExists.length === 0) {

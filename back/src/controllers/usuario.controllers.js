@@ -156,7 +156,7 @@ export const updateUsuario = async (req, res) => {
 
 // Iniciar sesión
 export const loginUser = async (req, res) => {
-    const { username, contrasena } = req.body;
+    let { username, contrasena } = req.body;
 
     try {
         // Validar largo del username
@@ -170,6 +170,9 @@ export const loginUser = async (req, res) => {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
 
+        // Eliminar espacios en blanco al inicio y al final de la contraseña
+        contrasena = contrasena.trim();
+        
         const user = rows[0];
         const isMatch = await bcrypt.compare(contrasena, user.contrasena);
         if (!isMatch) {

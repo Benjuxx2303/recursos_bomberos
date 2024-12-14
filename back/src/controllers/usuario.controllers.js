@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { SALT_ROUNDS, SECRET_JWT_KEY, HOST } from "../config.js";
 import { pool } from "../db.js";
-import { sendEmail } from '../utils/mailer.js';
+import { sendEmail, generateEmailTemplate } from '../utils/mailer.js';
+import {validateEmail} from '../utils/validations.js';
 
 // Obtener todos los usuarios
 export const getUsuarios = async (req, res) => {
@@ -116,30 +117,62 @@ export const deleteUsuario = async (req, res) => {
 // Actualizar usuario
 export const updateUsuario = async (req, res) => {
     const { id } = req.params;
-    const { username, correo, contrasena, personal_id } = req.body;
+    let { username, correo, contrasena, personal_id } = req.body;
+
+    const errors = []; // Array para capturar errores
 
     try {
         const updates = {};
-        
-        if (username !== undefined) updates.username = username;
-        if (correo !== undefined) updates.correo = correo;
+
+        if (username !== undefined){
+            username = username.trim();
+            // Validar largo del username
+            if (username.length < 4 || username.length > 25) {
+                errors.push("El nombre de usuario debe tener entre 4 y 25 caracteres");
+            } 
+
+            // Validar existencia del username
+            const [userExists] = await pool.query("SELECT 1 FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
+            if (userExists.length > 0) {
+                errors.push("El nombre de usuario ya está en uso");
+            }
+            updates.username = username;
+        }
+
+        if (correo !== undefined){
+            correo = correo.trim();
+            // Validar formato del correo
+            if (!validateEmail(correo)) {
+                errors.push("Correo inválido");
+            } 
+            updates.correo = correo;
+        }
+
         if (contrasena !== undefined) {
+            contrasena = contrasena.trim();
             const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
             updates.contrasena = await bcrypt.hash(contrasena, salt);
         }
+
         if (personal_id !== undefined) {
             const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
             if (personalExists.length === 0) {
-                return res.status(400).json({ message: "Personal no existe o está eliminado" });
+                errors.push("Personal no existe o está eliminado");
             }
             updates.personal_id = personal_id;
         }
 
+        
         const setClause = Object.keys(updates).map((key) => `${key} = ?`).join(", ");
         const values = Object.values(updates).concat(id);
-
+        
         if (!setClause) {
             return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+        }
+        
+        if (errors.length > 0) {
+            // Si existen errores, devolverlos sin proceder con la actualización
+            return res.status(400).json({ errors });
         }
 
         const [result] = await pool.query(`UPDATE usuario SET ${setClause} WHERE id = ?`, values);
@@ -149,6 +182,7 @@ export const updateUsuario = async (req, res) => {
 
         const [rows] = await pool.query("SELECT * FROM usuario WHERE id = ?", [id]);
         res.json(rows[0]);
+
     } catch (error) {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
@@ -157,17 +191,23 @@ export const updateUsuario = async (req, res) => {
 // Iniciar sesión
 export const loginUser = async (req, res) => {
     let { username, contrasena } = req.body;
+    let errors = [];  // Inicializamos un array para almacenar los errores.
 
     try {
         // Validar largo del username
         if (username.length < 4 || username.length > 25) {
-            return res.status(400).json({ message: "El nombre de usuario debe tener entre 4 y 25 caracteres" });
+            errors.push("El nombre de usuario debe tener entre 4 y 25 caracteres");
         }
 
         // Validar existencia del usuario
         const [rows] = await pool.query("SELECT * FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
         if (rows.length === 0) {
-            return res.status(404).json({ message: 'Usuario no encontrado' });
+            errors.push('Usuario no encontrado');
+        }
+
+        // Si hay errores en el usuario, devolverlos.
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
         }
 
         // Eliminar espacios en blanco al inicio y al final de la contraseña
@@ -176,9 +216,14 @@ export const loginUser = async (req, res) => {
         const user = rows[0];
         const isMatch = await bcrypt.compare(contrasena, user.contrasena);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Contraseña incorrecta' });
+            errors.push('Contraseña incorrecta');
         }
-        
+
+        // Si hay errores en la contraseña, devolverlos.
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
         // DATOS PARA EL PAYLOAD DEL JWT
         // Obtener rol del usuario
         const [rolRows] = await pool.query("SELECT rp.nombre FROM rol_personal rp JOIN personal p ON rp.id = p.rol_personal_id WHERE p.id = ?", [user.personal_id]);
@@ -194,11 +239,11 @@ export const loginUser = async (req, res) => {
         const apellido = personalRows[0]?.apellido || null;
         const nombreCompleto = `${nombre} ${apellido}`;
 
-        // obtener imagen del usuario
+        // Obtener imagen del usuario
         const [imageRows] = await pool.query("SELECT img_url FROM personal WHERE id = ?", [user.personal_id]);
         const img_url = imageRows[0]?.img_url || null;
         // ----------------------------
-        
+
         // JSON Web Token
         const token = jwt.sign({
             userId: user.id,
@@ -207,9 +252,9 @@ export const loginUser = async (req, res) => {
             rol_personal: rol,
             compania: company,
             img_url: img_url,
-        }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 5 dias de duración para desarrollo
+        }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 5 días de duración para desarrollo
 
-        //En lugar de establecer el token en una cookie,  enviarlo en el cuerpo de la respuesta
+        // Enviar el token y la información del usuario.
         res.status(200).json({
             message: 'Inicio de sesión exitoso',
             token: token,
@@ -223,6 +268,7 @@ export const loginUser = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Error al iniciar sesión: ', error);
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
@@ -230,30 +276,39 @@ export const loginUser = async (req, res) => {
 // Registrar nuevo usuario (incluye verificación de correo)
 export const registerUser = async (req, res) => {
     let { username, correo, contrasena, personal_id } = req.body;
+    let errors = []; // Array para capturar los errores
 
     try {
         // eliminar espacios en los campos de texto
         username = username.trim();
         correo = correo.trim();
         contrasena = contrasena.trim();
-        
-        // TODO: Validar formato del correo
+
+        // Validar formato del correo
+        if (!validateEmail(correo)) {
+            errors.push("Correo inválido");
+        }
 
         // Validar existencia del personal
         const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
         if (personalExists.length === 0) {
-            return res.status(400).json({ message: "Personal no existe o está eliminado" });
+            errors.push("Personal no existe o está eliminado");
         }
 
         // Validar largo del username
         if (username.length < 4 || username.length > 25) {
-            return res.status(400).json({ message: "El nombre de usuario debe tener entre 4 y 25 caracteres" });
+            errors.push("El nombre de usuario debe tener entre 4 y 25 caracteres");
         }
 
         // Validar existencia del usuario
         const [userExists] = await pool.query("SELECT 1 FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
         if (userExists.length > 0) {
-            return res.status(400).json({ message: "El nombre de usuario ya está en uso" });
+            errors.push("El nombre de usuario ya está en uso");
+        }
+
+        // Si hay errores, devolvemos la lista sin ejecutar el resto de la función
+        if (errors.length > 0) {
+            return res.status(400).json({ message: "Errores en los campos", errors });
         }
 
         // Encriptar la contraseña
@@ -279,12 +334,19 @@ export const registerUser = async (req, res) => {
         // Crear enlace para la verificación del correo
         const verifyLink = `${HOST}/api/usuario/verify-email/${verifyToken}`;
 
+        // Generar contenido HTML para el correo
+        const htmlContent = generateEmailTemplate(
+            'Verificación de Correo',
+            'Verificar Correo',
+            verifyLink
+        );
+
         // Enviar correo de verificación
         await sendEmail(
             correo,
             'Verificación de Correo',
             `Para verificar tu correo, haz clic en el siguiente enlace: ${verifyLink}`,
-            `<p>Para verificar tu correo, haz clic en el siguiente enlace: <a href="${verifyLink}">Verificar Correo</a></p>`
+            htmlContent
         );
 
         res.status(201).json({
@@ -297,17 +359,29 @@ export const registerUser = async (req, res) => {
     }
 };
 
-
 // Recuperar Contraseña (enviar correo con link para cambiar contraseña)
 export const recoverPassword = async (req, res) => {
-    const { correo } = req.body;
+    let { correo } = req.body;
+    let errors = []; // Array para capturar los errores
 
     try {
+        correo = correo.trim();
+
+        // Validar formato del correo
+        if (!validateEmail(correo)) {
+            errors.push("Correo inválido");
+        }
+
         // Verificar si el correo existe en la base de datos
         const [userRows] = await pool.query("SELECT * FROM usuario WHERE correo = ? AND isDeleted = 0", [correo]);
 
         if (userRows.length === 0) {
-            return res.status(404).json({ message: "Correo no encontrado" });
+            errors.push("Correo no encontrado");
+        }
+
+        // Si hay errores, devolver la lista sin ejecutar el resto de la función
+        if (errors.length > 0) {
+            return res.status(400).json({ message: "Errores en los campos", errors });
         }
 
         const user = userRows[0];
@@ -322,12 +396,19 @@ export const recoverPassword = async (req, res) => {
         // Generar enlace para restablecer la contraseña
         const resetLink = `${HOST}/api/usuario/reset-password/${resetToken}`;
 
+        // Generar contenido HTML para el correo
+        const htmlContent = generateEmailTemplate(
+            'Recuperación de Contraseña',
+            'Restablecer Contraseña',
+            resetLink
+        );
+
         // Enviar el correo con el enlace de recuperación
         await sendEmail(
             correo, 
             'Recuperación de Contraseña', 
             `Para restablecer tu contraseña, haz clic en el siguiente enlace: ${resetLink}`,
-            `<p>Para restablecer tu contraseña, haz clic en el siguiente enlace: <a href="${resetLink}">Restablecer Contraseña</a></p>`
+            htmlContent
         );
 
         res.status(200).json({ message: "Correo de recuperación enviado" });
@@ -340,9 +421,22 @@ export const recoverPassword = async (req, res) => {
 // Resetear la contraseña
 export const resetPassword = async (req, res) => {
     const { token } = req.params;  // Token enviado por el correo
-    const { contrasena } = req.body;  // Nueva contraseña
+    let { contrasena } = req.body;  // Nueva contraseña
+    let errors = []; // Array para capturar los errores
 
     try {
+        contrasena = contrasena.trim();
+
+        // Validar que la contraseña no esté vacía
+        if (!contrasena || contrasena.length < 6) {
+            errors.push("La contraseña debe tener al menos 6 caracteres");
+        }
+
+        // Si hay errores, devolver la lista sin ejecutar el resto de la función
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
         // Verificar el token
         const decoded = jwt.verify(token, SECRET_JWT_KEY);
 
@@ -365,6 +459,7 @@ export const resetPassword = async (req, res) => {
         res.status(200).json({ message: "Contraseña restablecida con éxito" });
 
     } catch (error) {
+        console.error('Error al resetear contraseña: ', error);
         return res.status(400).json({ message: "Token inválido o expirado" });
     }
 };
@@ -372,8 +467,19 @@ export const resetPassword = async (req, res) => {
 // Verificar Correo
 export const verifyEmail = async (req, res) => {
     const { token } = req.params;
+    let errors = []; // Array para capturar los errores
 
     try {
+        // Verificar que el token no esté vacío
+        if (!token) {
+            errors.push("Token es requerido");
+        }
+
+        // Si hay errores, devolver la lista sin ejecutar el resto de la función
+        if (errors.length > 0) {
+            return res.status(400).json({ message: "Errores en los campos", errors });
+        }
+
         // Verificar el token
         const decoded = jwt.verify(token, SECRET_JWT_KEY);
 
@@ -392,6 +498,7 @@ export const verifyEmail = async (req, res) => {
         res.status(200).json({ message: "Correo verificado con éxito" });
 
     } catch (error) {
+        console.error('Error al verificar correo: ', error);
         return res.status(400).json({ message: "Token inválido o expirado" });
     }
 };

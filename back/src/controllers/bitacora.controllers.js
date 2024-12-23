@@ -95,6 +95,7 @@ export const getBitacoraPage = async (req, res) => {
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
             WHERE b.isDeleted = 0
+            ORDER BY b.id
             LIMIT ? OFFSET ?`;
 
         // Ejecutar la consulta con los parámetros de paginación

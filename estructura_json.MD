@@ -211,11 +211,12 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
     "maquina_id": 8,
     "taller_id": 4,
     "estado_mantencion_id": 13,
+    "tipo_mantencion_id": 1,
+    "fec_inicio": "01-01-2024",  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+    "fec_termino": "02-01-2024",  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
     "ord_trabajo": "OT12345",
     "n_factura": 45678,
-    "cost_ser": 50000,
-    "fec_inicio": "01-01-2024",  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
-    "fec_termino": "02-01-2024"  // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+    "cost_ser": 50000
 }
 ```
 

@@ -479,80 +479,150 @@ export const createMantencionBitacora = async (req, res) => {
 // Crear nueva mantención (solo mantencion)
 export const createMantencion = async (req, res) => {
     const {
-      bitacora_id,
-      maquina_id,
-      taller_id,
-      estado_mantencion_id,
-      tipo_mantencion_id,  // Nuevo campo tipo_mantencion_id
-      fec_inicio,
-      fec_termino,
-      ord_trabajo,
-      n_factura,
-      img_url,
-      cost_ser,
+        bitacora_id,
+        maquina_id,
+        taller_id,
+        estado_mantencion_id,
+        tipo_mantencion_id,  // Nuevo campo tipo_mantencion_id
+        fec_inicio,
+        fec_termino,
+        ord_trabajo,
+        n_factura,
+        cost_ser,
     } = req.body;
 
+    // Array para almacenar los errores
+    const errors = [];
+
+    // Validaciones de tipo de datos
+    if (isNaN(parseInt(bitacora_id))) errors.push('El ID de la bitácora es inválido');
+    if (isNaN(parseInt(maquina_id))) errors.push('El ID de la máquina es inválido');
+    if (isNaN(parseInt(taller_id))) errors.push('El ID del taller es inválido');
+    if (isNaN(parseInt(estado_mantencion_id))) errors.push('El ID del estado de mantención es inválido');
+    if (isNaN(parseInt(tipo_mantencion_id))) errors.push('El ID del tipo de mantención es inválido');
+    if (typeof ord_trabajo !== 'string') errors.push('El número de orden de trabajo debe ser una cadena de texto');
+    if (n_factura && isNaN(parseInt(n_factura))) errors.push('El número de factura es inválido');
+    if (cost_ser && isNaN(parseInt(cost_ser))) errors.push('El costo del servicio es inválido');
+
+    // Validación de fechas
+    if (fec_inicio && !validateDate(fec_inicio)) {
+        errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
+    }
+
+    if (fec_termino && !validateDate(fec_termino)) {
+        errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+    }
+
+    if (errors.length > 0) {
+        return res.status(400).json({ message: 'Errores en los datos de entrada', errors });
+    }
+
+    // Validación de llaves foráneas (solo si no hay errores previos)
     try {
-      // Validaciones de tipo de datos
-      if (
-        isNaN(parseInt(bitacora_id)) ||
-        isNaN(parseInt(maquina_id)) ||
-        isNaN(parseInt(taller_id)) ||
-        isNaN(parseInt(estado_mantencion_id)) ||
-        isNaN(parseInt(tipo_mantencion_id)) ||  // Validación del nuevo campo
-        typeof ord_trabajo !== 'string' ||
-        (n_factura && isNaN(parseInt(n_factura))) ||
-        (cost_ser && isNaN(parseInt(cost_ser)))
-      ) {
-        return res.status(400).json({ message: 'Tipo de datos inválido' });
-      }
+        const [bitacora] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [bitacora_id]);
+        if (bitacora.length === 0) errors.push('Bitácora no existe');
 
-      // Validación de llaves foráneas
-      const [bitacora] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [bitacora_id]);
-      if (bitacora.length === 0) return res.status(400).json({ message: 'Bitácora no existe' });
+        const [maquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
+        if (maquina.length === 0) errors.push('Máquina no existe');
 
-      const [maquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
-      if (maquina.length === 0) return res.status(400).json({ message: 'Máquina no existe' });
+        const [taller] = await pool.query("SELECT * FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
+        if (taller.length === 0) errors.push('Taller no existe');
 
-      const [taller] = await pool.query("SELECT * FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
-      if (taller.length === 0) return res.status(400).json({ message: 'Taller no existe' });
+        const [estadoMantencion] = await pool.query("SELECT * FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
+        if (estadoMantencion.length === 0) errors.push('Estado de mantención no existe');
 
-      const [estadoMantencion] = await pool.query("SELECT * FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
-      if (estadoMantencion.length === 0) return res.status(400).json({ message: 'Estado de mantención no existe' });
+        const [tipoMantencion] = await pool.query("SELECT * FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
+        if (tipoMantencion.length === 0) errors.push('Tipo de mantención no existe');
 
-      const [tipoMantencion] = await pool.query("SELECT * FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
-      if (tipoMantencion.length === 0) return res.status(400).json({ message: 'Tipo de mantención no existe' });
-
-      // Validación de fechas
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-      const fechas = [fec_inicio, fec_termino];
-      for (const fecha of fechas) {
-        if (fecha && !fechaRegex.test(fecha)) {
-          return res.status(400).json({ message: 'Formato de fecha inválido. Debe ser dd-mm-aaaa' });
+        if (errors.length > 0) {
+            return res.status(400).json({ message: 'Errores de validación de base de datos', errors });
         }
-      }
 
-      // Inserción en la base de datos
-      const [rows] = await pool.query(
-        "INSERT INTO mantencion (bitacora_id, maquina_id, taller_id, estado_mantencion_id, tipo_mantencion_id, fec_inicio, fec_termino, ord_trabajo, n_factura, img_url, cost_ser, isDeleted) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, ?, 0)",
-        [
-          bitacora_id,
-          maquina_id,
-          taller_id,
-          estado_mantencion_id,
-          tipo_mantencion_id, // Incluir el tipo de mantención
-          fec_inicio,
-          fec_termino,
-          ord_trabajo,
-          n_factura || null, // Si no hay número de factura, lo dejamos como null
-          img_url || null, // Si no hay imagen, lo dejamos como null
-          cost_ser || null, // Si no hay costo de servicio, lo dejamos como null
-        ]
-      );
+        // Validación de fec_inicio usando validateDate
+        let formattedFecInicio = null; // Variable para almacenar la fecha formateada en formato yyyy-mm-dd
+        if (fec_inicio) {
+            if (!validateDate(fec_inicio)) {
+                errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
+            } else {
+                // Formatear la fecha si es válida
+                const dateParts = fec_inicio.split("-");
+                const [day, month, year] = dateParts.map(Number);
+                formattedFecInicio = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+            }
+        }
 
-      res.status(201).json({ id: rows.insertId, ...req.body });
+        // Validación de fec_termino usando validateDate
+        let formattedFecTermino = null; // Variable para almacenar la fecha formateada en formato yyyy-mm-dd
+        if (fec_termino) {
+            if (!validateDate(fec_termino)) {
+                errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+            } else {
+                // Formatear la fecha si es válida
+                const dateParts = fec_termino.split("-");
+                const [day, month, year] = dateParts.map(Number);
+                formattedFecTermino = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+            }
+        }
+
+        // manejar la carga de archivos si existen
+        let img_url = null;
+
+        if (req.files) {
+            const imagen = req.files.imagen ? req.files.imagen[0] : null;
+
+            if (imagen) {
+                try {
+                    const imgData = await uploadFileToS3(imagen, "mantencion");
+                    if (imgData && imgData.Location) {
+                        img_url = imgData.Location;
+                    } else {
+                        errors.push("No se pudo obtener la URL de la imagen");
+                    }
+                } catch (error) {
+                    errors.push("Error al subir la imagen", error.message);
+                }
+            }
+        }
+
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Inserción en la base de datos
+        const [rows] = await pool.query(
+            `INSERT INTO mantencion (
+                bitacora_id, 
+                maquina_id, 
+                taller_id, 
+                estado_mantencion_id, 
+                tipo_mantencion_id, 
+                fec_inicio, 
+                fec_termino, 
+                ord_trabajo, 
+                n_factura, 
+                img_url, 
+                cost_ser, 
+                isDeleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+            [
+                bitacora_id,
+                maquina_id,
+                taller_id,
+                estado_mantencion_id,
+                tipo_mantencion_id, // Incluir el tipo de mantención
+                formattedFecInicio,
+                formattedFecTermino,
+                ord_trabajo,
+                n_factura || null, // Si no hay número de factura, lo dejamos como null
+                img_url || null, // Si no hay imagen, lo dejamos como null
+                cost_ser || null, // Si no hay costo de servicio, lo dejamos como null
+            ]
+        );
+
+        return res.status(201).json({ id: rows.insertId, ...req.body });
+
     } catch (error) {
-      return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
   

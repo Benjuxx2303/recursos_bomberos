@@ -331,6 +331,12 @@ export const createMantencionBitacora = async (req, res) => {
             errors.push("Clave no existe o está eliminada");
         }
 
+        // validar compañia de la bitácora con la del personal
+        const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
+        if (companiaPersonal.length === 0) {
+            errors.push("Compania no coincide con la del personal");
+        }
+
         // Validación de fecha y hora usando la función validateDate
         if (f_salida && h_salida && !validateDate(f_salida, h_salida)) {
             errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');

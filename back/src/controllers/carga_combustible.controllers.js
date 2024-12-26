@@ -331,6 +331,12 @@ export const createCargaCombustibleBitacora = async (req, res) => {
             errors.push("Clave no existe o está eliminada");
         }
 
+        // validar compañia de la bitácora con la del personal
+        const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
+        if (companiaPersonal.length === 0) {
+            errors.push("Compania no coincide con la del personal");
+        }
+
         // Validación de litros y valor monetario
         if (litros <= 0) {
             errors.push("Ingrese valor válido para 'litros'");

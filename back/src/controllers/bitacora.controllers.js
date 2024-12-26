@@ -149,8 +149,6 @@ export const getBitacoraById = async (req, res) => {
     }
 };
 
-
-
 // Crear una nueva bitácora
 export const createBitacora = async (req, res) => {
     let {
@@ -224,6 +222,12 @@ export const createBitacora = async (req, res) => {
         const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
         if (claveExists.length === 0) {
             errors.push("Clave no existe o está eliminada");
+        }
+
+        // validar compañia de la bitácora con la del personal
+        const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
+        if (companiaPersonal.length === 0) {
+            errors.push("Compania no coincide con la del personal");
         }
 
         if (direccion.length > 100) {
@@ -370,7 +374,8 @@ export const deleteBitacora = async (req, res) => {
     }
 };
 
-/// Actualizar una bitácora
+// TODO: validar la compañía de la bitácora con la del personal
+// Actualizar una bitácora
 export const updateBitacora = async (req, res) => {
     const { id } = req.params;
     let {

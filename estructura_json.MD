@@ -146,8 +146,8 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 - Se separaron los campos para fecha y hora. Pero al ingresar los datos, se mostrará como un solo campo.
 ```
 {
-    "compania_id": 2,
-    "conductor_id": 1,
+    "personal_id": 29,
+    "compania_id": 16,
     "maquina_id": 1,
     "clave_id": 1,
     "direccion": "123 Calle Ejemplo",

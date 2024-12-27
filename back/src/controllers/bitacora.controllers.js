@@ -1,5 +1,5 @@
 import { pool } from "../db.js";
-import { validateFloat, validateDate, validateStartEndDate } from "../utils/validations.js";
+import { validateFloat } from "../utils/validations.js";
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -175,36 +175,15 @@ export const createBitacora = async (req, res) => {
     try {
         direccion = String(direccion).trim();
 
-        // Concatenar fecha y hora para formatear como datetime
+        // Concatenar fecha y hora solo si ambas están presentes
         let fh_salida = null;
         let fh_llegada = null;
 
-        // Validar fechas y horas de salida y llegada
         if (f_salida && h_salida) {
-            const error = validateDate(f_salida, h_salida);
-            // console.log(`Validando fh_salida: ${error}`);
-            if (!error) {
-                console.log(`${f_salida} ${h_salida}`);
-                errors.push(`Fecha y hora de salida inválida: ${error}`);
-            }
             fh_salida = `${f_salida} ${h_salida}`;
         }
-
         if (f_llegada && h_llegada) {
-            const error = validateDate(f_llegada, h_llegada);
-            // console.log(`Validando fh_llegada: ${error}`);
-            if (!error) {
-                errors.push(`Fecha y hora de llegada inválida: ${error}`);
-            }
             fh_llegada = `${f_llegada} ${h_llegada}`;
-        }
-
-        // Validar que la fecha y hora de salida no sea posterior a la de llegada
-        if (fh_salida && fh_llegada) {
-            const error = validateStartEndDate(fh_salida, fh_llegada);
-            if (!error) {
-                errors.push(`Fecha y hora de salida no pueden ser posteriores a la fecha y hora de llegada`);
-            }
         }
 
         // Validación de datos
@@ -245,15 +224,6 @@ export const createBitacora = async (req, res) => {
             errors.push("Clave no existe o está eliminada");
         }
 
-        // Validación de fecha y hora usando la función validateDate
-        if (f_salida && h_salida && !validateDate(f_salida, h_salida)) {
-            errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
-        }
-
-        if (f_llegada && h_llegada && !validateDate(f_llegada, h_llegada)) {
-            errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
-        }
-        
         // validar compañia de la bitácora con la del personal
         const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
         if (companiaPersonal.length === 0) {
@@ -381,7 +351,7 @@ export const createBitacora = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: 'Error en la creación de la bitácora', error: error.message });
     }
 };
 

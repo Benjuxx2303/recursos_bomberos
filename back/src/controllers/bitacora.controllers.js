@@ -225,10 +225,10 @@ export const createBitacora = async (req, res) => {
         }
 
         // validar compañia de la bitácora con la del personal
-        const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
-        if (companiaPersonal.length === 0) {
-            errors.push("Compania no coincide con la del personal");
-        }
+        //const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
+        //if (companiaPersonal.length === 0) {
+        //    errors.push("Compania no coincide con la del personal");
+        //}
 
         if (direccion.length > 100) {
             errors.push('La dirección no puede tener más de 100 caracteres');

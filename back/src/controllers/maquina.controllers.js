@@ -91,14 +91,15 @@ export const getMaquinasDetailsPage = async (req, res) => {
         WHERE m.isDeleted = 0
       `;
       const [rows] = await pool.query(query);
-      // return res.json(rows); // Devuelve todos los registros sin paginación
+      
       // Formatear fechas y procesar conductores
       const formattedRows = rows.map(row => ({
         ...row,
         ven_patente: row.ven_patente ? format(new Date(row.ven_patente), 'dd-MM-yyyy') : null,
         ven_rev_tec: row.ven_rev_tec ? format(new Date(row.ven_rev_tec), 'dd-MM-yyyy') : null,
         ven_seg_auto: row.ven_seg_auto ? format(new Date(row.ven_seg_auto), 'dd-MM-yyyy') : null,
-        conductores: row.conductores ? JSON.parse(row.conductores) : []
+        // Asumimos que 'row.conductores' es ya un objeto o array, por lo que no es necesario parsearlo
+        conductores: Array.isArray(row.conductores) ? row.conductores : []
       }));
       
       return res.json(formattedRows);
@@ -134,14 +135,15 @@ export const getMaquinasDetailsPage = async (req, res) => {
     `;
     
     const [rows] = await pool.query(query, [pageSize, offset]);
-    // res.json(rows);
+    
     // Formatear fechas y procesar conductores
     const formattedRows = rows.map(row => ({
       ...row,
       ven_patente: row.ven_patente ? format(row.ven_patente, 'dd-MM-yyyy') : null,
       ven_rev_tec: row.ven_rev_tec ? format(row.ven_rev_tec, 'dd-MM-yyyy') : null,
       ven_seg_auto: row.ven_seg_auto ? format(row.ven_seg_auto, 'dd-MM-yyyy') : null,
-      conductores: row.conductores ? JSON.parse(row.conductores) : []
+      // Asumimos que 'row.conductores' es ya un objeto o array, por lo que no es necesario parsearlo
+      conductores: Array.isArray(row.conductores) ? row.conductores : []
     }));
     
     res.json(formattedRows);

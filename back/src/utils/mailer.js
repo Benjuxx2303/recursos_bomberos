@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
-import { 
-    GMAIL_USER, 
-    GMAIL_PASS 
+import {
+    GMAIL_PASS,
+    GMAIL_USER
 } from '../config.js';
 
 // Crear el transporter
@@ -150,4 +150,5 @@ export const generateEmailTemplate = (title, linkText, link) => {
         </body>
     </html>
     `;
+
 };

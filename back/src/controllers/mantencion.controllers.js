@@ -1,8 +1,86 @@
 import { pool } from "../db.js";
 import {
     uploadFileToS3
-  } from '../utils/fileUpload.js';
+} from '../utils/fileUpload.js';
 import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
+
+
+export const getMantencionesAllDetails = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                m.id,
+                b.id AS 'bitacora.id',
+                c.nombre AS 'bitacora.compania', -- Nombre de la compañia
+                CONCAT(p.rut) AS 'bitacora.conductor', -- RUT del conductor
+                b.direccion AS 'bitacora.direccion',
+                DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.h_salida',
+                DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.h_llegada',
+                b.km_salida AS 'bitacora.km_salida',
+                b.km_llegada AS 'bitacora.km_llegada',
+                b.hmetro_salida AS 'bitacora.hmetro_salida',
+                b.hmetro_llegada AS 'bitacora.hmetro_llegada',
+                b.hbomba_salida AS 'bitacora.hbomba_salida',
+                b.hbomba_llegada AS 'bitacora.hbomba_llegada',
+                b.obs AS 'bitacora.obs',
+                ma.patente AS 'patente',
+                DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fec_inicio',
+                DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
+                m.ord_trabajo,
+                m.n_factura,
+                m.img_url,
+                m.cost_ser,
+                t.nombre AS 'taller',
+                em.nombre AS 'estado_mantencion',
+                tm.nombre AS 'tipo_mantencion'
+            FROM mantencion m
+            INNER JOIN bitacora b ON m.bitacora_id = b.id
+            INNER JOIN compania c ON b.compania_id = c.id
+            INNER JOIN maquina ma ON m.maquina_id = ma.id
+            INNER JOIN personal p ON b.personal_id = p.id
+            INNER JOIN taller t ON m.taller_id = t.id
+            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+            WHERE m.isDeleted = 0 AND b.isDeleted = 0
+        `);
+
+        const result = rows.map(row => ({
+            id: row.id,
+            bitacora: {
+                id: row['bitacora.id'],
+                compania: row['bitacora.compania'],
+                conductor: row['bitacora.conductor'],
+                direccion: row['bitacora.direccion'],
+                h_salida: row['bitacora.h_salida'],
+                h_llegada: row['bitacora.h_llegada'],
+                km_salida: row['bitacora.km_salida'],
+                km_llegada: row['bitacora.km_llegada'],
+                hmetro_salida: row['bitacora.hmetro_salida'],
+                hmetro_llegada: row['bitacora.hmetro_llegada'],
+                hbomba_salida: row['bitacora.hbomba_salida'],
+                hbomba_llegada: row['bitacora.hbomba_llegada'],
+                obs: row['bitacora.obs'],
+            },
+            patente: row.patente,
+            fec_inicio: row.fec_i,
+            fec_termino: row.fec_termino,
+            ord_trabajo: row.ord_trabajo,
+            n_factura: row.n_factura,
+            img_url: row.img_url,
+            cost_ser: row.cost_ser,
+            taller: row.taller,
+            estado_mantencion: row.estado_mantencion,
+            tipo_mantencion_id: row.tipo_mantencion_id
+        }));
+
+        res.json(result);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message,
+        });
+    }
+};
 
 // con parámetros de búsqueda 
 // Paginacion
@@ -145,12 +223,13 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 b.hbomba_salida AS 'bitacora.hbomba_salida',
                 b.hbomba_llegada AS 'bitacora.hbomba_llegada',
                 b.obs AS 'bitacora.obs',
-                ma.patente AS 'patente',
+                ma.img_url AS 'img_url',
+                ma.patente AS 'patente',    
+                ma.nombre AS 'maquina.nombre',
                 DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fec_inicio',
                 DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
-                m.img_url,
                 m.cost_ser,
                 t.razon_social AS 'taller',
                 em.nombre AS 'estado_mantencion',
@@ -190,9 +269,9 @@ export const getMantencionAllDetailsById = async (req, res) => {
             fec_termino: row.fec_termino,
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
-            img_url: row.img_url,
             cost_ser: row.cost_ser,
             taller: row.taller,
+            img_url: row.img_url,
             estado_mantencion: row.estado_mantencion,
             tipo_mantencion: row.tipo_mantencion,
             tipo_mantencion_id: row.tipo_mantencion_id
@@ -336,7 +415,6 @@ export const createMantencionBitacora = async (req, res) => {
         if (companiaPersonal.length === 0) {
             errors.push("Compania no coincide con la del personal");
         }
-
         // Validación de fecha y hora usando la función validateDate
         if (f_salida && h_salida && !validateDate(f_salida, h_salida)) {
             errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
@@ -484,6 +562,7 @@ export const createMantencionBitacora = async (req, res) => {
 
 // Crear nueva mantención (solo mantencion)
 export const createMantencion = async (req, res) => {
+  try {
     const {
         bitacora_id,
         maquina_id,
@@ -569,6 +648,56 @@ export const createMantencion = async (req, res) => {
                 formattedFecTermino = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
             }
         }
+            // Función mejorada para convertir fecha al formato YYYY-MM-DD
+    const formatDate = (dateStr) => {
+        if (!dateStr) return null;
+        
+        // Si ya está en formato YYYY-MM-DD, retornarlo tal cual
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          return dateStr;
+        }
+        
+        // Si está en formato DD-MM-YYYY, convertirlo
+        if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+          const [day, month, year] = dateStr.split('-');
+          return `${year}-${month}-${day}`;
+        }
+        
+        throw new Error(`Formato de fecha inválido: ${dateStr}. Debe ser YYYY-MM-DD o DD-MM-YYYY`);
+      };
+  
+      // Si no se recibe estado_mantencion_id, determinar el estado por defecto
+      let finalEstadoMantencionId = estado_mantencion_id;
+      if (!finalEstadoMantencionId) {
+        const [estados] = await pool.query(
+          'SELECT id, nombre FROM estado_mantencion WHERE isDeleted = 0'
+        );
+        
+        const fechaInicio = new Date(formatDate(fec_inicio));
+        const fechaActual = new Date();
+        
+        const estadoNombre = fechaInicio > fechaActual ? 'Programada' : 'Ingresada';
+        const estado = estados.find(e => e.nombre === estadoNombre);
+        if (!estado) {
+          return res.status(400).json({ message: `No se encontró el estado ${estadoNombre}` });
+        }
+        finalEstadoMantencionId = estado.id;
+      }
+  
+
+  
+      try {
+        if (fec_inicio) {
+          formattedFecInicio = formatDate(fec_inicio);
+        }
+        if (fec_termino) {
+          formattedFecTermino = formatDate(fec_termino);
+        }
+  
+  
+      } catch (error) {
+        return res.status(400).json({ message: error.message });
+      }
 
         // manejar la carga de archivos si existen
         let img_url = null;
@@ -630,9 +759,11 @@ export const createMantencion = async (req, res) => {
     } catch (error) {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
-};
-  
-
+} catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+}
+}
 // Eliminar mantencion (cambiar estado)
 export const deleteMantencion = async (req, res) => {
     const { id } = req.params;
@@ -819,3 +950,53 @@ export const updateMantencion = async (req, res) => {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
+
+const value = "mantencion";
+const folder=value;
+const tableName=value;
+
+export const updateImage = async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+        return res.status(400).json({ message: "Falta el archivo." });
+    }
+
+    try {
+        const data = await uploadFileToS3(file, folder);
+        const newUrl = data.Location;
+        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
+        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+    } catch (error) {
+        handleError(res, error, "Error al actualizar la imagen");
+    }
+}
+// Nueva función para actualizar el estado de una mantención
+export const updateMaintenanceStatus = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { estado_mantencion_id } = req.body;
+  
+      // Verificar que el estado existe
+      const [estados] = await pool.query(
+        'SELECT id FROM estado_mantencion WHERE id = ? AND isDeleted = 0',
+        [estado_mantencion_id]
+      );
+  
+      if (estados.length === 0) {
+        return res.status(400).json({ message: 'El estado de mantención no existe' });
+      }
+  
+      // Actualizar el estado
+      await pool.query(
+        'UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0',
+        [estado_mantencion_id, id]
+      );
+  
+      res.json({ message: 'Estado de mantención actualizado correctamente' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  } 
+  

@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import morgan from "morgan";
 
+
 import indexRoutes from './routes/index.routes.js';
 
 import bitacoraRoutes from './routes/bitacora.routes.js';
@@ -15,17 +16,18 @@ import divisionRoutes from './routes/division.routes.js';
 import estado_mantencionRoutes from './routes/estado_mantencion.routes.js';
 import mantencionRoutes from './routes/mantencion.routes.js'; //
 import maquinaRoutes from './routes/maquina.routes.js';
+import modelosRoutes from './routes/modelo.routes.js';
 import personalRoutes from './routes/personal.routes.js';
 import procedenciaRoutes from './routes/procedencia.routes.js';
 import rol_personalRoutes from './routes/rol_personal.routes.js';
 import servicioRoutes from './routes/servicio.routes.js';
 import statsRoutes from './routes/stats.routes.js';
+import stats_mantencionesRoutes from './routes/stats_mantenciones.routes.js';
 import subdivisionRoutes from './routes/subdivision.routes.js';
 import tallerRoutes from './routes/taller.routes.js';
 import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
 import tipo_maquinaRoutes from './routes/tipo_maquina.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
-import stats_mantencionesRoutes from './routes/stats_mantenciones.routes.js';
 
 const app = express();
 app.use(express.json());
@@ -58,7 +60,8 @@ app.use(base_route, servicioRoutes);
 app.use(base_route, detalle_mantencionRoutes);
 app.use(base_route, carga_combustibleRoutes);
 app.use(base_route, statsRoutes);
-app.use(base_route, stats_mantencionesRoutes);
+app.use(base_route,stats_mantencionesRoutes);
+app.use(base_route, modelosRoutes);
 // endpoint
 app.use((req, res) =>{
     res.status(404).json({

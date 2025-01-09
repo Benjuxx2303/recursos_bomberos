@@ -2,10 +2,9 @@ import { pool } from "../db.js";
 import {
     handleError,
     updateImageUrlInDb,
-    saveImageUrlToDb,
     uploadFileToS3
 } from '../utils/fileUpload.js';
-import { validateRUT, validateDate } from '../utils/validations.js';
+import { validateDate, validateRUT } from '../utils/validations.js';
 
 // TODO: implementacion de "imgLicencia"
 
@@ -360,6 +359,11 @@ export const createPersonal = async (req, res) => {
             ]
         );
 
+        console.log('Resultado de la inserción:', {
+            insertId: rows.insertId,
+            affectedRows: rows.affectedRows
+        });
+
         return res.status(201).json({
             id: rows.insertId,
             rol_personal_id: rolPersonalIdNumber,
@@ -368,7 +372,7 @@ export const createPersonal = async (req, res) => {
             apellido,
             compania_id: companiaIdNumber,
             fec_nac,
-            img_url,
+            img_url: imgUrl,
             obs,
             fec_ingreso,
             ven_licencia,
@@ -509,7 +513,10 @@ export const updatePersonal = async (req, res) => {
             if (!fechaRegex.test(fec_nac)) {
                 errors.push('El formato de la fecha es inválido. Debe ser dd-mm-aaaa');
             }
-            updates.fec_nac = fec_nac;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            updates.fec_nac = `${day}-${month}-${year}`;
         }
 
         if (fec_ingreso !== undefined) {
@@ -692,3 +699,34 @@ export const fetchConductoresByCompania = async (req, res) => {
         });
     }
 };
+
+const value = "personal";
+const folder=value;
+const tableName=value;
+
+export const updateImage = async (req, res) => {
+    const { id } = req.params;
+    const file = req.file;
+
+    // console.log({
+    //     id: id,
+    //     file: file,
+    //     folder: folder,
+    //     tableName: tableName
+    // });
+
+
+    if (!file) {
+        return res.status(400).json({ message: "Falta el archivo." });
+    }
+
+    try {
+        const data = await uploadFileToS3(file, folder);
+        const newUrl = data.Location;
+        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
+        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+    } catch (error) {
+        handleError(res, error, "Error al actualizar la imagen");
+    }
+};
+

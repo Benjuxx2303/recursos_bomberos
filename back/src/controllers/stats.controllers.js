@@ -51,24 +51,34 @@ export const getMaintenanceData = async (req, res) => {
       defaultTypes[type.nombre.toLowerCase()] = 0;
     });
 
-    const maintenanceData = meses.map((mes) => ({
-      month: mes,
-      ...defaultTypes
-    }));
-
-    rows.forEach((row) => {
-      const index = row.mes - 1;
-      const tipo = row.tipo_mantencion.toLowerCase();
-      maintenanceData[index][tipo] = row.total;
-    });
-
-    const currentMonth = new Date().getMonth();
-    const lastSixMonths = [...maintenanceData.slice(currentMonth - 5, currentMonth + 1)];
-    if (lastSixMonths.length < 6) {
-      lastSixMonths.unshift(...maintenanceData.slice(-(6 - lastSixMonths.length)));
+    // Crear array con los últimos 6 meses
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const monthsArray = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      let monthIndex = currentMonth - i;
+      if (monthIndex < 0) {
+        monthIndex = 12 + monthIndex;
+      }
+      monthsArray.push({
+        month: meses[monthIndex],
+        ...defaultTypes
+      });
     }
 
-    res.json({ data: lastSixMonths });
+    // Llenar los datos
+    rows.forEach((row) => {
+      const monthIndex = monthsArray.findIndex(
+        item => item.month === meses[row.mes - 1]
+      );
+      if (monthIndex !== -1) {
+        const tipo = row.tipo_mantencion.toLowerCase();
+        monthsArray[monthIndex][tipo] = row.total;
+      }
+    });
+
+    res.json({ data: monthsArray });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener los datos de mantención' });
@@ -197,25 +207,34 @@ export const getServiceDataWithClaves = async (req, res) => {
     defaultTypes[tipo.nombre.toLowerCase()] = 0;
     });
 
-    const serviceData = meses.map((mes) => ({
-    month: mes,
-    ...defaultTypes
-    }));
-
-    // Fill in the actual data
-    rows.forEach((row) => {
-    const index = row.mes - 1;
-    const tipo = row.tipo_clave.toLowerCase();
-    serviceData[index][tipo] = row.total;
-    });
-
-    const currentMonth = new Date().getMonth();
-    const lastSixMonthsData = serviceData.slice(currentMonth - 5, currentMonth + 1);
-    if (lastSixMonthsData.length < 6) {
-    lastSixMonthsData.unshift(...serviceData.slice(-(6 - lastSixMonthsData.length)));
+    // Crear array con los últimos 6 meses
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const monthsArray = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      let monthIndex = currentMonth - i;
+      if (monthIndex < 0) {
+        monthIndex = 12 + monthIndex;
+      }
+      monthsArray.push({
+        month: meses[monthIndex],
+        ...defaultTypes
+      });
     }
 
-    res.json({ data: lastSixMonthsData });
+    // Llenar los datos
+    rows.forEach((row) => {
+      const monthIndex = monthsArray.findIndex(
+        item => item.month === meses[row.mes - 1]
+      );
+      if (monthIndex !== -1) {
+        const tipo = row.tipo_clave.toLowerCase();
+        monthsArray[monthIndex][tipo] = row.total;
+      }
+    });
+
+    res.json({ data: monthsArray });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener los datos de servicios' });
@@ -266,68 +285,76 @@ export const getFuelData = async (req, res) => {
     const [rows] = await pool.query(query, params);
 
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const fuelData = meses.map((mes) => ({
-      month: mes,
-      companias: []
-    }));
+    
+    // Crear array con los últimos 6 meses
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-11
+    const monthsArray = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      let monthIndex = currentMonth - i;
+      if (monthIndex < 0) {
+        monthIndex = 12 + monthIndex;
+      }
+      monthsArray.push({
+        month: meses[monthIndex],
+        companias: []
+      });
+    }
 
+    // Llenar los datos
     rows.forEach((row) => {
-      const index = row.mes - 1;
-      const companiaData = fuelData[index].companias.find(c => c.name === row.compania);
-      if (companiaData) {
-        companiaData.litros += row.total_litros;
-      } else {
-        fuelData[index].companias.push({
-          name: row.compania,
-          litros: row.total_litros
-        });
+      const monthIndex = monthsArray.findIndex(
+        item => item.month === meses[row.mes - 1]
+      );
+      if (monthIndex !== -1) {
+        const companiaData = monthsArray[monthIndex].companias.find(c => c.name === row.compania);
+        if (companiaData) {
+          companiaData.litros += row.total_litros;
+        } else {
+          monthsArray[monthIndex].companias.push({
+            name: row.compania,
+            litros: row.total_litros
+          });
+        }
       }
     });
 
-    const currentMonth = new Date().getMonth();
-    const lastSixMonthsData = fuelData.slice(currentMonth - 5, currentMonth + 1);
-
-    res.json({ data: lastSixMonthsData });
+    res.json({ data: monthsArray });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener los datos de combustible' });
   }
 };
 
+//Datos del ultimo mes
 export const getCompanyData = async (req, res) => {
   try {
     const { startDate, endDate, companiaId } = req.query;
     const params = [];
 
-    const dateFilter = startDate && endDate ? 
-      'AND b.fh_salida BETWEEN ? AND ?' : 
-      'AND b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
-    
-    if (startDate && endDate) {
-      params.push(startDate, endDate);
-    }
-
-    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
-
     const query = `
       SELECT
         c.nombre AS compania,
-        COUNT(DISTINCT b.id) AS total_servicios,
-        COUNT(DISTINCT b.maquina_id) AS total_maquinas,
-        COUNT(DISTINCT b.personal_id) AS total_personal,
-        ROUND(AVG(TIMESTAMPDIFF(MINUTE, b.fh_salida, b.fh_llegada)), 2) AS promedio_minutos_servicio
+        COALESCE(COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN b.id END), 0) AS total_servicios,
+        COALESCE(COUNT(DISTINCT CASE WHEN b.maquina_id IS NOT NULL THEN b.maquina_id END), 0) AS total_maquinas,
+        COALESCE(COUNT(DISTINCT CASE WHEN b.personal_id IS NOT NULL THEN b.personal_id END), 0) AS total_personal,
+        COALESCE(ROUND(AVG(CASE 
+          WHEN b.fh_salida IS NOT NULL AND b.fh_llegada IS NOT NULL AND b.fh_llegada > b.fh_salida
+          THEN ABS(TIMESTAMPDIFF(MINUTE, b.fh_salida, b.fh_llegada))
+          END), 2), 0) AS promedio_minutos_servicio
       FROM
         compania c
       LEFT JOIN bitacora b ON c.id = b.compania_id AND b.isDeleted = 0
+        ${startDate && endDate ? 'AND b.fh_salida BETWEEN ? AND ?' : 
+          'AND (b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) OR b.fh_salida IS NULL)'}
+        ${companiaId ? 'AND b.compania_id = ?' : ''}
       WHERE
         c.isDeleted = 0
-        ${dateFilter}
-        ${companyFilter}
       GROUP BY
         c.id, c.nombre
       ORDER BY
-        total_servicios DESC
+        total_servicios DESC, c.nombre ASC
     `;
 
     const [rows] = await pool.query(query, params);
@@ -404,5 +431,78 @@ export const getDriverData = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al obtener los datos de conductores' });
+  }
+};
+
+export const getSummaryData = async (req, res) => {
+  try {
+    // Obtener mantenimientos pendientes y programados
+    const [pendingMaintenance] = await pool.query(`
+      SELECT COUNT(*) as total 
+      FROM mantencion m
+      WHERE m.isDeleted = 0 
+      AND (
+        m.estado_mantencion_id IN (
+          SELECT id FROM estado_mantencion 
+          WHERE nombre LIKE '%pendiente%' AND isDeleted = 0
+        )
+        OR m.fec_inicio > CURRENT_DATE()
+      )
+    `);
+
+    // Obtener servicios del mes actual
+    const [servicesThisMonth] = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM bitacora b 
+      WHERE b.isDeleted = 0
+      AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
+      AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
+    `);
+
+    // Obtener consumo total de combustible del mes actual relacionado con bitácora
+    const [fuelConsumption] = await pool.query(`
+      SELECT COALESCE(SUM(cc.litros), 0) as total
+      FROM carga_combustible cc
+      INNER JOIN bitacora b ON cc.bitacora_id = b.id
+      WHERE cc.isDeleted = 0 
+      AND b.isDeleted = 0
+      AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
+      AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
+    `);
+
+    // Obtener total de compañías
+    const [totalCompanies] = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM compania
+      WHERE isDeleted = 0
+    `);
+
+    // Obtener conductores activos (que han tenido servicios en el último mes)
+    const [activeDrivers] = await pool.query(`
+      SELECT COUNT(DISTINCT p.id) as total
+      FROM personal p
+      INNER JOIN bitacora b ON p.id = b.personal_id
+      WHERE p.isDeleted = 0
+      AND b.isDeleted = 0
+      AND b.fh_salida >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+    `);
+
+    const summaryData = {
+      pendingMaintenance: pendingMaintenance[0].total,
+      servicesThisMonth: servicesThisMonth[0].total,
+      fuelConsumption: Number(fuelConsumption[0].total),
+      totalCompanies: totalCompanies[0].total,
+      activeDrivers: activeDrivers[0].total
+    };
+
+    res.json({ success: true, data: summaryData });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al obtener los datos de resumen',
+      error: error.message 
+    });
   }
 };

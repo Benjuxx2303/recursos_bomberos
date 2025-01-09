@@ -1,19 +1,16 @@
 import { Router } from "express";
+import multer from 'multer';
+import { checkRole } from "../controllers/authMiddleware.js";
 import {
-  getMantencionesAllDetailsSearch,
-  getMantencionAllDetailsById,
   createMantencion,
   createMantencionBitacora,
   deleteMantencion,
-  updateMantencion,
+  getMantencionAllDetailsById,
+  getMantencionesAllDetailsSearch,
+  updateMaintenanceStatus,
+  updateMantencion
 } from "../controllers/mantencion.controllers.js";
-import { 
-  getMantencionCostosByAnio,
-  getReporteGeneral, 
-  getReporteMantencionesEstadoCosto
-} from "../controllers/stats_mantencion.js";
-import multer from 'multer';
-import { checkRole } from "../controllers/authMiddleware.js";
+import { getMantencionCostosByAnio, getReporteGeneral, getReporteMantencionesEstadoCosto } from "../controllers/stats_mantencion.js";
 
 // Configuración de multers
 const storage = multer.memoryStorage();
@@ -39,11 +36,15 @@ router.get(base_route, checkRole(['TELECOM']), getMantencionesAllDetailsSearch);
 // ord_trabajo:       OT-12345
 // compania:          compañia 1
 
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getMantencionAllDetailsById);
-router.post(base_route, uploadFields, createMantencionBitacora);
+router.get(`${base_route}/:id`, getMantencionAllDetailsById);
+
+router.post(base_route, createMantencionBitacora);
 router.post(`${base_route}/old`, checkRole(['TELECOM']), createMantencion);
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteMantencion);
 router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateMantencion);
+
+
+router.patch(`${base_route}/:id/status`, checkRole(['TELECOM']), updateMaintenanceStatus);
 
 // ---- reportes
 router.get(`/reportes${base_route}/costos`, checkRole(['TELECOM']), getMantencionCostosByAnio)

@@ -1,6 +1,4 @@
 back/.env
-back/.env.example
 back/node_modules
 .vscode
-back/config.js
-back/ca.pem
+back/src/db.js

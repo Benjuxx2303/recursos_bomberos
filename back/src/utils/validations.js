@@ -1,4 +1,4 @@
-import { parse, isValid, isBefore } from 'date-fns';
+import { isBefore, isValid, parse } from 'date-fns';
 
 /**
  * Validates a Chilean RUT (Rol Único Tributario).

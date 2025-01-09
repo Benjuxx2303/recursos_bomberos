@@ -6,7 +6,8 @@ import {
   getBitacora,
   getBitacoraById, // habilitado
   getBitacoraPage,
-  updateBitacora,
+  getLastBitacora,
+  updateBitacora
 } from "../controllers/bitacora.controllers.js";
 
 const router = Router();
@@ -22,7 +23,7 @@ router.get(`${base_route}/search`, checkRole(['TELECOM']), getBitacora); // nuev
 // pageSize:          10
 
 router.get(`${base_route}/:id`, checkRole(['TELECOM']), getBitacoraById);
-
+router.get(`${base_route}/last`,  getLastBitacora);
 router.post(base_route, checkRole(['TELECOM']), createBitacora);
 
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']),deleteBitacora);

@@ -1,5 +1,5 @@
 import { pool } from "../db.js";
-import { validateRUT, validateEmail } from "../utils/validations.js";
+import { validateEmail, validateRUT } from "../utils/validations.js";
 
 // Devuelve todos los talleres
 export const getTalleres = async (req, res) => {

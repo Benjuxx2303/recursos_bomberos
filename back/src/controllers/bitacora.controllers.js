@@ -1,5 +1,5 @@
 import { pool } from "../db.js";
-import { validateFloat, validateDate, validateStartEndDate } from "../utils/validations.js";
+import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -54,6 +54,28 @@ export const getBitacora = async (req, res) => {
         }
 
         const [rows] = await pool.query(query, params);
+   
+        if (id) {
+            query += " AND b.id = ?";
+            params.push(id);
+        }
+        if (compania) {
+            query += " AND c.nombre LIKE ?";
+            params.push(`%${compania}%`);
+        }
+        if (rut_personal) {
+            query += " AND p.rut LIKE ?";
+            params.push(`%${rut_personal}%`);
+        }
+        if (taller) {
+            query += " AND tm.nombre LIKE ?";
+            params.push(`%${taller}%`);
+        }
+        if (fecha_salida) {
+            query += " AND DATE_FORMAT(b.fh_salida, '%d-%m-%Y') = ?";
+            params.push(fecha_salida);
+        }
+
         res.json(rows);
     } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -81,6 +103,7 @@ export const getBitacoraPage = async (req, res) => {
                     DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
                     cl.nombre AS clave, 
                     b.direccion, 
+                    b.maquina_id,
                     b.km_salida, 
                     b.km_llegada, 
                     b.hmetro_salida, 
@@ -95,7 +118,7 @@ export const getBitacoraPage = async (req, res) => {
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
             WHERE b.isDeleted = 0
-            ORDER BY b.id
+            ORDER BY b.id desc
             LIMIT ? OFFSET ?`;
 
         // Ejecutar la consulta con los parámetros de paginación
@@ -114,7 +137,7 @@ export const getBitacoraById = async (req, res) => {
     try {
         const [rows] = await pool.query(
             `SELECT b.id, 
-                    c.nombre AS compania, 
+                    c.nombre AS compania, p
                     p.rut AS "rut_conductor", 
                     m.patente AS "patente_maquina", 
                     tm.nombre AS tipo_maquina, 
@@ -176,6 +199,9 @@ export const createBitacora = async (req, res) => {
         direccion = String(direccion).trim();
 
         // Concatenar fecha y hora para formatear como datetime
+        direccion = String(direccion).trim();
+
+        // Concatenar fecha y hora solo si ambas están presentes
         let fh_salida = null;
         let fh_llegada = null;
 
@@ -327,9 +353,16 @@ export const createBitacora = async (req, res) => {
 
         if (f_salida && h_salida && (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida))) {
             errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
 
         if (f_llegada && h_llegada && (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada))) {
+            errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
+        }
+
+        // Si hay errores, devolverlos sin proceder con la inserción
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
             errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
 
@@ -382,6 +415,31 @@ export const createBitacora = async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Error en la creación de la bitácora', error: error.message });
+    }
+};
+
+// Obtener datos del último registro de bitácora
+export const getLastBitacora = async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT 
+                DATE_FORMAT(fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada,
+                km_llegada,
+                hmetro_llegada,
+                hbomba_llegada
+            FROM bitacora 
+            WHERE isDeleted = 0
+            ORDER BY id DESC 
+            LIMIT 1`
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No se encontraron registros' });
+        }
+
+        res.json(rows[0]);
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
     }
 };
 

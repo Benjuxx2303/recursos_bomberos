@@ -42,7 +42,6 @@ export function validateRUT(rut) {
   return dv === calculoDV;
 }
 
-
 /**
  * Validates if the given value is a valid float number.
  *

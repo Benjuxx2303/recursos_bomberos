@@ -63,7 +63,6 @@ export function validateFloat(value) {
   return null;
 }
 
-
 /**
  * Validates the structure of an email address.
  *

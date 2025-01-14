@@ -134,12 +134,14 @@ export const updateClave = async (req, res) => {
     const errors = []; // Arreglo para capturar errores
 
     try {
+        // Validación del ID
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
             errors.push("ID inválido");
             return res.status(400).json({ errors });
         }
 
+        // Comprobar si la clave existe
         const [clave] = await pool.query('SELECT * FROM clave WHERE id = ? AND isDeleted = 0', [idNumber]);
         if (clave.length === 0) {
             return res.status(404).json({ message: "Clave no encontrada" });
@@ -147,25 +149,23 @@ export const updateClave = async (req, res) => {
 
         // Validaciones de datos
         const updates = {};
+
+        // Validación del campo 'nombre'
         if (nombre !== undefined) {
             nombre = String(nombre).trim();
-            if (typeof nombre !== "string") {
-                errors.push("Tipo de dato inválido para 'nombre'");
-            }
             if (nombre.length > 10) {
-                errors.push("El largo del código no debe exceder 10 caracteres");
+                errors.push("El largo del nombre no debe exceder 10 caracteres");
             }
             updates.nombre = nombre;
         }
 
+        // Validación del campo 'descripcion'
         if (descripcion !== undefined) {
             descripcion = String(descripcion).trim();
-            if (typeof descripcion !== "string") {
-                errors.push("Tipo de dato inválido para 'descripcion'");
-            }
             updates.descripcion = descripcion;
         }
 
+        // Validación del campo 'isDeleted'
         if (isDeleted !== undefined) {
             if (![0, 1].includes(isDeleted)) {
                 errors.push("Valor inválido para 'isDeleted'. Debe ser 0 o 1.");
@@ -178,27 +178,31 @@ export const updateClave = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
+        // Si no se proporciona nada para actualizar, retornar un error
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+        }
+
         // Construir la consulta de actualización
         const setClause = Object.keys(updates)
             .map((key) => `${key} = ?`)
             .join(", ");
-
-        if (!setClause) {
-            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
-        }
-
+        
+        // Ejecutar la actualización
         const values = Object.values(updates).concat(idNumber);
         const [result] = await pool.query(`UPDATE clave SET ${setClause} WHERE id = ? AND isDeleted = 0`, values);
 
         // Si no se actualizó ninguna fila (clave no encontrada o está eliminada)
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Clave no encontrada" });
+            return res.status(404).json({ message: "Clave no encontrada o ya eliminada" });
         }
 
         // Si la clave fue actualizada correctamente, devolver los datos actualizados
         const [rows] = await pool.query('SELECT * FROM clave WHERE id = ?', [idNumber]);
         res.status(200).json(rows[0]);
     } catch (error) {
+        // Manejo de error interno del servidor
+        console.error('Error: ', error);  // Añadir logs más detallados para depurar
         return res.status(500).json({
             message: "Error interno del servidor",
             errors: [error.message],

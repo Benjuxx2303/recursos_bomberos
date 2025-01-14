@@ -27,6 +27,15 @@ const router = Router();
 const base_route = "/mantencion"; 
 
 router.get(`${base_route}/excel`, checkRole(['TELECOM']), downloadExcel);
+// http://{url}/api/mantencion
+// QueryParams:
+// fields:           id,bitacora.id,bitacora.compania,bitacora.conductor,bitacora.direccion,bitacora.fh_salida,bitacora.fh_llegada,bitacora.km_salida,bitacora.km_llegada,bitacora.hmetro_salida,bitacora.hmetro_llegada,bitacora.hbomba_salida,bitacora.hbomba_llegada,bitacora.obs,patente,fec_inicio,fec_termino,ord_trabajo,n_factura,img_url 
+
+// taller:            test
+// estado_mantencion: rechazada
+// ord_trabajo:       OT-12345
+// compania:          compañia 1
+
 router.get(base_route, checkRole(['TELECOM']), getMantencionesAllDetailsSearch);
 // http://{url}/api/mantencion
 // QueryParams:

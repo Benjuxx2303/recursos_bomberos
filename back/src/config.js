@@ -23,4 +23,6 @@ export const AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 export const GMAIL_USER = process.env.GMAIL_USER;
 export const GMAIL_PASS = process.env.GMAIL_PASS;
 
+export const TOKEN_TEST = process.env.TOKEN_TEST || null;
+
 export const CERTIFICATE_CA = Buffer.from(process.env.CERTIFICATE_CA, 'base64').toString('utf-8');

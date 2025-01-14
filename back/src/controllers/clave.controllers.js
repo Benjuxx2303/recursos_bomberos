@@ -70,16 +70,13 @@ export const createClave = async (req, res) => {
     const errors = []; // Arreglo para capturar errores
 
     try {
-        nombre = String(nombre).trim();
-        descripcion = String(descripcion).trim();
-
-        // Validar tipos de datos
-        if (typeof nombre !== 'string') {
-            errors.push('Tipo de dato inválido para "nombre"');
+        // Validar que nombre y descripcion no sean vacíos
+        if (!nombre || typeof nombre !== 'string' || nombre.trim().length === 0) {
+            errors.push('El campo "nombre" no puede estar vacío');
         }
 
-        if (typeof descripcion !== 'string') {
-            errors.push('Tipo de dato inválido para "descripcion"');
+        if (!descripcion || typeof descripcion !== 'string' || descripcion.trim().length === 0) {
+            errors.push('El campo "descripcion" no puede estar vacío');
         }
 
         // Validar largo de campos
@@ -125,6 +122,7 @@ export const deleteClave = async (req, res) => {
         if (result.affectedRows === 0) return res.status(404).json({ message: "Clave no encontrada" });
         res.status(204).end();
     } catch (error) {
+        console.error('Error: ', error.message);
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
@@ -139,30 +137,24 @@ export const updateClave = async (req, res) => {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
             errors.push("ID inválido");
+            return res.status(400).json({ errors });
         }
 
-        // Validaciones
+        const [clave] = await pool.query('SELECT * FROM clave WHERE id = ? AND isDeleted = 0', [idNumber]);
+        if (clave.length === 0) {
+            return res.status(404).json({ message: "Clave no encontrada" });
+        }
+
+        // Validaciones de datos
         const updates = {};
         if (nombre !== undefined) {
             nombre = String(nombre).trim();
-            // Validar tipo de dato
             if (typeof nombre !== "string") {
                 errors.push("Tipo de dato inválido para 'nombre'");
             }
-
-            // Validar largo de campo
-            if (nombre && nombre.length > 10) {
-                errors.push("Largo de campo excedido para 'nombre'");
+            if (nombre.length > 10) {
+                errors.push("El largo del código no debe exceder 10 caracteres");
             }
-
-            // Validar si ya existe clave con el mismo código
-            if (nombre) {
-                const [claveExists] = await pool.query('SELECT * FROM clave WHERE nombre = ? AND isDeleted = 0', [nombre]);
-                if (claveExists.length > 0) {
-                    errors.push("Ya existe una clave con el mismo código");
-                }
-            }
-
             updates.nombre = nombre;
         }
 
@@ -175,8 +167,8 @@ export const updateClave = async (req, res) => {
         }
 
         if (isDeleted !== undefined) {
-            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                errors.push("Tipo de dato inválido para 'isDeleted'. Debe ser 0 o 1.");
+            if (![0, 1].includes(isDeleted)) {
+                errors.push("Valor inválido para 'isDeleted'. Debe ser 0 o 1.");
             }
             updates.isDeleted = isDeleted;
         }
@@ -192,22 +184,24 @@ export const updateClave = async (req, res) => {
             .join(", ");
 
         if (!setClause) {
-            return res.status(400).json({
-                message: "No se proporcionaron campos para actualizar"
-            });
+            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
         }
 
         const values = Object.values(updates).concat(idNumber);
         const [result] = await pool.query(`UPDATE clave SET ${setClause} WHERE id = ? AND isDeleted = 0`, values);
 
+        // Si no se actualizó ninguna fila (clave no encontrada o está eliminada)
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Clave no encontrada" });
         }
 
+        // Si la clave fue actualizada correctamente, devolver los datos actualizados
         const [rows] = await pool.query('SELECT * FROM clave WHERE id = ?', [idNumber]);
-        res.json(rows[0]);
+        res.status(200).json(rows[0]);
     } catch (error) {
-        errors.push(error.message);
-        return res.status(500).json({ message: "Error interno del servidor", errors });
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            errors: [error.message],
+        });
     }
 };

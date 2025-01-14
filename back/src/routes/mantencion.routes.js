@@ -8,7 +8,8 @@ import {
   getMantencionAllDetailsById,
   getMantencionesAllDetailsSearch,
   updateMaintenanceStatus,
-  updateMantencion
+  updateMantencion,
+  downloadExcel
 } from "../controllers/mantencion.controllers.js";
 import { getMantencionCostosByAnio, getReporteGeneral, getReporteMantencionesEstadoCosto } from "../controllers/stats_mantencion.js";
 
@@ -25,6 +26,7 @@ const router = Router();
 
 const base_route = "/mantencion"; 
 
+router.get(`${base_route}/excel`, checkRole(['TELECOM']), downloadExcel);
 router.get(base_route, checkRole(['TELECOM']), getMantencionesAllDetailsSearch);
 // http://{url}/api/mantencion
 // QueryParams:
@@ -61,5 +63,7 @@ router.get(`/reportes${base_route}/stats`, checkRole(['TELECOM']), getReporteMan
 
 router.get(`/reportes${base_route}/dashboard`, checkRole(['TELECOM']), getReporteGeneral);
 // http://{url}/api/reportes/mantencion/dashboard
+
+// Nueva ruta para descargar el archivo Excel de mantenciones
 
 export default router;

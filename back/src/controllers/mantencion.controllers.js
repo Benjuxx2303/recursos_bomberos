@@ -978,14 +978,49 @@ export const updateMaintenanceStatus = async (req, res) => {
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
-  } 
+  }
 
 export const downloadExcel = async (req, res) => {
-    try {
-        const { taller, estado_mantencion, ord_trabajo, compania } = req.query;
+  try {
+    const {
+      taller,
+      estado_mantencion,
+      ord_trabajo,
+      compania,
+      fields, // campos para excel
+    } = req.query;
 
-        // Inicializar la consulta SQL base
-        let query = `
+    // Definir todos los posibles campos que puedes incluir
+    const columnas = {
+      id: "m.id",
+      "bitacora.id": "bitacora.id",
+      "bitacora.compania": "bitacora.compania",
+      "bitacora.conductor": "bitacora.conductor",
+      "bitacora.direccion": "bitacora.direccion",
+      "bitacora.fh_salida": "bitacora.fh_salida",
+      "bitacora.fh_llegada": "bitacora.fh_llegada",
+      "bitacora.km_salida": "bitacora.km_salida",
+      "bitacora.km_llegada": "bitacora.km_llegada",
+      "bitacora.hmetro_salida": "bitacora.hmetro_salida",
+      "bitacora.hmetro_llegada": "bitacora.hmetro_llegada",
+      "bitacora.hbomba_salida": "bitacora.hbomba_salida",
+      "bitacora.hbomba_llegada": "bitacora.hbomba_llegada",
+      "bitacora.obs": "bitacora.obs",
+      patente: "patente",
+      fec_inicio: "fec_inicio",
+      fec_termino: "fec_termino",
+      ord_trabajo: "ord_trabajo",
+      n_factura: "n_factura",
+      img_url: "img_url",
+      cost_ser: "cost_ser",
+      taller: "taller",
+      estado_mantencion: "estado_mantencion",
+      tipo_mantencion: "tipo_mantencion",
+      tipo_mantencion_id: "tipo_mantencion_id",
+    };
+
+    // Inicializar la consulta SQL base
+    let query = `
             SELECT
                 m.id,
                 b.id AS 'bitacora.id',
@@ -1023,65 +1058,50 @@ export const downloadExcel = async (req, res) => {
             WHERE m.isDeleted = 0 AND b.isDeleted = 0
         `;
 
-        const params = [];
+    const params = [];
 
-        if (taller) {
-            query += ' AND t.razon_social = ?';
-            params.push(taller);
-        }
-        if (estado_mantencion) {
-            query += ' AND em.nombre = ?';
-            params.push(estado_mantencion);
-        }
-        if (ord_trabajo) {
-            query += ' AND m.ord_trabajo = ?';
-            params.push(ord_trabajo);
-        }
-        if (compania) {
-            query += ' AND c.nombre = ?';
-            params.push(compania);
-        }
-
-        // Ejecutar la consulta con los parámetros
-        const [rows] = await pool.query(query, params);
-
-        // Mapeo de resultados a la estructura deseada
-        const result = rows.map(row => ({
-            id: row.id,
-            'bitacora.id': row['bitacora.id'],
-            'bitacora.compania': row['bitacora.compania'],
-            'bitacora.conductor': row['bitacora.conductor'],
-            'bitacora.direccion': row['bitacora.direccion'],
-            'bitacora.fh_salida': row['bitacora.fh_salida'],
-            'bitacora.fh_llegada': row['bitacora.fh_llegada'],
-            'bitacora.km_salida': row['bitacora.km_salida'],
-            'bitacora.km_llegada': row['bitacora.km_llegada'],
-            'bitacora.hmetro_salida': row['bitacora.hmetro_salida'],
-            'bitacora.hmetro_llegada': row['bitacora.hmetro_llegada'],
-            'bitacora.hbomba_salida': row['bitacora.hbomba_salida'],
-            'bitacora.hbomba_llegada': row['bitacora.hbomba_llegada'],
-            'bitacora.obs': row['bitacora.obs'],
-            patente: row.patente,
-            fec_inicio: row.fec_inicio,
-            fec_termino: row.fec_termino,
-            ord_trabajo: row.ord_trabajo,
-            n_factura: row.n_factura,
-            img_url: row.img_url,
-            cost_ser: row.cost_ser,
-            taller: row.taller,
-            estado_mantencion: row.estado_mantencion,
-            tipo_mantencion: row.tipo_mantencion,
-            tipo_mantencion_id: row.tipo_mantencion_id
-        }));
-
-        // Usamos la función exportToExcel para enviar el archivo Excel
-        exportToExcel(result, res, 'mantenciones_detalle');
-        
-    } catch (error) {
-        console.error('Error: ', error);
-        res.status(500).json({
-            message: 'Error interno del servidor',
-            error: error.message,
-        });
+    // Agregar filtros de búsqueda
+    if (taller) {
+      query += " AND t.razon_social = ?";
+      params.push(taller);
     }
+    if (estado_mantencion) {
+      query += " AND em.nombre = ?";
+      params.push(estado_mantencion);
+    }
+    if (ord_trabajo) {
+      query += " AND m.ord_trabajo = ?";
+      params.push(ord_trabajo);
+    }
+    if (compania) {
+      query += " AND c.nombre = ?";
+      params.push(compania);
+    }
+
+    // Ejecutar la consulta con los parámetros
+    const [rows] = await pool.query(query, params);
+
+    // Verificar si se proporcionaron campos específicos y filtrar las columnas
+    const selectedColumns = fields ? fields.split(",") : Object.keys(columnas);
+
+    // Filtrar las filas según las columnas seleccionadas
+    const result = rows.map((row) => {
+      let filteredRow = {};
+      selectedColumns.forEach((col) => {
+        if (row[col] !== undefined) {
+          filteredRow[col] = row[col];
+        }
+      });
+      return filteredRow;
+    });
+
+    // Usamos la función exportToExcel para enviar el archivo Excel
+    exportToExcel(result, res, "mantenciones_detalle");
+  } catch (error) {
+    console.error("Error: ", error);
+    res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
 };

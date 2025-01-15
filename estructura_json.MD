@@ -87,7 +87,8 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/tipo_maquina"
 ```
 {
-    "clasificacion": "tipo maquina 1"
+    "nombre": "TEST",
+    "descripcion": ""
 }
 ```
 

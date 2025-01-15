@@ -1,8 +1,8 @@
-// fileUpload.js
 import { Upload } from "@aws-sdk/lib-storage";
 import { S3 } from "@aws-sdk/client-s3";
 import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_BUCKET_NAME } from "../config.js";
 import { pool } from "../db.js";
+import sharp from 'sharp';
 
 
 const now = new Date();
@@ -36,13 +36,32 @@ const s3 = new S3({
  * @returns {Promise<Object>} - A promise that resolves to the result of the upload operation.
  */
 export const uploadFileToS3 = async (file, folder) => {
-    const params = {
-        Bucket: AWS_BUCKET_NAME,
-        Key: `${folder}/${formattedDate}-${file.originalname}`,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-    };
-    return await new Upload({ client: s3, params }).done();
+    try {
+        let fileBuffer = file.buffer;
+        let fileKey = `${folder}/${formattedDate}-${file.originalname}`;
+
+        // Check if the file is an image
+        const imageMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        if (imageMimeTypes.includes(file.mimetype)) {
+            // Convert to .webp
+            fileBuffer = await convertToWebp(file.buffer);
+            fileKey = `${folder}/${formattedDate}-${file.originalname.replace(/\.[^/.]+$/, '')}.webp`;
+        }
+
+        const params = {
+            Bucket: AWS_BUCKET_NAME,
+            Key: fileKey,
+            Body: fileBuffer,
+            ContentType: file.mimetype === 'image/jpeg' || file.mimetype === 'image/jpg' || file.mimetype === 'image/png' 
+                ? 'image/webp' 
+                : file.mimetype,
+        };
+
+        return await new Upload({ client: s3, params }).done();
+    } catch (error) {
+        console.error("Error uploading file to S3:", error);
+        throw new Error("File upload failed");
+    }
 };
 
 // Function to save image URL in the database
@@ -70,6 +89,21 @@ export const saveImageUrlToDb = async (url, tableName, columnName) => {
  */
 export const updateImageUrlInDb = async (id, url, tableName, columnName) => {
     await pool.query(`UPDATE ${tableName} SET ${columnName} = ? WHERE id = ?`, [url, id]);
+};
+
+/**
+ * Converts an image to the `.webp` format.
+ *
+ * @param {Buffer} imageBuffer - The buffer containing the original image data.
+ * @returns {Promise<Buffer>} - A promise that resolves to a buffer containing the processed `.webp` image.
+ */
+export const convertToWebp = async (imageBuffer) => {
+    try {
+        return await sharp(imageBuffer).webp().toBuffer();
+    } catch (error) {
+        console.error("Error converting image to .webp format:", error);
+        throw new Error("Image processing failed");
+    }
 };
 
 // Function to handle errors

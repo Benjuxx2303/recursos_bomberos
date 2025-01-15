@@ -3,6 +3,7 @@ import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
 import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
+import { exportToExcel } from "../utils/excelExport.js";
 
 
 export const getMantencionesAllDetails = async (req, res) => {
@@ -951,27 +952,6 @@ export const updateMantencion = async (req, res) => {
     }
 };
 
-const value = "mantencion";
-const folder=value;
-const tableName=value;
-
-export const updateImage = async (req, res) => {
-    const { id } = req.params;
-    const file = req.file;
-
-    if (!file) {
-        return res.status(400).json({ message: "Falta el archivo." });
-    }
-
-    try {
-        const data = await uploadFileToS3(file, folder);
-        const newUrl = data.Location;
-        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
-        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
-    } catch (error) {
-        handleError(res, error, "Error al actualizar la imagen");
-    }
-}
 // Nueva función para actualizar el estado de una mantención
 export const updateMaintenanceStatus = async (req, res) => {
     try {
@@ -998,5 +978,130 @@ export const updateMaintenanceStatus = async (req, res) => {
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
-  } 
-  
+  }
+
+export const downloadExcel = async (req, res) => {
+  try {
+    const {
+      taller,
+      estado_mantencion,
+      ord_trabajo,
+      compania,
+      fields, // campos para excel
+    } = req.query;
+
+    // Definir todos los posibles campos que puedes incluir
+    const columnas = {
+      id: "m.id",
+      "bitacora.id": "bitacora.id",
+      "bitacora.compania": "bitacora.compania",
+      "bitacora.conductor": "bitacora.conductor",
+      "bitacora.direccion": "bitacora.direccion",
+      "bitacora.fh_salida": "bitacora.fh_salida",
+      "bitacora.fh_llegada": "bitacora.fh_llegada",
+      "bitacora.km_salida": "bitacora.km_salida",
+      "bitacora.km_llegada": "bitacora.km_llegada",
+      "bitacora.hmetro_salida": "bitacora.hmetro_salida",
+      "bitacora.hmetro_llegada": "bitacora.hmetro_llegada",
+      "bitacora.hbomba_salida": "bitacora.hbomba_salida",
+      "bitacora.hbomba_llegada": "bitacora.hbomba_llegada",
+      "bitacora.obs": "bitacora.obs",
+      patente: "patente",
+      fec_inicio: "fec_inicio",
+      fec_termino: "fec_termino",
+      ord_trabajo: "ord_trabajo",
+      n_factura: "n_factura",
+      img_url: "img_url",
+      cost_ser: "cost_ser",
+      taller: "taller",
+      estado_mantencion: "estado_mantencion",
+      tipo_mantencion: "tipo_mantencion",
+      tipo_mantencion_id: "tipo_mantencion_id",
+    };
+
+    // Inicializar la consulta SQL base
+    let query = `
+            SELECT
+                m.id,
+                b.id AS 'bitacora.id',
+                c.nombre AS 'bitacora.compania',
+                CONCAT(p.rut) AS 'bitacora.conductor',
+                b.direccion AS 'bitacora.direccion',
+                DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.fh_salida',
+                DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.fh_llegada',
+                b.km_salida AS 'bitacora.km_salida',
+                b.km_llegada AS 'bitacora.km_llegada',
+                b.hmetro_salida AS 'bitacora.hmetro_salida',
+                b.hmetro_llegada AS 'bitacora.hmetro_llegada',
+                b.hbomba_salida AS 'bitacora.hbomba_salida',
+                b.hbomba_llegada AS 'bitacora.hbomba_llegada',
+                b.obs AS 'bitacora.obs',
+                ma.patente AS 'patente',
+                DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fec_inicio',
+                DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
+                m.ord_trabajo,
+                m.n_factura,
+                m.img_url,
+                m.cost_ser,
+                t.razon_social AS 'taller',
+                em.nombre AS 'estado_mantencion',
+                tm.nombre AS 'tipo_mantencion',
+                tm.id AS 'tipo_mantencion_id'
+            FROM mantencion m
+            INNER JOIN bitacora b ON m.bitacora_id = b.id
+            INNER JOIN compania c ON b.compania_id = c.id
+            INNER JOIN maquina ma ON m.maquina_id = ma.id
+            INNER JOIN personal p ON b.personal_id = p.id
+            INNER JOIN taller t ON m.taller_id = t.id
+            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+            WHERE m.isDeleted = 0 AND b.isDeleted = 0
+        `;
+
+    const params = [];
+
+    // Agregar filtros de búsqueda
+    if (taller) {
+      query += " AND t.razon_social = ?";
+      params.push(taller);
+    }
+    if (estado_mantencion) {
+      query += " AND em.nombre = ?";
+      params.push(estado_mantencion);
+    }
+    if (ord_trabajo) {
+      query += " AND m.ord_trabajo = ?";
+      params.push(ord_trabajo);
+    }
+    if (compania) {
+      query += " AND c.nombre = ?";
+      params.push(compania);
+    }
+
+    // Ejecutar la consulta con los parámetros
+    const [rows] = await pool.query(query, params);
+
+    // Verificar si se proporcionaron campos específicos y filtrar las columnas
+    const selectedColumns = fields ? fields.split(",") : Object.keys(columnas);
+
+    // Filtrar las filas según las columnas seleccionadas
+    const result = rows.map((row) => {
+      let filteredRow = {};
+      selectedColumns.forEach((col) => {
+        if (row[col] !== undefined) {
+          filteredRow[col] = row[col];
+        }
+      });
+      return filteredRow;
+    });
+
+    // Usamos la función exportToExcel para enviar el archivo Excel
+    exportToExcel(result, res, "mantenciones_detalle");
+  } catch (error) {
+    console.error("Error: ", error);
+    res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};

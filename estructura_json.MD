@@ -133,8 +133,14 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/taller"
 ```
 {
-  "nombre": "test",
-  "fono": "12345678"
+  "tipo": "Test",
+  "razon_social": "Test",
+  "rut": "77.777.777-7",
+  "telefono": "98756478",
+  "contacto": "Test",
+  "tel_contacto": "",
+  "direccion": "",
+  "correo": "ashdjkahs@gmail.com"
 }
 ```
 

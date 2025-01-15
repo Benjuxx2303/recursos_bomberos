@@ -326,7 +326,8 @@ export const createMaquina = async (req, res) => {
     { value: vin, type: 'string', field: 'vin' },
     { value: cost_rev_tec, type: 'decimal', field: 'cost_rev_tec' },
     { value: cost_seg_auto, type: 'decimal', field: 'cost_seg_auto' },
-    { value: peso_kg, type: 'number', field: 'peso_kg' }
+    { value: peso_kg, type: 'number', field: 'peso_kg' },
+    { value: bomba, type: 'number', field: 'bomba' },
   ];
 
   fieldsToValidate.forEach(({ value, type, field }) => validateField(value, type, field));
@@ -380,6 +381,11 @@ export const createMaquina = async (req, res) => {
     } catch (error) {
       errors.push("Error al subir la imagen", error.message);
     }
+  }
+
+  // Validación de bomba
+  if (bomba !== 0 && bomba !== 1) {
+    errors.push({ field: 'bomba', message: 'El campo "bomba" debe ser 0 o 1.' });
   }
 
   // Si hay errores, devolverlos antes de continuar
@@ -572,8 +578,8 @@ export const updateMaquina = async (req, res) => {
     }
 
     if (bomba !== undefined) {
-      if (isNaN(parseFloat(bomba))) {
-        errors.push("Bomba inválida");
+      if (isNaN(parseFloat(bomba)) || (bomba !== 0 && bomba !== 1)) {
+        errors.push("Bomba inválida, debe ser 0 o 1");
       } else {
         updates.bomba = bomba;
       }

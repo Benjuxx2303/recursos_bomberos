@@ -104,7 +104,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             params.push(maquina_id);
         }
 
-        query += ' GROUP BY p.id';
+        query += ' GROUP BY p.id ORDER BY p.id DESC';
 
         // Si se proporciona "page", aplicar paginación
         if (req.query.page) {

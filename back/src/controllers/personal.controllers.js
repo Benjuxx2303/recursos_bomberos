@@ -210,7 +210,7 @@ export const createPersonal = async (req, res) => {
     try {
         // Manejar la carga de archivos si existen
         let img_url = null;
-        let imgLicenciaUrl = null;
+        let imgLicenciaUrl = null; // Cambiado de imgLicencia a imgLicenciaUrl para evitar conflictos
 
         // Subir archivos a S3
         if (req.files) {
@@ -234,7 +234,7 @@ export const createPersonal = async (req, res) => {
                 try {
                     const licenciaData = await uploadFileToS3(imgLicencia, 'personal');
                     if (licenciaData && licenciaData.Location) {
-                        imgLicencia = licenciaData.Location;
+                        imgLicenciaUrl = licenciaData.Location; // Usando imgLicenciaUrl en lugar de imgLicencia
                     } else {
                         errors.push('No se pudo obtener la URL de la imagen de la licencia');
                     }

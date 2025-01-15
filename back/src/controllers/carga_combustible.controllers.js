@@ -390,7 +390,7 @@ export const createCargaCombustibleBitacora = async (req, res) => {
                 compania_id, personal_id, maquina_id, direccion,
                 fh_salida, fh_llegada, clave_id, km_salida, km_llegada,
                 hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted
-            ) VALUES (?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+            ) VALUES (?, ?, ?, ?, STR_TO_DATE(?, \'%d-%m-%Y %H:%i\'), STR_TO_DATE(?, \'%d-%m-%Y %H:%i\'), ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
             [
                 companiaIdNumber, personalIdNumber, maquinaIdNumber, direccion,
                 fh_salida, fh_llegada, claveIdNumber,

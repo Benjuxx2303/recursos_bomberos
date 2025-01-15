@@ -342,20 +342,26 @@ export const createPersonal = async (req, res) => {
 
         // Inserción en la base de datos
         const [rows] = await pool.query(
-            'INSERT INTO personal (rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, fec_ingreso, isDeleted, ven_licencia, imgLicencia, ultima_fec_servicio) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), ?, ?, STR_TO_DATE(?, "%d-%m-%Y"), 0, STR_TO_DATE(?, "%d-%m-%Y"), ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"))',
+            `INSERT INTO personal (
+                rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, 
+                fec_ingreso, isDeleted, ven_licencia, imgLicencia, ultima_fec_servicio
+            ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, 
+                STR_TO_DATE(?, '%d-%m-%Y'), 0, STR_TO_DATE(?, '%d-%m-%Y'), ?, 
+                STR_TO_DATE(?, '%d-%m-%Y %H:%i'))
+            `,
             [
                 rolPersonalIdNumber,
                 rut,
                 nombre,
                 apellido,
                 companiaIdNumber,
-                fec_nac,
-                img_url || null, // Inserta NULL si img_url no se especifica
+                fec_nac || null,         // Si no se proporciona, pasa null
+                img_url || null,         // Si no se proporciona, pasa null
                 obs,
-                fec_ingreso || null, // Inserta NULL si fec_ingreso no se especifica
-                ven_licencia || null, // Inserta NULL si ven_licencia no se especifica
-                imgLicenciaUrl || null, // Inserta NULL si imgLicenciaUrl no se especifica
-                ultima_fec_servicio
+                fec_ingreso || null,     // Si no se proporciona, pasa null
+                ven_licencia || null,    // Si no se proporciona, pasa null
+                imgLicenciaUrl || null,  // Si no se proporciona, pasa null
+                ultima_fec_servicio || null, // Si no se proporciona, pasa null
             ]
         );
 

@@ -87,7 +87,8 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 ### "/api/tipo_maquina"
 ```
 {
-    "clasificacion": "tipo maquina 1"
+    "nombre": "TEST",
+    "descripcion": ""
 }
 ```
 
@@ -102,25 +103,30 @@ Se debe enviar un archivo en `form-data` con la clave `file`.
 # 8. maquina
 ### "/api/maquina"
 ```
+
 {
-  "tipo_maquina_id": 4,
-  "compania_id": 13,
-  "procedencia_id": 4,
-  "codigo": "codigo 1",
-  "patente": "AABB11",
-  "num_chasis": "CM82633A123456",
-  "vin": "1HGCM82633A123456",
-  "bomba": 1,
-  "hmetro_bomba": 10.0,
-  "hmetro_motor": 5.0,
-  "kmetraje": 50.0,
-  "num_motor": "4G63T1234567",
-  "ven_patente": "23-05-2026",
-  "cost_rev_tec": 80000,
-  "ven_rev_tec": "05-10-2025",
-  "cost_seg_auto": 120000,
-  "ven_seg_auto": "12-01-2026"
+  "tipo_maquina_id": 1,
+  "compania_id": 1,
+  "modelo_id": 123,
+  "codigo": "ABC123",
+  "patente": "XYZ-1234",
+  "num_chasis": "1234567890",
+  "vin": "1HGBH41JXMN109186",
+  "bomba": "Bomba A1",
+  "hmetro_bomba": 1500.75,
+  "hmetro_motor": 2500.50,
+  "kmetraje": 10000,
+  "num_motor": "M123456",
+  "ven_patente": "15-03-2025",
+  "procedencia_id": 2,
+  "cost_rev_tec": 1500.25,
+  "ven_rev_tec": "15-06-2025",
+  "cost_seg_auto": 200.50,
+  "ven_seg_auto": "15-06-2025",
+  "peso_kg": 5000,
+  "nombre": "Máquina Excavadora"
 }
+
 ```
 
 # 9. taller

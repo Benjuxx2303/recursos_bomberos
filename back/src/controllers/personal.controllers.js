@@ -372,7 +372,7 @@ export const createPersonal = async (req, res) => {
             apellido,
             compania_id: companiaIdNumber,
             fec_nac,
-            img_url: imgUrl,
+            img_url,
             obs,
             fec_ingreso,
             ven_licencia,

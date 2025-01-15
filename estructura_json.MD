@@ -48,22 +48,28 @@
 ```
 # 3.1. actualizar imagenes
 ### Método PATCH
-### Endpoint: `/api/personal/:id/image`
-
+### Endpoint: `/api/personal/:id`
 ##### Descripción
 Actualiza la imagen asociada al personal especificado por el ID.
-
 ##### Parámetros
 - **URL Params**
   - `id`: ID del personal cuya imagen se desea actualizar (requerido).
-
 ##### Body
-Se debe enviar un archivo en `form-data` con la clave `file`.
-
+Se debe enviar un archivo en `form-data` con las claves `imagen` y `imgLicencia`.
 ###### Ejemplo de `form-data`
-| Clave | Tipo   | Descripción                |
-|-------|--------|----------------------------|
-| file  | archivo| Archivo de imagen a subir. |
+| Clave       | Tipo   | Descripción                |
+|-------------|--------|----------------------------|
+| imagen      | archivo| Archivo de imagen a subir. |
+| imgLicencia | archivo| Archivo de imagen a subir. |
+
+# 3.2. activar y desactivar personal
+### "/api/personal/:id/activate"
+### "/api/personal/:id/deactivate"
+# Query Params
+| Key       | Value        | Descripción        |
+|-----------|--------------|--------------------|
+| id        | 61           | id del personal    |
+| rut       | 23904666-5   | rut del personal   |
 
 # 4. estado_mantencion
 ### "/api/estado_mantencion"

@@ -15,17 +15,18 @@ describe("Stats Controller", () => {
   const mockQueryResponse = (response) => pool.query.mockResolvedValue(response);
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
+  // Test para obtener datos de mantenimiento
   describe("GET /stats/maintenance", () => {
     it("debe devolver los datos de mantenimiento", async () => {
       const mockData = [
-        { mes: "Ene", tipo_mantencion: "Tipo1", total: 5 },
-        { mes: "Feb", tipo_mantencion: "Tipo2", total: 3 },
+        { mes: 1, tipo_mantencion: "tipo1", total: 5 },
+        { mes: 2, tipo_mantencion: "tipo2", total: 3 },
       ];
 
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/maintenance")
+        .get("/stats/maintenance?startDate=2023-01-01&endDate=2023-01-31")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -44,17 +45,18 @@ describe("Stats Controller", () => {
     });
   });
 
+  // Test para obtener datos de servicio
   describe("GET /stats/service", () => {
     it("debe devolver los datos de servicio con claves", async () => {
       const mockData = [
-        { mes: "Ene", tipo_clave: "Clave1", total: 10 },
-        { mes: "Feb", tipo_clave: "Clave2", total: 7 },
+        { mes: 1, tipo_clave: "tipo1", total: 5 },
+        { mes: 2, tipo_clave: "tipo2", total: 3 },
       ];
 
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/service")
+        .get("/stats/service?startDate=2023-01-01&endDate=2023-01-31")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -73,17 +75,17 @@ describe("Stats Controller", () => {
     });
   });
 
+  // Test para obtener datos de combustible
   describe("GET /stats/fuel", () => {
     it("debe devolver los datos de combustible", async () => {
       const mockData = [
-        { mes: "Ene", compania: "Compania1", total_litros: 100 },
-        { mes: "Feb", compania: "Compania2", total_litros: 200 },
+        { mes: 1, compania: "Compania1", total_litros: 100, total_servicios: 5, promedio_litros_servicio: 20 },
       ];
 
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/fuel")
+        .get("/stats/fuel?startDate=2023-01-01&endDate=2023-01-31")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -102,11 +104,11 @@ describe("Stats Controller", () => {
     });
   });
 
+  // Test para obtener datos de compañías
   describe("GET /stats/company", () => {
-    it("debe devolver los datos de la compañía", async () => {
+    it("debe devolver los datos de compañías", async () => {
       const mockData = [
-        { compania: "Compania1", servicios: 10, maquinas: 5 },
-        { compania: "Compania2", servicios: 20, maquinas: 8 },
+        { compania: "Compania1", total_servicios: 10, total_maquinas: 5, total_personal: 3, promedio_minutos_servicio: 30 },
       ];
 
       mockQueryResponse([mockData]);
@@ -131,11 +133,11 @@ describe("Stats Controller", () => {
     });
   });
 
+  // Test para obtener datos de conductores
   describe("GET /stats/driver", () => {
-    it("debe devolver los datos de los conductores", async () => {
+    it("debe devolver los datos de conductores", async () => {
       const mockData = [
-        { conductor: "Conductor1", total_servicios: 5 },
-        { conductor: "Conductor2", total_servicios: 10 },
+        { conductor: "Conductor1", compania: "Compania1", total_servicios: 10, maquinas_conducidas: 3, promedio_minutos_servicio: 25 },
       ];
 
       mockQueryResponse([mockData]);
@@ -160,24 +162,25 @@ describe("Stats Controller", () => {
     });
   });
 
+  // Test para obtener datos de resumen
   describe("GET /stats/summary", () => {
     it("debe devolver los datos de resumen", async () => {
-      const mockData = {
+      const mockSummaryData = {
         pendingMaintenance: 5,
-        servicesThisMonth: 20,
-        fuelConsumption: 1000,
-        totalCompanies: 10,
+        servicesThisMonth: 10,
+        fuelConsumption: 200,
+        totalCompanies: 3,
         activeDrivers: 8,
       };
 
-      mockQueryResponse([mockData]);
+      mockQueryResponse([mockSummaryData]);
 
       const response = await request(app)
         .get("/stats/summary")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toEqual(mockData);
+      expect(response.body.data).toEqual(mockSummaryData);
     });
 
     it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {

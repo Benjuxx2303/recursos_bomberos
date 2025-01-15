@@ -8,6 +8,7 @@ import {
     getMaquinaById,
     getMaquinasDetailsPage,
     updateMaquina,
+    activarMaquinaPorPatente,
 } from "../controllers/maquina.controllers.js";
 
 // Configuración de multer
@@ -29,7 +30,7 @@ router.get(base_route,  getMaquinasDetailsPage); // paginado
 // QueryParams:
 // page:              1
 // pageSize:          10
-
+router.patch(`${base_route}/activar/:patente`, checkRole(['TELECOM']), activarMaquinaPorPatente);
 router.get(`${base_route}/:id`, checkRole(['TELECOM']), getMaquinaById); // Obtener una máquina por ID
 router.post(base_route, checkRole(['TELECOM']), uploadFields, createMaquina); // Crear una nueva máquina
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteMaquina); // dar de baja una máquina

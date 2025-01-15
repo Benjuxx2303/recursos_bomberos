@@ -66,7 +66,7 @@ export const getClaveById = async (req, res) => {
 
 // Crear nueva clave
 export const createClave = async (req, res) => {
-    let { nombre, descripcion } = req.body;
+    let { nombre, descripcion, tipo_clave_id } = req.body;
     const errors = []; // Arreglo para capturar errores
 
     try {
@@ -77,6 +77,10 @@ export const createClave = async (req, res) => {
 
         if (!descripcion || typeof descripcion !== 'string' || descripcion.trim().length === 0) {
             errors.push('El campo "descripcion" no puede estar vacío');
+        }
+
+        if (!tipo_clave_id || typeof tipo_clave_id !== 'number') {
+            errors.push('El campo "tipo_clave_id" no puede estar vacío');
         }
 
         // Validar largo de campos
@@ -95,14 +99,24 @@ export const createClave = async (req, res) => {
             }
         }
 
+        // validar que tipo_clave_id exista
+        if (!tipo_clave_id) {
+            errors.push('El campo "tipo_clave_id" no puede estar vacío');
+        }
+
+        const [tipo_clave] = await pool.query('SELECT * FROM tipo_clave WHERE id = ? AND isDeleted = 0', [tipo_clave_id]);
+        if (tipo_clave.length === 0) {
+            errors.push('El tipo de clave no existe');
+        }
+
         // Si hay errores, devolverlos
         if (errors.length > 0) {
             return res.status(400).json({ errors });
         }
 
         // Insertar nueva clave
-        const [rows] = await pool.query("INSERT INTO clave (nombre, descripcion, isDeleted) VALUES (?, ?, 0)", [nombre, descripcion]);
-        res.status(201).json({ id: rows.insertId, nombre, descripcion });
+        const [rows] = await pool.query("INSERT INTO clave (nombre, descripcion, tipo_clave_id, isDeleted) VALUES (?, ?, ?, 0)", [nombre, descripcion, tipo_clave_id]);
+        res.status(201).json({ id: rows.insertId, nombre, descripcion, tipo_clave_id });
     } catch (error) {
         errors.push(error.message);
         return res.status(500).json({ message: 'Error interno del servidor', errors });
@@ -130,7 +144,7 @@ export const deleteClave = async (req, res) => {
 // Actualizar clave
 export const updateClave = async (req, res) => {
     const { id } = req.params;
-    let { nombre, descripcion, isDeleted } = req.body;
+    let { nombre, descripcion, tipo_clave_id, isDeleted } = req.body;
     const errors = []; // Arreglo para capturar errores
 
     try {
@@ -171,6 +185,18 @@ export const updateClave = async (req, res) => {
                 errors.push("Valor inválido para 'isDeleted'. Debe ser 0 o 1.");
             }
             updates.isDeleted = isDeleted;
+        }
+
+        // Validación del campo 'tipo_clave_id'
+        if (tipo_clave_id !== undefined) {
+            if (isNaN(tipo_clave_id)) {
+                errors.push("El campo 'tipo_clave_id' debe ser un número");
+            }
+            const [tipo_clave] = await pool.query('SELECT * FROM tipo_clave WHERE id = ? AND isDeleted = 0', [tipo_clave_id]);
+            if (tipo_clave.length === 0) {
+                errors.push('El tipo de clave no existe');
+            }
+            updates.tipo_clave_id = tipo_clave_id;
         }
 
         // Si hay errores, devolverlos

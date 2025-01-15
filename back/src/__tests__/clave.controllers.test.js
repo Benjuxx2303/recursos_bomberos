@@ -13,8 +13,7 @@ const token = TOKEN_TEST; // Asigna el valor del token aquí
 
 describe("Clave Controller", () => {
   // Función reutilizable para manejar las respuestas de las consultas
-  const mockQueryResponse = (response) =>
-    pool.query.mockResolvedValue(response);
+  const mockQueryResponse = (response) => pool.query.mockResolvedValue(response);
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
   // Test para obtener claves con paginación
@@ -84,6 +83,7 @@ describe("Clave Controller", () => {
       const newClave = {
         nombre: "ClaveNuevo",
         descripcion: "Descripción de la nueva clave",
+        tipo_clave_id: 1,
       };
 
       mockQueryResponse([{ insertId: 1 }]);
@@ -99,7 +99,7 @@ describe("Clave Controller", () => {
     });
 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
-      const invalidClave = { nombre: "", descripcion: "" }; // Datos inválidos
+      const invalidClave = { nombre: "", descripcion: "", tipo_clave_id: 1 }; // Datos inválidos
 
       const response = await request(app)
         .post("/api/clave")
@@ -115,8 +115,9 @@ describe("Clave Controller", () => {
 
     it("debe devolver un error 400 si el nombre excede los 10 caracteres", async () => {
       const invalidClave = {
-        nombre: "ClaveExcesiva123",
+        nombre: "ClaveExcesiva12312352513",
         descripcion: "Descripción válida",
+        tipo_clave_id: 5,
       };
 
       const response = await request(app)
@@ -132,8 +133,9 @@ describe("Clave Controller", () => {
 
     it("debe devolver un error 400 si la descripción excede los 100 caracteres", async () => {
       const invalidClave = {
-        nombre: "ClaveValida",
-        descripcion: "Descripción con más de cien caracteres, que debería generar un error.",
+        nombre: "AX123",
+        descripcion: "Descripción con más de cien caracteres, que debería generar un error. xdddddasdfasdfadfasdfadfsadsfadsfasdf".repeat(2),
+        tipo_clave_id: 1,
       };
 
       const response = await request(app)
@@ -143,7 +145,7 @@ describe("Clave Controller", () => {
 
       expect(response.status).toBe(400);
       expect(response.body.errors).toEqual([
-        "El largo del código no debe exceder 10 caracteres",
+        "El largo de la descripción no debe exceder 100 caracteres",
       ]);
     });
   });
@@ -177,8 +179,9 @@ describe("Clave Controller", () => {
     it("debe actualizar la clave correctamente", async () => {
       // Definimos los datos que queremos actualizar
       const updatedClave = {
-        nombre: "ClaveActualizada",
+        nombre: "AZ123",
         descripcion: "Descripción actualizada",
+        tipo_clave_id: 1,
       };
 
       // Mock de la respuesta de la base de datos cuando se actualiza la clave

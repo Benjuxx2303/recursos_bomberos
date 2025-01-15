@@ -415,11 +415,12 @@ export const deleteMaquina = async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await pool.query(
-      "UPDATE maquina SET isDeleted = 1 AND disponible = 0 WHERE id = ?",
+      "UPDATE maquina SET isDeleted = 1, disponible = 0 WHERE id = ?",
       [id]
     );
     if (result.affectedRows === 0)
       return res.status(404).json({ message: "Máquina no encontrada" });
+    console.log(result);
     res.status(204).end();
   } catch (error) {
     return res
@@ -722,38 +723,6 @@ export const updateMaquina = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor", errors });
   }
 }
-
-
-const value = "maquina";
-const folder = value;
-const tableName = value;
-
-export const updateImage = async (req, res) => {
-  const { id } = req.params;
-  const file = req.file;
-
-  // console.log({
-  //     id: id,
-  //     file: file,
-  //     folder: folder,
-  //     tableName: tableName
-  // });
-
-  if (!file) {
-    return res.status(400).json({ message: "Falta el archivo." });
-  }
-
-  try {
-    const data = await uploadFileToS3(file, folder);
-    const newUrl = data.Location;
-    await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
-    res
-      .status(200)
-      .json({ message: "Imagen actualizada con éxito", url: newUrl });
-  } catch (error) {
-    handleError(res, error, "Error al actualizar la imagen");
-  }
-};
 
 export const asignarConductores = async (req, res) => {
   const { maquina_id, conductores } = req.body;

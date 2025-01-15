@@ -64,7 +64,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
 
         // Inicializar la consulta y los parámetros
         let query = `
-            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido,
+            SELECT p.id, p.disponible, p.rut, p.nombre AS nombre, p.apellido,
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, p.obs, p.isDeleted,
@@ -146,7 +146,7 @@ export const getPersonalbyID = async (req, res) => {
         }
 
         const query = `
-            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
+            SELECT p.id, p.disponible, p.rut, p.nombre AS nombre, p.apellido, 
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, 
@@ -706,33 +706,76 @@ export const fetchConductoresByCompania = async (req, res) => {
     }
 };
 
-const value = "personal";
-const folder=value;
-const tableName=value;
+// Activar personal por ID o RUT
+export const activatePersonal = async (req, res) => {
+    const { id, rut } = req.query;
 
-export const updateImage = async (req, res) => {
-    const { id } = req.params;
-    const file = req.file;
-
-    // console.log({
-    //     id: id,
-    //     file: file,
-    //     folder: folder,
-    //     tableName: tableName
-    // });
-
-
-    if (!file) {
-        return res.status(400).json({ message: "Falta el archivo." });
+    if ((id && rut) || (!id && !rut)) {
+        return res.status(400).json({
+            message: 'Debes proporcionar solo un parámetro: id o rut.'
+        });
     }
 
+    const queryParam = id ? { field: 'id', value: id } : { field: 'rut', value: rut };
+
     try {
-        const data = await uploadFileToS3(file, folder);
-        const newUrl = data.Location;
-        await updateImageUrlInDb(id, newUrl, tableName); // Pasa el nombre de la tabla
-        res.status(200).json({ message: "Imagen actualizada con éxito", url: newUrl });
+        const [result] = await pool.query(
+            `UPDATE personal SET disponible = 1 WHERE ${queryParam.field} = ?`,
+            [queryParam.value]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: `Personal no encontrado con el ${queryParam.field} especificado`
+            });
+        }
+
+        res.status(200).json({
+            message: 'Personal activado exitosamente'
+        });
+
     } catch (error) {
-        handleError(res, error, "Error al actualizar la imagen");
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: 'Error interno del servidor',
+            error: error.message
+        });
     }
 };
 
+// Desactivar personal por ID o RUT
+export const deactivatePersonal = async (req, res) => {
+    const { id, rut } = req.query;
+
+    if ((id && rut) || (!id && !rut)) {
+        return res.status(400).json({
+            message: 'Debes proporcionar solo un parámetro: id o rut.'
+        });
+    }
+
+    const queryParam = id ? { field: 'id', value: id } : { field: 'rut', value: rut };
+
+    try {
+        const [result] = await pool.query(
+            `UPDATE personal SET disponible = 0 WHERE ${queryParam.field} = ?`,
+            [queryParam.value]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                message: `Personal no encontrado con el ${queryParam.field} especificado`
+            });
+        }
+
+        res.status(200).json({
+            message: 'Personal desactivado exitosamente'
+        });
+
+    } catch (error) {
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+};

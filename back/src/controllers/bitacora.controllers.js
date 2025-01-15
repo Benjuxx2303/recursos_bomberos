@@ -137,9 +137,9 @@ export const getBitacoraById = async (req, res) => {
     try {
         const [rows] = await pool.query(
             `SELECT b.id, 
-                    c.nombre AS compania, p
-                    p.rut AS "rut_conductor", 
-                    m.patente AS "patente_maquina", 
+                    c.nombre AS compania,
+                    p.rut AS 'rut_conductor',
+                    m.patente AS 'patente_maquina',
                     tm.nombre AS tipo_maquina, 
                     DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
                     DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
@@ -168,7 +168,8 @@ export const getBitacoraById = async (req, res) => {
 
         res.json(rows[0]);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        console.error(error.message);
+            return res.status(500).json({ message: error.message });
     }
 };
 

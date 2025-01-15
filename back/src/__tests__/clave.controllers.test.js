@@ -177,41 +177,71 @@ describe("Clave Controller", () => {
   // Test para actualizar una clave
   describe("PATCH /api/clave/:id", () => {
     it("debe actualizar la clave correctamente", async () => {
-      // Definimos los datos que queremos actualizar
       const updatedClave = {
-        nombre: "AZ123",
-        descripcion: "Descripción actualizada",
-        tipo_clave_id: 1,
+          nombre: "AZ123",  // Nombre actualizado
+          descripcion: "Descripción actualizada",
+          tipo_clave_id: 1,
       };
-
-      // Mock de la respuesta de la base de datos cuando se actualiza la clave
-      mockQueryResponse([{ affectedRows: 1 }]); // Simula que la clave fue actualizada correctamente
-
-      // Realizamos la solicitud PATCH
+  
       const response = await request(app)
-        .patch("/api/clave/5") // Suponiendo que el ID de la clave es 5
-        .set("Authorization", `Bearer ${token}`) // Añadimos el token de autorización si es necesario
-        .send(updatedClave); // Enviamos los datos que queremos actualizar
-
-      // Verificamos que la respuesta sea correcta
+          .patch("/api/clave/5")
+          .set("Authorization", `Bearer ${token}`)
+          .send(updatedClave);
+  
       expect(response.status).toBe(200);
       expect(response.body.nombre).toBe(updatedClave.nombre);
       expect(response.body.descripcion).toBe(updatedClave.descripcion);
-    });
+  });
+  
 
     it("debe devolver un error 404 si la clave no existe", async () => {
-      // Mock de la respuesta de la base de datos cuando no se encuentra la clave
-      mockQueryResponse([{ affectedRows: 0 }]); // Simula que no se encontró ninguna clave con el ID proporcionado
+        // Simulamos que la clave no se encuentra
+        mockQueryResponse([[]]); // No se encuentra la clave con el ID dado
 
-      // Realizamos la solicitud PATCH con un ID no existente
-      const response = await request(app)
-        .patch("/api/clave/999") // Usamos un ID que no existe
-        .set("Authorization", `Bearer ${token}`) // Añadimos el token de autorización si es necesario
-        .send({ nombre: "Clave No Existe" }); // Enviamos los datos para actualizar, aunque la clave no exista
+        // Realizamos la solicitud PATCH con un ID no existente
+        const response = await request(app)
+            .patch("/api/clave/999") // Usamos un ID que no existe
+            .set("Authorization", `Bearer ${token}`) // Añadimos el token de autorización si es necesario
+            .send({ nombre: "Clave No Existe" }); // Enviamos los datos para actualizar, aunque la clave no exista
 
-      // Verificamos que la respuesta sea un error 404
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe("Clave no encontrada");
+        // Verificamos que la respuesta sea un error 404
+        expect(response.status).toBe(404);
+        expect(response.body.message).toBe("Clave no encontrada");
     });
-  });
+
+    it("debe devolver un error 400 si el nombre excede los 10 caracteres", async () => {
+        const invalidClave = {
+            nombre: "ClaveMuyLargaExcesiva123456789",
+            descripcion: "Descripción válida",
+            tipo_clave_id: 1,
+        };
+
+        mockQueryResponse([[{ id: 1, nombre: "Clave1", descripcion: "Descripción clave 1", tipo_clave_id: 1 }]]);
+        mockQueryResponse([[{ id: 1, nombre: "TipoClave1" }]]); // Simulamos que tipo_clave_id = 1 existe
+
+        const response = await request(app)
+            .patch("/api/clave/1")
+            .set("Authorization", `Bearer ${token}`)
+            .send(invalidClave);
+
+        expect(response.status).toBe(400);
+        expect(response.body.errors).toContain("El largo del nombre no debe exceder 10 caracteres");
+    });
+
+    it("debe devolver un error 400 si el tipo_clave_id no existe", async () => {
+      const invalidClave = {
+          nombre: "AX90",
+          descripcion: "Descripción válida",
+          tipo_clave_id: 999,  // Tipo de clave que no existe
+      };
+  
+      const response = await request(app)
+          .patch("/api/clave/1") // Suponiendo que el ID de la clave es 1
+          .set("Authorization", `Bearer ${token}`)
+          .send(invalidClave);
+  
+      expect(response.status).toBe(400);  // Ahora esperamos un error 400
+      expect(response.body.errors).toContain("El tipo de clave no existe");
+  });  
+});
 });

@@ -372,28 +372,29 @@ export const createBitacora = async (req, res) => {
         }
 
         // Preparar el valor de obs; si es nulo o no viene, se omitirá
-        const obsValue = obs || null;
+const obsValue = obs || null;  // Si no se pasa, se asigna null
 
-        // Inserción en la base de datos
-        const [rows] = await pool.query(
-            'INSERT INTO bitacora (compania_id, personal_id, maquina_id, direccion, fh_salida, fh_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"), STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0)',
-            [
-                companiaIdNumber,
-                personalIdNumber,
-                maquinaIdNumber,
-                direccion,
-                fh_salida,
-                fh_llegada,
-                claveIdNumber,
-                km_salida,
-                km_llegada,
-                hmetro_salida,
-                hmetro_llegada,
-                hbomba_salida,
-                hbomba_llegada,
-                obsValue
-            ]
-        );
+// Inserción en la base de datos
+const [rows] = await pool.query(
+    'INSERT INTO bitacora (compania_id, personal_id, maquina_id, direccion, fh_salida, fh_llegada, clave_id, km_salida, km_llegada, hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted) VALUES (?, ?, ?, ?, STR_TO_DATE(?, \'%d-%m-%Y %H:%i\'), STR_TO_DATE(?, \'%d-%m-%Y %H:%i\'), ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+        companiaIdNumber,
+        personalIdNumber,
+        maquinaIdNumber,
+        direccion,
+        fh_salida,
+        fh_llegada,
+        claveIdNumber,
+        km_salida,
+        km_llegada,
+        hmetro_salida,
+        hmetro_llegada,
+        hbomba_salida,
+        hbomba_llegada,
+        obsValue,
+        0
+    ]
+);
 
         res.status(201).json({
             id: rows.insertId,

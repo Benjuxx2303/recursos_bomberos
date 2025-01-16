@@ -66,7 +66,7 @@ export const getCompania = async(req, res)=>{
         
         const [rows] = await pool.query('SELECT * FROM compania WHERE id = ? AND isDeleted = 0', [idNumber]);
         if(rows.length <=0) return res.status(404).json({
-            message: 'compania no encontrada'
+            message: 'Compañía no encontrada'
         })
         res.json(rows[0])
     } catch (error) {
@@ -80,20 +80,37 @@ export const getCompania = async(req, res)=>{
 export const createCompania = async (req, res) => {
     let { 
         nombre, 
-        direccion, 
-        // img_url 
+        direccion 
     } = req.body;
     const errors = []; // Arreglo para capturar errores
 
     try {
-        nombre = String(nombre).trim();
-        direccion = String(direccion).trim();
+        // Validar datos antes de procesarlos
+        if (!nombre || typeof nombre !== "string" || nombre.trim().length === 0) {
+            errors.push("Tipo de datos inválido para 'nombre'");
+        }
+
+        if (!direccion || typeof direccion !== "string" || direccion.trim().length === 0) {
+            errors.push("Tipo de datos inválido para 'direccion'");
+        }
+
+        // Validar longitud de los campos si son válidos
+        if (nombre && nombre.length > 50) {
+            errors.push("El nombre de la compañía es demasiado largo");
+        }
+
+        if (direccion && direccion.length > 100) {
+            errors.push("La dirección de la compañía es demasiado larga");
+        }
+
+        // Si hay errores, devolverlos inmediatamente
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
 
         // Manejar la carga de archivos si existen
         let img_url = null;
-
-        // manejo de subida de imagen S3
-        if (req.files){
+        if (req.files) {
             const imagen = req.files.imagen ? req.files.imagen[0] : null;
 
             if (imagen) {
@@ -101,32 +118,13 @@ export const createCompania = async (req, res) => {
                     const imgData = await uploadFileToS3(imagen, "compania");
                     if (imgData && imgData.Location) {
                         img_url = imgData.Location;
-                    } else{
+                    } else {
                         errors.push("No se pudo obtener la URL de la imagen");
                     }
                 } catch (error) {
                     errors.push("Error al subir la imagen", error.message);
                 }
             }
-        }
-
-        // Validación de datos
-        if (typeof nombre !== "string") {
-            errors.push("Tipo de datos inválido para 'nombre'");
-        }
-
-        if (typeof direccion !== "string") {
-            errors.push("Tipo de datos inválido para 'direccion'");
-        }
-
-        // Validar la longitud del nombre
-        if (nombre && nombre.length > 50) {
-            errors.push("El nombre de la compañía es demasiado largo");
-        }
-
-        // Validar la longitud de la dirección
-        if (direccion && direccion.length > 100) {
-            errors.push("La dirección de la compañía es demasiado larga");
         }
 
         // Validar que no exista una compañía con el mismo nombre
@@ -140,21 +138,21 @@ export const createCompania = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
-        // Insertar la compañía (activo por defecto)
-        const [rows] = await pool.query('INSERT INTO compania (nombre, direccion, img_url, isDeleted) VALUES (?, ?, ?, 0)', [nombre, direccion, img_url]);
+        // Insertar la compañía
+        const [rows] = await pool.query('INSERT INTO compania (nombre, direccion, img_url, isDeleted) VALUES (?, ?, ?, 0)', [nombre.trim(), direccion.trim(), img_url]);
 
         res.status(201).json({
             id: rows.insertId,
-            nombre,
-            direccion,
+            nombre: nombre.trim(),
+            direccion: direccion.trim(),
             img_url,
             isDeleted: 0
         });
     } catch (error) {
-        errors.push(error.message);
-        return res.status(500).json({ message: "Error interno del servidor", errors });
+        return res.status(500).json({ message: "Error interno del servidor", errors: [error.message] });
     }
 };
+
 
 // eliminar compañia por id
 export const deleteCompania = async(req, res) =>{
@@ -171,7 +169,7 @@ export const deleteCompania = async(req, res) =>{
 
         const [result] = await pool.query('UPDATE compania SET isDeleted = 1 WHERE id = ?', [idNumber]);
         if (result.affectedRows <= 0) return res.status(404).json({
-            message: 'compania no encontrada'
+            message: 'Compañía no encontrada'
         })
         res.sendStatus(204)
     } catch (error) {

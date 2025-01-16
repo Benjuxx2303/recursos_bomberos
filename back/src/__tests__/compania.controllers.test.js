@@ -146,18 +146,42 @@ describe('Compania Controller', () => {
   // Tests para actualizar una compañía
   describe('PATCH /api/compania/:id', () => {
     it('debe actualizar la compañía correctamente', async () => {
-      const updatedData = { nombre: 'Compania Actualizada', direccion: 'Dirección Actualizada' };
+      const updatedCompania = {
+          nombre: 'Compania Actualizada',
+          direccion: 'Dirección Actualizada'
+      };
 
-      mockQueryResponse([{ affectedRows: 1 }]);
+      // Mock de la respuesta del pool.query para la actualización
+      pool.query = jest.fn()
+          .mockResolvedValueOnce([[]])  // Mock para la verificación del nombre
+          .mockResolvedValueOnce([{ affectedRows: 1 }]) // Mock para la consulta UPDATE
+          .mockResolvedValueOnce([[{ 
+              id: 1, 
+              nombre: updatedCompania.nombre, 
+              direccion: updatedCompania.direccion,
+              img_url: null, // Si img_url no se actualiza, podemos dejarlo como null
+              isDeleted: 0
+          }]]); // Mock para la consulta SELECT posterior a la actualización
 
       const response = await request(app)
-        .patch('/api/compania/1')
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatedData);
+          .patch('/api/compania/1')
+          .set('Authorization', `Bearer ${token}`)
+          .send(updatedCompania);
 
       expect(response.status).toBe(200);
-      expect(response.body.nombre).toBe(updatedData.nombre);
-    });
+      expect(response.body.nombre).toBe(updatedCompania.nombre);
+      expect(response.body.direccion).toBe(updatedCompania.direccion);
+
+      // Verificar que las consultas se ejecutaron correctamente
+      expect(pool.query).toHaveBeenCalledWith(
+          expect.stringContaining('UPDATE compania SET'),
+          expect.arrayContaining([updatedCompania.nombre, updatedCompania.direccion, 1])
+      );
+      expect(pool.query).toHaveBeenCalledWith(
+          expect.stringContaining('SELECT * FROM compania WHERE id = ?'),
+          [1]
+      );
+  });
 
     it('debe devolver un error 404 si la compañía no existe', async () => {
       mockQueryResponse([{ affectedRows: 0 }]);

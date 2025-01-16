@@ -207,7 +207,7 @@ export const getMaquinaById = async (req, res) => {
     const [rows] = await pool.query(
       `
       SELECT
-        m.id AS maquina_id,
+        m.id AS id,
         m.disponible AS disponible,
         m.codigo AS codigo,
         m.patente AS patente,

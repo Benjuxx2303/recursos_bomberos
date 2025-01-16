@@ -77,39 +77,45 @@ describe("Detalle Mantencion Controller", () => {
     });
   });
 
-  // Test para crear un nuevo detalle de mantención
   describe("POST /api/detalle_mantencion", () => {
     it("debe crear un nuevo detalle de mantención", async () => {
-      const newDetalle = {
-        mantencion_id: 1,
-        observacion: "Nueva observación",
-        servicio_id: 1,
-      };
+        const newDetalle = {
+            mantencion_id: 1,
+            observacion: "Nueva observación",
+            servicio_id: 1,
+        };
 
-      mockQueryResponse([{ insertId: 1 }]);
+        // Mock para simular la existencia de mantención y servicio
+        mockQueryResponse([{ "1": 1 }], "SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0");
+        mockQueryResponse([{ "1": 1 }], "SELECT 1 FROM servicio WHERE id = ? AND isDeleted = 0");
+        mockQueryResponse([{ insertId: 1 }], "INSERT INTO detalle_mantencion");
 
-      const response = await request(app)
-        .post("/api/detalle_mantencion")
-        .set("Authorization", `Bearer ${token}`)
-        .send(newDetalle);
+        const response = await request(app)
+            .post("/api/detalle_mantencion")
+            .set("Authorization", `Bearer ${token}`)
+            .send(newDetalle);
 
-      expect(response.status).toBe(201);
-      expect(response.body.id).toBe(1);
-      expect(response.body.mantencion_id).toBe(newDetalle.mantencion_id);
+        expect(response.status).toBe(201);
+        expect(response.body.id).toBe(1);
+        expect(response.body.mantencion_id).toBe(newDetalle.mantencion_id);
     });
 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
-      const invalidDetalle = { mantencion_id: 999, observacion: "", servicio_id: 1 }; // Datos inválidos
+        const invalidDetalle = { mantencion_id: 999, observacion: "", servicio_id: 1 };
 
-      const response = await request(app)
-        .post("/api/detalle_mantencion")
-        .set("Authorization", `Bearer ${token}`)
-        .send(invalidDetalle);
+        // Mock para simular la no existencia de mantención
+        mockQueryResponse([], "SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0");
 
-      expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("Mantención no existe o está eliminada");
+        const response = await request(app)
+            .post("/api/detalle_mantencion")
+            .set("Authorization", `Bearer ${token}`)
+            .send(invalidDetalle);
+
+        expect(response.status).toBe(400);
+        expect(response.body.errors).toContain("Mantención no existe o está eliminada");
     });
-  });
+});
+
 
   // Test para eliminar un detalle de mantención
   describe("DELETE /api/detalle_mantencion/:id", () => {
@@ -155,7 +161,7 @@ describe("Detalle Mantencion Controller", () => {
       expect(response.status).toBe(200);
       expect(response.body.observacion).toBe(updatedDetalle.observacion);
     });
-
+    
     it("debe devolver un error 404 si el detalle no existe", async () => {
       mockQueryResponse([{ affectedRows: 0 }]);
 
@@ -168,20 +174,20 @@ describe("Detalle Mantencion Controller", () => {
       expect(response.body.message).toBe("Detalle de mantención no encontrado");
     });
 
+
+    //TODO: arreglar el test 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidDetalle = {
-        mantencion_id: 999, // Mantención que no existe
-        observacion: "Observación válida",
-        servicio_id: 1,
+        mantencion_id: "abc", // Mantención que no existe
       };
-
+    
       const response = await request(app)
-        .patch("/api/detalle_mantencion/1")
-        .set("Authorization", `Bearer ${token}`)
+        .patch("/api/detalle_mantencion/1") // ID válido de detalle_mantencion
+        .set("Authorization", `Bearer ${token}`) // Token de autorización
         .send(invalidDetalle);
-
+    
       expect(response.status).toBe(400);
       expect(response.body.errors).toContain("Mantención no existe o está eliminada");
-    });
+    });    
   });
 });

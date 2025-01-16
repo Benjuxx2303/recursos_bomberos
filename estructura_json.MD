@@ -308,9 +308,8 @@ Luego de registrar, revisar el correo para verificarlo.
 ```
 {
     "mantencion_id": 1,
-    "tipo_mantencion_id": 2,
-    "observacion": "Detalles de la mantención",
-    "servicio_id": 3
+    "servicio_id": 2,
+    "observacion": "Detalles de la mantención"
 }
 ```
 

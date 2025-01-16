@@ -13,7 +13,8 @@ const token = TOKEN_TEST; // Asigna el valor del token aquí
 
 describe("Division Controller", () => {
   // Función reutilizable para manejar las respuestas de las consultas
-  const mockQueryResponse = (response) => pool.query.mockResolvedValue(response);
+  const mockQueryResponse = (response) =>
+    pool.query.mockResolvedValue(response);
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
   // Test para obtener divisiones con paginación
@@ -141,8 +142,20 @@ describe("Division Controller", () => {
         nombre: "Division Actualizada",
       };
 
-      mockQueryResponse([{ affectedRows: 1 }]);
-      mockQueryResponse([[{ id: 1, nombre: updatedDivision.nombre }]]); // Simulamos la obtención de la división actualizada
+      // Mock de la respuesta del pool.query para la actualización
+      pool.query = jest
+        .fn()
+        .mockResolvedValueOnce([[]]) // Mock para la verificación de que no existe otra división con el mismo nombre
+        .mockResolvedValueOnce([{ affectedRows: 1 }]) // Mock para la consulta UPDATE
+        .mockResolvedValueOnce([
+          [
+            {
+              id: 1,
+              nombre: updatedDivision.nombre,
+              isDeleted: 0, // Campo adicional según tu modelo
+            },
+          ],
+        ]); // Mock para la consulta SELECT posterior a la actualización
 
       const response = await request(app)
         .patch("/api/division/1")
@@ -151,18 +164,58 @@ describe("Division Controller", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.nombre).toBe(updatedDivision.nombre);
+
+      // Verificar que las consultas se ejecutaron correctamente
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "SELECT * FROM division WHERE nombre = ? AND id != ?"
+        ),
+        [updatedDivision.nombre, 1]
+      );
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE division SET"),
+        expect.arrayContaining([updatedDivision.nombre, 1])
+      );
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining("SELECT * FROM division WHERE id = ?"),
+        [1]
+      );
     });
 
     it("debe devolver un error 404 si la división no existe", async () => {
+      const nonExistentDivisionId = 999;
+      const divisionData = {
+        nombre: "Division No Existe",
+      };
+
+      // Simular que la división no se encuentra (affectedRows === 0)
       mockQueryResponse([{ affectedRows: 0 }]);
 
       const response = await request(app)
-        .patch("/api/division/999")
+        .patch(`/api/division/${nonExistentDivisionId}`)
         .set("Authorization", `Bearer ${token}`)
-        .send({ nombre: "Division No Existe" });
+        .send(divisionData);
 
       expect(response.status).toBe(404);
-      expect(response.body.message).toBe("División no encontrada");
+      expect(response.body.message).toBe("Errores de validación");
+      expect(response.body.errors).toContain("División no encontrada");
+    });
+
+    it("debe devolver un error 400 si el nombre es inválido", async () => {
+      const invalidDivisionData = {
+        nombre: "A", // Nombre demasiado corto
+      };
+
+      const response = await request(app)
+        .patch("/api/division/1")
+        .set("Authorization", `Bearer ${token}`)
+        .send(invalidDivisionData);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("Errores de validación");
+      expect(response.body.errors).toContain(
+        "La longitud del nombre debe estar entre 3 y 45 caracteres"
+      );
     });
   });
 });

@@ -84,8 +84,8 @@ Se debe enviar un archivo en `form-data` con las claves `imagen` y `imgLicencia`
 ### "/api/clave"
 ```
 {
-    "codigo": "0001",
-    "descripcion": "Test"
+        "nombre": "TEST",
+        "descripcion": "TEST",
 }
 ```
 

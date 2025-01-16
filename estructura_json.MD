@@ -31,6 +31,7 @@
 ```
 {
     "nombre": "Compañia 1"
+    "direccion": "TEST"
 }
 ```
 

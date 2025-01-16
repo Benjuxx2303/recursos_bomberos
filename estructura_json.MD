@@ -30,7 +30,8 @@
 ### "/api/compania"
 ```
 {
-    "nombre": "Compañia 1"
+    "nombre": "TEST",
+    "direccion": "TEST"
 }
 ```
 

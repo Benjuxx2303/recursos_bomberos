@@ -127,7 +127,7 @@ export const getBitacoraPage = async (req, res) => {
         // Retornar los resultados
         res.json(rows);
     } catch (error) {
-        return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -681,6 +681,7 @@ export const updateBitacora = async (req, res) => {
 
         // Devolver la bitácora actualizada
         const [updatedRows] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
+        // console.log(updatedRows[0].direccion);
         res.json(updatedRows[0]);
     } catch (error) {
         console.error(error); // Para depuración

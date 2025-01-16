@@ -534,7 +534,7 @@ export const updateCargaCombustible = async (req, res) => {
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
-                message: 'Compañía no encontrada'
+                message: 'Carga de Combustible no encontrada'
             });
         }
 

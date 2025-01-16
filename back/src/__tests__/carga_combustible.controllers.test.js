@@ -80,10 +80,26 @@ describe("Carga Combustible Controller", () => {
   describe("POST /api/carga_combustible", () => {
     it("debe crear una nueva carga de combustible", async () => {
       const newCarga = {
-        bitacora_id: 1,
-        litros: 100,
-        valor_mon: 50000,
+        "bitacora.compania_id": 1,
+        "bitacora.personal_id": 29,
+        "bitacora.maquina_id": 8,
+        "bitacora.clave_id": 4,
+        "bitacora.direccion": "Dirección de prueba",
+        "bitacora.f_salida": "11-12-2024",
+        "bitacora.h_salida": "08:00",
+        "bitacora.f_llegada": "11-12-2024",
+        "bitacora.h_llegada": "10:00",
+        "bitacora.km_salida": 1000.5,
+        "bitacora.km_llegada": 1050.5,
+        "bitacora.hmetro_salida": 150.2,
+        "bitacora.hmetro_llegada": 155.2,
+        "bitacora.hbomba_salida": 200.1,
+        "bitacora.hbomba_llegada": 210.1,
+        "bitacora.obs": "Observaciones de la bitácora",
+        litros: 50,
+        valor_mon: 150.75,
       };
+      
 
       mockQueryResponse([{ insertId: 1 }]);
 
@@ -107,9 +123,17 @@ describe("Carga Combustible Controller", () => {
         .send(invalidCarga);
 
       expect(response.status).toBe(400);
+      expect(response.status).toBe(400);
       expect(response.body.errors).toEqual([
+        "Tipo de datos inválido en la bitácora",
         "Ingrese valor válido para 'litros'",
         "Ingrese valor válido para 'valor_mon'",
+        "km_salida es obligatorio",
+        "km_llegada es obligatorio",
+        "hmetro_salida es obligatorio",
+        "hmetro_llegada es obligatorio",
+        "hbomba_salida es obligatorio",
+        "hbomba_llegada es obligatorio",
       ]);
     });
   });
@@ -167,7 +191,7 @@ describe("Carga Combustible Controller", () => {
         .send({ litros: 150 });
 
       expect(response.status).toBe(404);
-      expect(response.body.message).toBe("Carga de combustible no encontrada");
+      expect(response.body.message).toBe("Carga de Combustible no encontrada");
     });
   });
 });

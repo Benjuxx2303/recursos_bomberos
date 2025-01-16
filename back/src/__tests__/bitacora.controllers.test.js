@@ -119,7 +119,15 @@ describe("Bitacora Controller", () => {
         .send(invalidBitacora);
 
       expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("La dirección no puede tener más de 100 caracteres");
+      expect(response.body.errors).toEqual([
+        "Tipo de datos inválido",
+        "Km llegada es requerido",
+        "Km salida es requerido",
+        "Hmetro llegada es requerido",
+        "Hmetro salida es requerido",
+        "Hbomba llegada es requerido",
+        "Hbomba salida es requerido"
+      ])
     });
   });
 
@@ -147,7 +155,7 @@ describe("Bitacora Controller", () => {
     });
   });
 
-  // Test para actualizar una bitácora
+  /// Test para actualizar una bitácora
   describe("PATCH /api/bitacora/:id", () => {
     it("debe actualizar la bitácora correctamente", async () => {
       const updatedBitacora = {
@@ -155,6 +163,8 @@ describe("Bitacora Controller", () => {
       };
 
       mockQueryResponse([{ affectedRows: 1 }]);
+      mockQueryResponse([[{ id: 1, direccion: updatedBitacora.direccion }]]);
+
 
       const response = await request(app)
         .patch("/api/bitacora/1")
@@ -174,7 +184,7 @@ describe("Bitacora Controller", () => {
         .send({ direccion: "Calle No Existe" });
 
       expect(response.status).toBe(404);
-      expect(response.body.message).toBe("Bitácora no encontrada");
+      expect(response.body.message).toBe("Bitácora no encontrada o ya está eliminada");
     });
   });
 });

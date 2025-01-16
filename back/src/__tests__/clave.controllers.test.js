@@ -182,6 +182,9 @@ describe("Clave Controller", () => {
           descripcion: "Descripción actualizada",
           tipo_clave_id: 1,
       };
+
+      mockQueryResponse([{ affectedRows: 1 }]);
+      mockQueryResponse([[{ id: 1,nombre: updatedClave.nombre, descripcion: updatedClave.descripcion }]]);
   
       const response = await request(app)
           .patch("/api/clave/5")
@@ -229,6 +232,7 @@ describe("Clave Controller", () => {
     });
 
     it("debe devolver un error 400 si el tipo_clave_id no existe", async () => {
+      
       const invalidClave = {
           nombre: "AX90",
           descripcion: "Descripción válida",

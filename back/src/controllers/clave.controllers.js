@@ -155,6 +155,23 @@ export const updateClave = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
+        // Validar primero el tipo_clave_id si está presente
+        if (tipo_clave_id !== undefined) {
+            if (isNaN(tipo_clave_id)) {
+                errors.push("El campo 'tipo_clave_id' debe ser un número");
+            } else {
+                const [tipo_clave] = await pool.query('SELECT * FROM tipo_clave WHERE id = ? AND isDeleted = 0', [tipo_clave_id]);
+                if (tipo_clave.length === 0) {
+                    errors.push('El tipo de clave no existe');
+                }
+            }
+        }
+
+        // Si hay errores de validación, devolverlos inmediatamente
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
         // Comprobar si la clave existe
         const [clave] = await pool.query('SELECT * FROM clave WHERE id = ? AND isDeleted = 0', [idNumber]);
         if (clave.length === 0) {

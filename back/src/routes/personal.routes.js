@@ -7,6 +7,8 @@ import {
     getPersonalWithDetailsPage,
     getPersonalbyID,
     updatePersonal,
+    activatePersonal,
+    deactivatePersonal,
 } from "../controllers/personal.controllers.js";
 
 // Configuración de multer
@@ -26,7 +28,19 @@ const base_route = '/personal';
 
 // router.get(base_route, getPersonalWithDetails);
 router.get(base_route, checkRole(['TELECOM']), getPersonalWithDetailsPage); // con paginación
-// http://{url}/api/personal
+// http://{url}/api/personal/
+// QueryParams:
+// id:          61
+// rut:         23904666-5
+
+router.patch(`${base_route}/activate`, activatePersonal);
+// http://{url}/api/personal/activate
+// QueryParams:
+// id:          61
+// rut:         23904666-5
+
+router.patch(`${base_route}/deactivate`, deactivatePersonal);
+// http://{url}/api/personal/deactivate
 // QueryParams:
 // page:              1
 // pageSize:          10

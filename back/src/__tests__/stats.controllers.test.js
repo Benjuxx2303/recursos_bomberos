@@ -1,0 +1,197 @@
+import request from "supertest";
+import app from "../app"; // Asegúrate de importar tu aplicación Express
+import { pool } from "../db.js";
+import { TOKEN_TEST } from "../config.js";
+
+jest.mock("../db.js", () => ({
+  pool: {
+    query: jest.fn(),
+  },
+}));
+
+const token = TOKEN_TEST; // Asigna el valor del token aquí
+
+describe("Stats Controller", () => {
+  const mockQueryResponse = (response) => pool.query.mockResolvedValue(response);
+  const mockQueryError = (error) => pool.query.mockRejectedValue(error);
+
+  // Test para obtener datos de mantenimiento
+  describe("GET /stats/maintenance", () => {
+    it("debe devolver los datos de mantenimiento", async () => {
+      const mockData = [
+        { mes: 1, tipo_mantencion: "tipo1", total: 5 },
+        { mes: 2, tipo_mantencion: "tipo2", total: 3 },
+      ];
+
+      mockQueryResponse([mockData]);
+
+      const response = await request(app)
+        .get("/stats/maintenance?startDate=2023-01-01&endDate=2023-01-31")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(expect.any(Array));
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/stats/maintenance")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error al obtener los datos de mantención");
+    });
+  });
+
+  // Test para obtener datos de servicio
+  describe("GET /stats/service", () => {
+    it("debe devolver los datos de servicio con claves", async () => {
+      const mockData = [
+        { mes: 1, tipo_clave: "tipo1", total: 5 },
+        { mes: 2, tipo_clave: "tipo2", total: 3 },
+      ];
+
+      mockQueryResponse([mockData]);
+
+      const response = await request(app)
+        .get("/stats/service?startDate=2023-01-01&endDate=2023-01-31")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(expect.any(Array));
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/stats/service")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error al obtener los datos de servicios");
+    });
+  });
+
+  // Test para obtener datos de combustible
+  describe("GET /stats/fuel", () => {
+    it("debe devolver los datos de combustible", async () => {
+      const mockData = [
+        { mes: 1, compania: "Compania1", total_litros: 100, total_servicios: 5, promedio_litros_servicio: 20 },
+      ];
+
+      mockQueryResponse([mockData]);
+
+      const response = await request(app)
+        .get("/stats/fuel?startDate=2023-01-01&endDate=2023-01-31")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(expect.any(Array));
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/stats/fuel")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error al obtener los datos de combustible");
+    });
+  });
+
+  // Test para obtener datos de compañías
+  describe("GET /stats/company", () => {
+    it("debe devolver los datos de compañías", async () => {
+      const mockData = [
+        { compania: "Compania1", total_servicios: 10, total_maquinas: 5, total_personal: 3, promedio_minutos_servicio: 30 },
+      ];
+
+      mockQueryResponse([mockData]);
+
+      const response = await request(app)
+        .get("/stats/company")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(expect.any(Array));
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/stats/company")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error al obtener los datos de compañías");
+    });
+  });
+
+  // Test para obtener datos de conductores
+  describe("GET /stats/driver", () => {
+    it("debe devolver los datos de conductores", async () => {
+      const mockData = [
+        { conductor: "Conductor1", compania: "Compania1", total_servicios: 10, maquinas_conducidas: 3, promedio_minutos_servicio: 25 },
+      ];
+
+      mockQueryResponse([mockData]);
+
+      const response = await request(app)
+        .get("/stats/driver")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(expect.any(Array));
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/stats/driver")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error al obtener los datos de conductores");
+    });
+  });
+
+  // Test para obtener datos de resumen
+  describe("GET /stats/summary", () => {
+    it("debe devolver los datos de resumen", async () => {
+      const mockSummaryData = {
+        pendingMaintenance: 5,
+        servicesThisMonth: 10,
+        fuelConsumption: 200,
+        totalCompanies: 3,
+        activeDrivers: 8,
+      };
+
+      mockQueryResponse([mockSummaryData]);
+
+      const response = await request(app)
+        .get("/stats/summary")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(mockSummaryData);
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/stats/summary")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error al obtener los datos de resumen");
+    });
+  });
+});

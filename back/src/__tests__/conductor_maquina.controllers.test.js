@@ -125,19 +125,29 @@ describe("Conductor Maquina Controller", () => {
 
   describe("PATCH /api/conductor_maquina/:id", () => {
     it("debe actualizar un conductor de máquina", async () => {
-      const updatedConductorMaquina = { personal_id: 1, maquina_id: 2 };
-
-      mockQueryResponse([{ affectedRows: 1 }]);
-      mockQueryResponse([[{ id: 1, ...updatedConductorMaquina }]]);
-
+      const updatedConductorMaquina = { 
+        personal_id: 1, 
+        maquina_id: 2,
+        isDeleted: 0
+      };
+    
+      mockQueryResponse([{ affectedRows: 1 }]); // Simular actualización exitosa
+      mockQueryResponse([[{ 
+        id: 1, 
+        personal_id: updatedConductorMaquina.personal_id, 
+        maquina_id: updatedConductorMaquina.maquina_id, 
+        isDeleted: updatedConductorMaquina.isDeleted 
+      }]]); // Simular respuesta de selección
+    
       const response = await request(app)
         .patch("/api/conductor_maquina/1")
         .set("Authorization", `Bearer ${token}`)
         .send(updatedConductorMaquina);
-
+    
       expect(response.status).toBe(200);
       expect(response.body.maquina_id).toBe(updatedConductorMaquina.maquina_id);
     });
+    
 
     it("debe devolver 400 si los datos son inválidos", async () => {
       const invalidConductorMaquina = { personal_id: "abc" };

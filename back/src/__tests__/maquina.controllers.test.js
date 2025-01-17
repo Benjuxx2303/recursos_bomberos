@@ -137,33 +137,50 @@ describe("Máquina Controller", () => {
     });
   });
 
-  // Test para actualizar una máquina
-  describe("PATCH /api/maquina/:id", () => {
-    it("debe actualizar una máquina", async () => {
-      const updatedMaquina = { codigo: "M002", patente: "XYZ789" };
+// Test para actualizar una máquina
+describe("PATCH /api/maquina/:id", () => {
+  it("debe actualizar una máquina correctamente", async () => {
+    const updatedMaquina = { codigo: "M002", patente: "XYZ789" };
 
-      mockQueryResponse([{ affectedRows: 1 }]);
+    // Simulamos una respuesta positiva de la base de datos para la actualización
+    mockQueryResponse([{ affectedRows: 1 }]); // Simulamos que se actualizó una fila
+    mockQueryResponse([[{ id: 1, codigo: updatedMaquina.codigo, patente: updatedMaquina.patente }]]); // Simulamos que la máquina se obtuvo correctamente
 
-      const response = await request(app)
-        .patch("/api/maquina/1")
-        .set("Authorization", `Bearer ${token}`)
-        .send(updatedMaquina);
+    const response = await request(app)
+      .patch("/api/maquina/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send(updatedMaquina);
 
-      expect(response.status).toBe(200);
-    });
-
-    it("debe devolver un error 404 si la máquina no se encuentra", async () => {
-      mockQueryResponse([{ affectedRows: 0 }]);
-
-      const response = await request(app)
-        .patch("/api/maquina/999")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ codigo: "M003" });
-
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe("Máquina no encontrada");
-    });
+    // Verificamos que la respuesta sea correcta
+    expect(response.status).toBe(200);
+    expect(response.body.codigo).toBe(updatedMaquina.codigo);
+    expect(response.body.patente).toBe(updatedMaquina.patente);
   });
+
+  it("debe devolver un error 400 si el ID es inválido", async () => {
+    const response = await request(app)
+      .patch("/api/maquina/abc")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ codigo: "M003" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toContain("ID inválido");
+  });
+
+  it("debe devolver un error 404 si la máquina no se encuentra", async () => {
+    // Simulamos que no se encuentra la máquina
+    mockQueryResponse([{ affectedRows: 0 }]);
+
+    const response = await request(app)
+      .patch("/api/maquina/999")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ codigo: "M003" });
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Máquina no encontrada o no actualizada");
+  });
+});
+
 
   // Test para eliminar una máquina
   describe("DELETE /api/maquina/:id", () => {

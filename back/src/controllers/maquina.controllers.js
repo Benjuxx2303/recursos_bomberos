@@ -439,11 +439,46 @@ export const deleteMaquina = async (req, res) => {
 export const updateMaquina = async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
+  const errors = [];
+
+  // Definir los campos permitidos para actualizar
+  const allowedFields = [
+    "tipo_maquina_id",
+    "compania_id",
+    "modelo_id",
+    "codigo",
+    "patente",
+    "num_chasis",
+    "vin",
+    "bomba",
+    "hmetro_bomba",
+    "hmetro_motor",
+    "kmetraje",
+    "num_motor",
+    "ven_patente",
+    "procedencia_id",
+    "cost_rev_tec",
+    "ven_rev_tec",
+    "cost_seg_auto",
+    "ven_seg_auto",
+    "peso_kg",
+    "nombre"
+  ];
 
   try {
-    const idNumber = parseInt(id);
+    const idNumber = parseInt(id, 10);
     if (isNaN(idNumber)) {
-      return res.status(400).json({ message: "ID inválido" });
+      errors.push("ID inválido");
+    }
+
+    // Verificar si el objeto de actualización está vacío
+    if (!updates || Object.keys(updates).length === 0) {
+      errors.push("Datos de actualización no proporcionados");
+    }
+
+    // Si hay errores de validación, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     // Verificar si la máquina existe
@@ -456,247 +491,27 @@ export const updateMaquina = async (req, res) => {
       return res.status(404).json({ message: "Máquina no encontrada" });
     }
 
-    // manejo de subida de imagen S3
-    if (req.files) {
-      const imagen = req.files.imagen ? req.files.imagen[0] : null;
-      
-      if (imagen) {
-        try {
-          const imgData = await uploadFileToS3(imagen, "maquina");
-          if (imgData && imgData.Location) {
-            updates.img_url = imgData.Location;
-          }
-        } catch (error) {
-          console.error("Error al subir imagen:", error);
-          return res.status(500).json({ message: "Error al subir la imagen" });
-        }
-      }
+    // Filtrar solo los campos permitidos
+    const validUpdates = Object.keys(updates).filter((key) =>
+      allowedFields.includes(key)
+    );
+
+    if (validUpdates.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Ningún campo válido para actualizar" });
     }
 
-<<<<<<< HEAD
-    // Construir la consulta SQL dinámicamente
-    const updateFields = Object.keys(updates)
-      .map(key => `${key} = ?`)
-=======
-    if (tipo_maquina_id !== undefined) {
-      if (isNaN(parseInt(tipo_maquina_id))) {
-        errors.push("Tipo de máquina inválido");
-      } 
-      const [tipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
-      if (tipoMaquina.length === 0) {
-        errors.push("El tipo de máquina con el ID proporcionado no existe o está eliminado.");
-      }
-      else {
-        updates.tipo_maquina_id = tipo_maquina_id;
-      }
+    // Construir la consulta dinámica
+    const setClause = validUpdates.map((key) => `${key} = ?`).join(", ");
+    const updateValues = [...validUpdates.map((key) => updates[key]), idNumber];
+
+    const updateQuery = `UPDATE maquina SET ${setClause} WHERE id = ?`;
+    const [updateResult] = await pool.query(updateQuery, updateValues);
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(404).json({ message: "Máquina no encontrada o no actualizada" });
     }
-
-    if (compania_id !== undefined) {
-      if (isNaN(parseInt(compania_id))) {
-        errors.push("Compañía inválida");
-      }
-      const [compania] = await pool.query("SELECT * FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-      if (compania.length === 0) {
-        errors.push("La compañía con el ID proporcionado no existe o está eliminada.");
-      } else {
-        updates.compania_id = compania_id;
-      }
-    } // Agregar esta llave faltante
-
-    if (modelo_id !== undefined) {
-      if (isNaN(parseInt(modelo_id))) {
-        console.error("Modelo inválido");
-        return res.status(400).json({ message: "Modelo inválido" });
-      }
-      updates.modelo_id = modelo_id;
-    }
-
-    if (codigo !== undefined) {
-      if (typeof codigo !== 'string') {
-        errors.push("Código inválido");
-      } else {
-        updates.codigo = codigo;
-      }
-    }
-    if (nombre !== undefined) {
-      if (typeof nombre !== "string" && nombre !== null) {
-        errors.push("Nombre inválido");
-      } else {
-        updates.nombre = nombre;
-      }
-    }
-
-    if (patente !== undefined) {
-      if (typeof patente !== 'string') {
-        errors.push("Patente inválida");
-      } 
-      const [patenteExists] = await pool.query("SELECT * FROM maquina WHERE patente = ? AND isDeleted = 0", [patente]);
-      if (patenteExists.length > 0) {
-        errors.push("Ya existe una máquina con la patente proporcionada.");
-      } else {
-        updates.patente = patente;}
-
-    }
-
-    if (num_chasis !== undefined) {
-      if (typeof num_chasis !== 'string') {
-        errors.push("Número de chasis inválido");
-      } else {
-        updates.num_chasis = num_chasis;
-      }
-    }
-
-    if (vin !== undefined) {
-      if (typeof vin !== 'string') {
-        errors.push("VIN inválido");
-      } else {
-        updates.vin = vin;
-      }
-    }
-
-    if (bomba !== undefined) {
-      if (isNaN(parseFloat(bomba)) || (bomba !== 0 && bomba !== 1)) {
-        errors.push("Bomba inválida, debe ser 0 o 1");
-      } else {
-        updates.bomba = bomba;
-      }
-    }
-
-    if (hmetro_bomba !== undefined) {
-      if (isNaN(parseFloat(hmetro_bomba))) {
-        errors.push("Hmetro bomba inválido");
-      } else {
-        updates.hmetro_bomba = hmetro_bomba;
-      }
-    }
-
-    if (hmetro_motor !== undefined) {
-      if (isNaN(parseFloat(hmetro_motor))) {
-        errors.push("Hmetro motor inválido");
-      } else {
-        updates.hmetro_motor = hmetro_motor;
-      }
-    }
-
-    if (kmetraje !== undefined) {
-      if (isNaN(parseFloat(kmetraje))) {
-        errors.push("Kmetraje inválido");
-      } else {
-        updates.kmetraje = kmetraje;
-      }
-    }
-
-    if (num_motor !== undefined) {
-      if (typeof num_motor !== 'string') {
-        errors.push("Número de motor inválido");
-      } else {
-        updates.num_motor = num_motor;
-      }
-    }
-
-    // TODO: Validar fechas
-    if (ven_patente !== undefined) {
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-      if (!fechaRegex.test(ven_patente)) {
-        errors.push("Formato de fecha inválido para 'ven_patente'. Debe ser dd-mm-aaaa");
-      } else {
-        updates.ven_patente = ven_patente;
-      }
-    }
-
-    if (procedencia_id !== undefined) {
-      if (isNaN(parseInt(procedencia_id))) {
-        errors.push("Procedencia inválida");
-      }
-      const [procedencia] = await pool.query("SELECT * FROM procedencia WHERE id = ? AND isDeleted = 0", [procedencia_id]);
-      if (procedencia.length === 0) {
-        errors.push("La procedencia con el ID proporcionado no existe o está eliminada.");
-      } else {
-        updates.procedencia_id = procedencia_id;
-      }
-    }
-
-    if (cost_rev_tec !== undefined) {
-      if (isNaN(parseFloat(cost_rev_tec))) {
-        errors.push("Costo revisión técnica inválido");
-      } else {
-        updates.cost_rev_tec = cost_rev_tec;
-      }
-    }
-
-    if (ven_rev_tec !== undefined) {
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-      if (!fechaRegex.test(ven_rev_tec)) {
-        errors.push("Formato de fecha inválido para 'ven_rev_tec'. Debe ser dd-mm-aaaa");
-      } else {
-        updates.ven_rev_tec = ven_rev_tec;
-      }
-    }
-
-    if (cost_seg_auto !== undefined) {
-      if (isNaN(parseFloat(cost_seg_auto))) {
-        errors.push("Costo seguro auto inválido");
-      } else {
-        updates.cost_seg_auto = cost_seg_auto;
-      }
-    }
-
-    if (ven_seg_auto !== undefined) {
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-      if (!fechaRegex.test(ven_seg_auto)) {
-        errors.push("Formato de fecha inválido para 'ven_seg_auto'. Debe ser dd-mm-aaaa");
-      } else {
-        updates.ven_seg_auto = ven_seg_auto;
-      }
-    }
-
-    if (isDeleted !== undefined) {
-      if (isDeleted !== 0 && isDeleted !== 1) {
-        errors.push("Valor inválido para 'isDeleted'. Debe ser 0 o 1.");
-      } else {
-        updates.isDeleted = isDeleted;
-      }
-    }
-
-    if (disponible !== undefined) {
-      if (disponible !== 0 && disponible !== 1) {
-        errors.push("Valor inválido para 'disponible'. Debe ser 0 o 1.");
-      } else {
-        updates.disponible = disponible;
-      }
-    }
-
-    if (peso_kg !== undefined) {
-      if (isNaN(parseInt(peso_kg))) {
-        errors.push("Peso en kg inválido");
-      } else {
-        updates.peso_kg = peso_kg;
-      }
-    }
-
-    if (errors.length > 0) {
-      console.error(errors);
-      return res.status(400).json({ errors }); // Devolver errores de validación
-    }
-
-    // Construir la consulta de actualización
-    const setClause = Object.keys(updates)
-      .map((key) => `${key} = ?`)
->>>>>>> 737fba74f68045985744fb7dc045389dbd6457af
-      .join(", ");
-    
-    const updateValues = [...Object.values(updates), idNumber];
-
-<<<<<<< HEAD
-    const updateQuery = `UPDATE maquina SET ${updateFields} WHERE id = ?`;
-    
-    await pool.query(updateQuery, updateValues);
-=======
-    if (!setClause) {
-      console.error("No se proporcionaron campos para actualizar");
-      return res.status(400).json({ message: "No se proporcionaron campos para actualizar", errors });
-    }
->>>>>>> 737fba74f68045985744fb7dc045389dbd6457af
 
     // Obtener la máquina actualizada
     const [updatedMachine] = await pool.query(
@@ -707,9 +522,9 @@ export const updateMaquina = async (req, res) => {
     res.json(updatedMachine[0]);
   } catch (error) {
     console.error("Error al actualizar máquina:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: "Error al actualizar la máquina",
-      error: error.message 
+      error: error.message,
     });
   }
 };

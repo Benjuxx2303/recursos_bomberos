@@ -218,7 +218,8 @@ export const updateDetalleMantencion = async (req, res) => {
         // Validación de existencia de mantención
         if (mantencion_id !== undefined) {
             const [mantencionExists] = await pool.query("SELECT 1 FROM mantencion WHERE id = ? AND isDeleted = 0", [mantencion_id]);
-            if (mantencionExists.length === 0) {
+            // Verificar si la respuesta es un array y si tiene elementos
+            if (!mantencionExists || mantencionExists.length === 0) {
                 errors.push("Mantención no existe o está eliminada");
             } else {
                 updates.mantencion_id = mantencion_id;
@@ -277,6 +278,7 @@ export const updateDetalleMantencion = async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM detalle_mantencion WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
+        console.log(error); // Mostrar más detalles del error
         return res.status(500).json({ message: "Error interno del servidor", errors: [error.message] });
     }
 };

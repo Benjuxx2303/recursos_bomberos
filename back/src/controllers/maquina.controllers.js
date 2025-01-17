@@ -225,6 +225,7 @@ export const getMaquinaById = async (req, res) => {
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
         m.ven_seg_auto AS ven_seg_auto,
         m.peso_kg AS peso_kg,
+        m.tipo_maquina_id AS tipo_maquina_id,
         tm.nombre AS tipo_maquina,
         c.id AS compania_id,
         c.nombre AS compania,

@@ -773,7 +773,7 @@ export const deleteMantencion = async (req, res) => {
         const [result] = await pool.query("UPDATE mantencion SET isDeleted = 1 WHERE id = ?", [id]);
         if (result.affectedRows === 0) {
             return res.status(404).json({
-                message: "Mantencion no encontrada" 
+                message: "Mantención no encontrada" 
             });
         }
         res.sendStatus(204);
@@ -803,6 +803,14 @@ export const updateMantencion = async (req, res) => {
     const errors = []; // Array para capturar los errores
 
     try {
+        // Verificar si la mantención existe
+        const [existing] = await pool.query("SELECT 1 FROM mantencion WHERE id = ?", [id]);
+        if (existing.length === 0) {
+            errors.push("Mantención no encontrada");
+        }
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
         // Validación de existencia de llaves foráneas
         const foreignKeyValidations = [
             { field: 'bitacora_id', table: 'bitacora' },
@@ -880,11 +888,7 @@ export const updateMantencion = async (req, res) => {
             }
         }
 
-        // Verificar si la mantención existe
-        const [existing] = await pool.query("SELECT 1 FROM mantencion WHERE id = ?", [id]);
-        if (existing.length === 0) {
-            errors.push("Mantención no encontrada");
-        }
+        
 
         // manejar la carga de archivos si existen
         let img_url = null;
@@ -909,6 +913,7 @@ export const updateMantencion = async (req, res) => {
         }
 
         if (errors.length > 0) {
+            console.log(errors);
             return res.status(400).json({ errors });
         }
 

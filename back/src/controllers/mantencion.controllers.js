@@ -803,14 +803,12 @@ export const updateMantencion = async (req, res) => {
     const errors = []; // Array para capturar los errores
 
     try {
-        // Verificar si la mantención existe
+        // Verificar si la mantención existe (inicio)
         const [existing] = await pool.query("SELECT 1 FROM mantencion WHERE id = ?", [id]);
         if (existing.length === 0) {
-            errors.push("Mantención no encontrada");
+            return res.status(404).json({ message: "Mantención no encontrada" });
         }
-        if (errors.length > 0) {
-            return res.status(400).json({ errors });
-        }
+
         // Validación de existencia de llaves foráneas
         const foreignKeyValidations = [
             { field: 'bitacora_id', table: 'bitacora' },
@@ -929,6 +927,7 @@ export const updateMantencion = async (req, res) => {
         
         if (!setClause) {
             errors.push("No se proporcionaron campos para actualizar");
+            console.log(errors)
             return res.status(400).json({ errors });
         }
 
@@ -944,8 +943,8 @@ export const updateMantencion = async (req, res) => {
         const [result] = await pool.query(`UPDATE mantencion SET ${setClause} WHERE id = ?`, values);
 
         if (result.affectedRows === 0) {
-            errors.push("Mantención no encontrada");
-            return res.status(404).json({ errors });
+            // errors.push();
+            return res.status(404).json({ message: "Mantención no encontrada" });
         }
 
         // Obtener y devolver el registro actualizado

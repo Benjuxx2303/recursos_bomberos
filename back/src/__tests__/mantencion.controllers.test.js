@@ -238,12 +238,15 @@ it("debe devolver un error 400 si los datos son inválidos", async () => {
     });
 
     it("debe devolver un error 404 si la mantención no existe", async () => {
+      const updatedMantencionDoesNotExist = {
+        "cost_ser": 50000
+      };
       mockQueryResponse([{ affectedRows: 0 }]); // Simulamos que la mantención no se encuentra
   
       const response = await request(app)
           .patch("/api/mantencion/999")
           .set("Authorization", `Bearer ${token}`)
-          .send({ "bitacora.direccion": "Nueva Dirección" });
+          .send(updatedMantencionDoesNotExist);
   
       expect(response.status).toBe(404);
       expect(response.body.message).toBe("Mantención no encontrada");

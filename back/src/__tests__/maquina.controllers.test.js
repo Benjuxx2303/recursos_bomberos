@@ -164,7 +164,7 @@ describe("PATCH /api/maquina/:id", () => {
       .send({ codigo: "M003" });
 
     expect(response.status).toBe(400);
-    expect(response.body.errors).toContain("ID inválido");
+    expect(response.body.errors).toEqual(["ID debe ser un número válido."]);
   });
 
   it("debe devolver un error 404 si la máquina no se encuentra", async () => {
@@ -177,7 +177,7 @@ describe("PATCH /api/maquina/:id", () => {
       .send({ codigo: "M003" });
 
     expect(response.status).toBe(404);
-    expect(response.body.message).toBe("Máquina no encontrada o no actualizada");
+    expect(response.body.message).toBe("Máquina no encontrada o no se pudo actualizar.");
   });
 });
 

@@ -84,14 +84,16 @@ export const createEstadoMantencion = async (req, res) => {
     const errors = []; // Arreglo para capturar errores
 
     try {
+        // Validar si los campos no son vacíos o no son strings
         nombre = String(nombre).trim();
         descripcion = String(descripcion).trim();
+
         // Validar tipos de datos
-        if (typeof nombre !== 'string') {
+        if (!nombre || typeof nombre !== 'string') {
             errors.push('Tipo de dato inválido para "nombre"');
         }
 
-        if (typeof descripcion !== 'string') {
+        if (!descripcion || typeof descripcion !== 'string') {
             errors.push('Tipo de dato inválido para "descripcion"');
         }
 
@@ -104,7 +106,7 @@ export const createEstadoMantencion = async (req, res) => {
             errors.push('El largo de la descripción no debe exceder 100 caracteres');
         }
 
-        // Si se encontraron errores, devolverlos
+        // Si hay errores de validación, devolver los errores con status 400
         if (errors.length > 0) {
             return res.status(400).json({ message: 'Errores de validación', errors });
         }
@@ -115,11 +117,12 @@ export const createEstadoMantencion = async (req, res) => {
             errors.push('Ya existe un estado de mantención con el mismo nombre');
         }
 
-        // Si se encontraron errores, devolverlos
+        // Si hay errores de validación por duplicados, devolverlos
         if (errors.length > 0) {
             return res.status(400).json({ errors });
         }
 
+        // Insertar nuevo estado de mantención si no hubo errores
         const [rows] = await pool.query(`
             INSERT INTO estado_mantencion (nombre, descripcion, isDeleted) 
             VALUES (?, ?, 0)
@@ -178,9 +181,10 @@ export const updateEstadoMantencion = async (req, res) => {
             }
             // Validar si ya existe un estado de mantención con el mismo nombre
             const [estados] = await pool.query('SELECT * FROM estado_mantencion WHERE nombre = ? ', [nombre]);
-            if (estados.length > 0) {
+            if (estados.length > 0 && estados[0].id !== parseInt(id, 10)) {
                 errors.push('Ya existe un estado de mantención con el mismo nombre');
             }
+
             updates.nombre = nombre;
         }
 
@@ -208,6 +212,7 @@ export const updateEstadoMantencion = async (req, res) => {
 
         // Si se encontraron errores, devolverlos
         if (errors.length > 0) {
+            console.error(errors)
             return res.status(400).json({ errors });
         }
 

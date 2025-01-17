@@ -438,45 +438,23 @@ export const deleteMaquina = async (req, res) => {
 // Actualizar máquina
 export const updateMaquina = async (req, res) => {
   const { id } = req.params;
-  let {
-    tipo_maquina_id,
-    compania_id,
-    modelo_id,
-    codigo,
-    nombre,
-    patente,
-    num_chasis,
-    vin,
-    bomba,
-    hmetro_bomba,
-    hmetro_motor,
-    kmetraje,
-    num_motor,
-    ven_patente,
-    procedencia_id,
-    cost_rev_tec,
-    ven_rev_tec,
-    cost_seg_auto,
-    ven_seg_auto,
-    disponible,
-    peso_kg,
-    isDeleted,
-  } = req.body;
-
-  const errors = [];
+  const updates = req.body;
 
   try {
     const idNumber = parseInt(id);
     if (isNaN(idNumber)) {
-      errors.push("ID inválido");
-      return res.status(400).json({ message: "ID inválido", errors });
+      return res.status(400).json({ message: "ID inválido" });
     }
 
-    // Validaciones
-    const updates = {};
+    // Verificar si la máquina existe
+    const [existingMachine] = await pool.query(
+      "SELECT * FROM maquina WHERE id = ?",
+      [idNumber]
+    );
 
-    // manejar la carga de archivos si existen
-    let img_url = null;
+    if (existingMachine.length === 0) {
+      return res.status(404).json({ message: "Máquina no encontrada" });
+    }
 
     // manejo de subida de imagen S3
     if (req.files) {
@@ -486,17 +464,20 @@ export const updateMaquina = async (req, res) => {
         try {
           const imgData = await uploadFileToS3(imagen, "maquina");
           if (imgData && imgData.Location) {
-            img_url = imgData.Location;
-            updates.img_url = img_url;
-          } else {
-            errors.push("No se pudo obtener la URL de la imagen");
+            updates.img_url = imgData.Location;
           }
         } catch (error) {
-          errors.push("Error al subir la imagen", error.message);
+          console.error("Error al subir imagen:", error);
+          return res.status(500).json({ message: "Error al subir la imagen" });
         }
       }
     }
 
+<<<<<<< HEAD
+    // Construir la consulta SQL dinámicamente
+    const updateFields = Object.keys(updates)
+      .map(key => `${key} = ?`)
+=======
     if (tipo_maquina_id !== undefined) {
       if (isNaN(parseInt(tipo_maquina_id))) {
         errors.push("Tipo de máquina inválido");
@@ -524,6 +505,7 @@ export const updateMaquina = async (req, res) => {
 
     if (modelo_id !== undefined) {
       if (isNaN(parseInt(modelo_id))) {
+        console.error("Modelo inválido");
         return res.status(400).json({ message: "Modelo inválido" });
       }
       updates.modelo_id = modelo_id;
@@ -693,38 +675,46 @@ export const updateMaquina = async (req, res) => {
     }
 
     if (errors.length > 0) {
+      console.error(errors);
       return res.status(400).json({ errors }); // Devolver errores de validación
     }
 
     // Construir la consulta de actualización
     const setClause = Object.keys(updates)
       .map((key) => `${key} = ?`)
+>>>>>>> 737fba74f68045985744fb7dc045389dbd6457af
       .join(", ");
+    
+    const updateValues = [...Object.values(updates), idNumber];
 
+<<<<<<< HEAD
+    const updateQuery = `UPDATE maquina SET ${updateFields} WHERE id = ?`;
+    
+    await pool.query(updateQuery, updateValues);
+=======
     if (!setClause) {
+      console.error("No se proporcionaron campos para actualizar");
       return res.status(400).json({ message: "No se proporcionaron campos para actualizar", errors });
     }
+>>>>>>> 737fba74f68045985744fb7dc045389dbd6457af
 
-    const values = Object.values(updates).concat(idNumber);
-    const [result] = await pool.query(
-      `UPDATE maquina SET ${setClause} WHERE id = ?`,
-      values
+    // Obtener la máquina actualizada
+    const [updatedMachine] = await pool.query(
+      "SELECT * FROM maquina WHERE id = ?",
+      [idNumber]
     );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Máquina no encontrada", errors });
-    }
-
-    const [rows] = await pool.query("SELECT * FROM maquina WHERE id = ?", [
-      idNumber,
-    ]);
-    res.json(rows[0]);
+    res.json(updatedMachine[0]);
   } catch (error) {
-    errors.push(error.message);
-    return res.status(500).json({ message: "Error interno del servidor", errors });
+    console.error("Error al actualizar máquina:", error);
+    return res.status(500).json({ 
+      message: "Error al actualizar la máquina",
+      error: error.message 
+    });
   }
-}
+};
 
+// Asignar conductores
 export const asignarConductores = async (req, res) => {
   const { maquina_id, conductores } = req.body;
 

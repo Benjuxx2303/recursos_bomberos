@@ -100,7 +100,10 @@ describe('Estado de Mantención Controller', () => {
         .send(invalidEstado);
 
       expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("Tipo de dato inválido para 'nombre'");
+      expect(response.body.errors).toEqual([
+        "Tipo de dato inválido para \"nombre\"",
+        "Tipo de dato inválido para \"descripcion\""
+      ]);
     });
   });
 
@@ -133,7 +136,14 @@ describe('Estado de Mantención Controller', () => {
     it('debe actualizar el estado de mantención correctamente', async () => {
       const updatedEstado = { nombre: 'Mantenimiento', descripcion: 'Estado de mantenimiento actualizado' };
 
-      mockQueryResponse([{ affectedRows: 1 }]);
+      mockQueryResponse([]); // Mock para la consulta de validación de nombre
+      mockQueryResponse([{ affectedRows: 1 }]); // Mock para la actualización
+      mockQueryResponse([[{ 
+        id: 1, 
+        nombre: updatedEstado.nombre, 
+        descripcion: updatedEstado.descripcion 
+      }]]); // Mock para la consulta posterior al update
+
 
       const response = await request(app)
         .patch('/api/estado_mantencion/1')

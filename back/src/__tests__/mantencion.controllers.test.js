@@ -113,24 +113,30 @@ TODO://ARREGLAR CREAR NUEVA MANTENCION
 describe("POST /api/mantencion", () => {
   it("debe crear una nueva mantención", async () => {
     const newMantencion = {
-      "bitacora.compania_id": 1,  // Asegúrate de que sea un número
-      "bitacora.personal_id": 1,  // Asegúrate de que sea un número
-      "bitacora.direccion": "Dirección 1",  // Asegúrate de que sea una cadena
-      "bitacora.km_salida": 100,  // Asegúrate de que sea un número
-      "bitacora.km_llegada": 150,  // Asegúrate de que sea un número
-      "bitacora.hmetro_salida": 5,  // Asegúrate de que sea un número
-      "bitacora.hmetro_llegada": 6,  // Asegúrate de que sea un número
-      "bitacora.hbomba_salida": 10,  // Asegúrate de que sea un número
-      "bitacora.hbomba_llegada": 11,  // Asegúrate de que sea un número
-      maquina_id: 1,  // Asegúrate de que sea un número
-      taller_id: 1,  // Asegúrate de que sea un número
-      estado_mantencion_id: 1,  // Asegúrate de que sea un número
-      tipo_mantencion_id: 1,  // Asegúrate de que sea un número
-      ord_trabajo: "ORD123",  // Asegúrate de que sea una cadena
-      n_factura: "FACT123",  // Puede ser una cadena
-      cost_ser: 200,  // Asegúrate de que sea un número
-      fec_inicio: "01-01-2025",  // Fecha como cadena
-      fec_termino: "02-01-2025"  // Fecha como cadena
+      "bitacora.compania_id": 2,
+      "bitacora.personal_id": 29,
+      "bitacora.clave_id": 4,
+      "bitacora.direccion": "Dirección de destino",
+      "bitacora.f_salida": "01-01-2024",
+      "bitacora.h_salida": "08:30",
+      "bitacora.f_llegada": "01-01-2024",
+      "bitacora.h_llegada": "12:45",
+      "bitacora.km_salida": 1500,
+      "bitacora.km_llegada": 1600,
+      "bitacora.hmetro_salida": 120.5,
+      "bitacora.hmetro_llegada": 130.7,
+      "bitacora.hbomba_salida": 50,
+      "bitacora.hbomba_llegada": 55.8,
+      "bitacora.obs": "Observaciones adicionales si hay alguna",
+      "maquina_id": 8,
+      "taller_id": 4,
+      "estado_mantencion_id": 1,
+      "tipo_mantencion_id": 1,
+      "ord_trabajo": "OT12345",
+      "n_factura": 45678,
+      "cost_ser": 50000,
+      "fec_inicio": "01-01-2024", // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+      "fec_termino": "02-01-2024" // Esta fecha es opcional y debe ser en formato dd-mm-yyyy  // Fecha como cadena
     };
 
     mockQueryResponse([{ insertId: 1 }]);  // Simula la respuesta de la base de datos
@@ -147,20 +153,26 @@ describe("POST /api/mantencion", () => {
   });
 
 
-  it("debe devolver un error 400 si los datos son inválidos", async () => {
-    const invalidMantencion = { "bitacora.compania_id": "", "bitacora.personal_id": ""}; // Datos inválidos
+it("debe devolver un error 400 si los datos son inválidos", async () => {
+    const invalidMantencion = { "bitacora.compania_id": "", "bitacora.personal_id": "" }; // Datos inválidos
 
     const response = await request(app)
-      .post("/api/mantencion")
-      .set("Authorization", `Bearer ${token}`)
-      .send(invalidMantencion);
+        .post("/api/mantencion")
+        .set("Authorization", `Bearer ${token}`)
+        .send(invalidMantencion);
 
     expect(response.status).toBe(400);
     expect(response.body.errors).toEqual([
-      'El campo "compania_id" no puede estar vacío',
-      'El campo "personal_id" no puede estar vacío',
+        "Tipo de datos inválido en la bitácora",
+        "km_salida es obligatorio",
+        "km_llegada es obligatorio",
+        "hmetro_salida es obligatorio",
+        "hmetro_llegada es obligatorio",
+        "hbomba_salida es obligatorio",
+        "hbomba_llegada es obligatorio",
     ]);
-  });
+});
+
 });
 
 
@@ -193,7 +205,26 @@ describe("POST /api/mantencion", () => {
     it("debe actualizar la mantención correctamente", async () => {
       const updatedMantencion = {
         "bitacora.direccion": "Nueva Dirección",
-        // Agrega otros campos según sea necesario
+        "bitacora.f_salida": "01-01-2024",
+        "bitacora.h_salida": "08:30",
+        "bitacora.f_llegada": "01-01-2024",
+        "bitacora.h_llegada": "12:45",
+        "bitacora.km_salida": 1500,
+        "bitacora.km_llegada": 1600,
+        "bitacora.hmetro_salida": 120.5,
+        "bitacora.hmetro_llegada": 130.7,
+        "bitacora.hbomba_salida": 50,
+        "bitacora.hbomba_llegada": 55.8,
+        "bitacora.obs": "Observaciones adicionales si hay alguna",
+        "maquina_id": 8,
+        "taller_id": 4,
+        "estado_mantencion_id": 1,
+        "tipo_mantencion_id": 1,
+        "ord_trabajo": "OT12345",
+        "n_factura": 45678,
+        "cost_ser": 50000,
+        "fec_inicio": "01-01-2024", // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
+        "fec_termino": "02-01-2024" // Esta fecha es opcional y debe ser en formato dd-mm-yyyy
       };
 
       mockQueryResponse([{ affectedRows: 1 }]);
@@ -207,13 +238,16 @@ describe("POST /api/mantencion", () => {
     });
 
     it("debe devolver un error 404 si la mantención no existe", async () => {
+      const updatedMantencionDoesNotExist = {
+        "cost_ser": 50000
+      };
       mockQueryResponse([{ affectedRows: 0 }]); // Simulamos que la mantención no se encuentra
-
+  
       const response = await request(app)
-        .patch("/api/mantencion/999")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ "bitacora.direccion": "Dirección Cualquiera" });
-
+          .patch("/api/mantencion/999")
+          .set("Authorization", `Bearer ${token}`)
+          .send(updatedMantencionDoesNotExist);
+  
       expect(response.status).toBe(404);
       expect(response.body.message).toBe("Mantención no encontrada");
     });

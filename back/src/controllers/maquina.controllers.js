@@ -537,16 +537,11 @@ export const updateMaquina = async (req, res) => {
       }
     }
     if (nombre !== undefined) {
-      if (typeof nombre !== "string") {
-        return res.status(400).json({ message: "Nombre inválido" });
+      if (typeof nombre !== "string" && nombre !== null) {
+        errors.push("Nombre inválido");
+      } else {
+        updates.nombre = nombre;
       }
-      updates.nombre = nombre;
-    }
-    if (nombre !== undefined) {
-      if (typeof nombre !== "string") {
-        return res.status(400).json({ message: "Nombre inválido" });
-      }
-      updates.nombre = nombre;
     }
 
     if (patente !== undefined) {

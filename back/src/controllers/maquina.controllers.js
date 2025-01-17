@@ -524,6 +524,7 @@ export const updateMaquina = async (req, res) => {
 
     if (modelo_id !== undefined) {
       if (isNaN(parseInt(modelo_id))) {
+        console.error("Modelo inválido");
         return res.status(400).json({ message: "Modelo inválido" });
       }
       updates.modelo_id = modelo_id;
@@ -693,6 +694,7 @@ export const updateMaquina = async (req, res) => {
     }
 
     if (errors.length > 0) {
+      console.error(errors);
       return res.status(400).json({ errors }); // Devolver errores de validación
     }
 
@@ -702,6 +704,7 @@ export const updateMaquina = async (req, res) => {
       .join(", ");
 
     if (!setClause) {
+      console.error("No se proporcionaron campos para actualizar");
       return res.status(400).json({ message: "No se proporcionaron campos para actualizar", errors });
     }
 

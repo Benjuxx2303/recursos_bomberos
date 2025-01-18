@@ -568,8 +568,7 @@ export const createMantencion = async (req, res) => {
         bitacora_id,
         maquina_id,
         taller_id,
-        estado_mantencion_id,
-        tipo_mantencion_id,  // Nuevo campo tipo_mantencion_id
+        tipo_mantencion_id,
         fec_inicio,
         fec_termino,
         ord_trabajo,
@@ -580,11 +579,13 @@ export const createMantencion = async (req, res) => {
     // Array para almacenar los errores
     const errors = [];
 
+    // Set default estado_mantencion_id to 1 (regardless of what client sends)
+    const estado_mantencion_id = 1;
+
     // Validaciones de tipo de datos
     if (isNaN(parseInt(bitacora_id))) errors.push('El ID de la bitácora es inválido');
     if (isNaN(parseInt(maquina_id))) errors.push('El ID de la máquina es inválido');
     if (isNaN(parseInt(taller_id))) errors.push('El ID del taller es inválido');
-    if (isNaN(parseInt(estado_mantencion_id))) errors.push('El ID del estado de mantención es inválido');
     if (isNaN(parseInt(tipo_mantencion_id))) errors.push('El ID del tipo de mantención es inválido');
     if (typeof ord_trabajo !== 'string') errors.push('El número de orden de trabajo debe ser una cadena de texto');
     if (n_factura && isNaN(parseInt(n_factura))) errors.push('El número de factura es inválido');
@@ -613,9 +614,6 @@ export const createMantencion = async (req, res) => {
 
         const [taller] = await pool.query("SELECT * FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
         if (taller.length === 0) errors.push('Taller no existe');
-
-        const [estadoMantencion] = await pool.query("SELECT * FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
-        if (estadoMantencion.length === 0) errors.push('Estado de mantención no existe');
 
         const [tipoMantencion] = await pool.query("SELECT * FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
         if (tipoMantencion.length === 0) errors.push('Tipo de mantención no existe');

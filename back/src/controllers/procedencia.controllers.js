@@ -80,7 +80,7 @@ export const createProcedencia = async (req, res) => {
         nombre = nombre.trim();
 
         // Validación de datos
-        if (typeof nombre !== 'string') {
+        if (typeof nombre !== 'string' || nombre === '') {
             errors.push('Nombre es un campo obligatorio y debe ser una cadena válida');
         }
 

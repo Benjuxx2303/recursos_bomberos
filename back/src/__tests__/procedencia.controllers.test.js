@@ -12,7 +12,8 @@ jest.mock("../db.js", () => ({
 const token = TOKEN_TEST; // Asigna el valor del token aquí
 
 describe("Procedencia Controller", () => {
-  const mockQueryResponse = (response) => pool.query.mockResolvedValue(response);
+  const mockQueryResponse = (response) =>
+    pool.query.mockResolvedValue(response);
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
   describe("GET /api/procedencia", () => {
@@ -95,7 +96,9 @@ describe("Procedencia Controller", () => {
         .send(invalidProcedencia);
 
       expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("Nombre es un campo obligatorio y debe ser una cadena válida");
+      expect(response.body.errors).toContain(
+        "Nombre es un campo obligatorio y debe ser una cadena válida"
+      );
     });
   });
 
@@ -124,16 +127,24 @@ describe("Procedencia Controller", () => {
 
   describe("PATCH /api/procedencia/:id", () => {
     it("debe actualizar una procedencia", async () => {
-      const updatedProcedencia = { nombre: "ProcedenciaActualizada" };
+      const updatedProcedencia = { nombre: "Procedencia" };
 
-      mockQueryResponse([{ affectedRows: 1 }]);
-      mockQueryResponse([[{ id: 1, nombre: "ProcedenciaActualizada" }]]);
+      // Simula las respuestas de las consultas
+      mockQueryResponse([[]]); // Simula que no hay ninguna procedencia con el mismo nombre
+      mockQueryResponse([{ affectedRows: 1 }]); // Simula que la actualización fue exitosa
+      mockQueryResponse([[{ id: 1, nombre: updatedProcedencia.nombre }]]); // Simula que la procedencia se actualizó correctamente
 
+      // Realiza la solicitud PATCH para actualizar la procedencia
       const response = await request(app)
         .patch("/api/procedencia/1")
         .set("Authorization", `Bearer ${token}`)
         .send(updatedProcedencia);
 
+      // Verifica la respuesta
+      console.log(
+        "Respuesta de la base de datos 'debe actualizar':",
+        response.body
+      );
       expect(response.status).toBe(200);
       expect(response.body.nombre).toBe(updatedProcedencia.nombre);
     });
@@ -147,7 +158,9 @@ describe("Procedencia Controller", () => {
         .send(invalidProcedencia);
 
       expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("Nombre no puede tener más de 30 caracteres");
+      expect(response.body.errors).toContain(
+        "Nombre no puede tener más de 30 caracteres"
+      );
     });
   });
 });

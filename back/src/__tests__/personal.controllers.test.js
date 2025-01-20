@@ -82,10 +82,13 @@ describe("Personal Controller", () => {
   describe("POST /api/personal", () => {
     it("debe crear un nuevo personal", async () => {
       const newPersonal = {
-        nombre: "Nuevo",
-        apellido: "Usuario",
-        rut: "12345678-9",
-      };
+        rol_personal_id: 1,
+        compania_id: 1,
+        rut: "19643285-K",
+        nombre: "Juan",
+        apellido: "Zarate",
+        fec_nac: "01-01-1990"
+    };
 
       mockQueryResponse([{ insertId: 1 }]);
 
@@ -142,6 +145,7 @@ describe("Personal Controller", () => {
       const updatedData = { nombre: "Actualizado", apellido: "Apellido" };
 
       mockQueryResponse([{ affectedRows: 1 }]);
+      mockQueryResponse([[{ id: 1, nombre: updatedData.nombre, apellido: updatedData.apellido }]]);
 
       const response = await request(app)
         .patch("/api/personal/1")

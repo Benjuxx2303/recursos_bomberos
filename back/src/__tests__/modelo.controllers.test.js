@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../app"; // Asegúrate de importar tu aplicación Express
+import app from "../app.js"; // Asegúrate de importar tu aplicación Express
 import { pool } from "../db.js";
 import { TOKEN_TEST } from "../config.js";
 
@@ -16,7 +16,7 @@ describe("Modelo Controller", () => {
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
   // Test para obtener todos los modelos
-  describe("GET /modelo", () => {
+  describe("GET /api/modelo", () => {
     it("debe devolver la lista de modelos", async () => {
       const mockData = [
         { id: 1, nombre: "Modelo1" },
@@ -26,7 +26,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/modelo")
+        .get("/api/modelo")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -37,7 +37,7 @@ describe("Modelo Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/modelo")
+        .get("/api/modelo")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);
@@ -46,7 +46,7 @@ describe("Modelo Controller", () => {
   });
 
   // Test para obtener un modelo por ID
-  describe("GET /modelo/:id", () => {
+  describe("GET /api/modelo/:id", () => {
     it("debe devolver el modelo solicitado", async () => {
       const mockModelo = {
         id: 1,
@@ -56,7 +56,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([[mockModelo]]);
 
       const response = await request(app)
-        .get("/modelo/1")
+        .get("/api/modelo/1")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -67,7 +67,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([[]]); // No se encuentra el modelo
 
       const response = await request(app)
-        .get("/modelo/999")
+        .get("/api/modelo/999")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(404);
@@ -76,7 +76,7 @@ describe("Modelo Controller", () => {
   });
 
   // Test para crear un nuevo modelo
-  describe("POST /modelo", () => {
+  describe("POST /api/modelo", () => {
     it("debe crear un nuevo modelo", async () => {
       const newModelo = {
         nombre: "ModeloNuevo",
@@ -85,7 +85,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([{ insertId: 1 }]);
 
       const response = await request(app)
-        .post("/modelo")
+        .post("/api/modelo")
         .set("Authorization", `Bearer ${token}`)
         .send(newModelo);
 
@@ -98,7 +98,7 @@ describe("Modelo Controller", () => {
       const invalidModelo = { nombre: 123 }; // Datos inválidos
 
       const response = await request(app)
-        .post("/modelo")
+        .post("/api/modelo")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidModelo);
 
@@ -108,12 +108,12 @@ describe("Modelo Controller", () => {
   });
 
   // Test para eliminar un modelo
-  describe("DELETE /modelo/:id", () => {
+  describe("DELETE /api/modelo/:id", () => {
     it("debe eliminar el modelo correctamente", async () => {
       mockQueryResponse([{ affectedRows: 1 }]);
 
       const response = await request(app)
-        .delete("/modelo/1")
+        .delete("/api/modelo/1")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(204);
@@ -123,7 +123,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([{ affectedRows: 0 }]);
 
       const response = await request(app)
-        .delete("/modelo/999")
+        .delete("/api/modelo/999")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(404);
@@ -132,7 +132,7 @@ describe("Modelo Controller", () => {
   });
 
   // Test para actualizar un modelo
-  describe("PATCH /modelo/:id", () => {
+  describe("PATCH /api/modelo/:id", () => {
     it("debe actualizar el modelo correctamente", async () => {
       const updatedModelo = {
         nombre: "ModeloActualizado",
@@ -142,7 +142,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([[{ id: 1, nombre: "ModeloActualizado" }]]);
 
       const response = await request(app)
-        .patch("/modelo/1")
+        .patch("/api/modelo/1")
         .set("Authorization", `Bearer ${token}`)
         .send(updatedModelo);
 
@@ -154,8 +154,7 @@ describe("Modelo Controller", () => {
       mockQueryResponse([{ affectedRows: 0 }]); // No se encuentra el modelo
 
       const response = await request(app)
-        .patch("/modelo/999")
-        .set("Authorization", `Bearer ${token}`)
+        .patch("/api/modelo/999")
         .send({ nombre: "ModeloNoExistente" });
 
       expect(response.status).toBe(404);
@@ -168,7 +167,7 @@ describe("Modelo Controller", () => {
       };
 
       const response = await request(app)
-        .patch("/modelo/1")
+        .patch("/api/modelo/1")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidModelo);
 

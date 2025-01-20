@@ -100,8 +100,11 @@ export const createSubdivision = async (req, res) => {
     try {
         nombre = nombre.trim();
         // Validación de datos
-        if (typeof nombre !== "string") {
-            errors.push("Tipo de datos inválido para 'nombre'");
+        if (nombre !== undefined) {
+            nombre = nombre.trim();
+            if (typeof nombre !== "string") {
+                errors.push("Tipo de dato inválido para 'nombre'");
+            }
         }
 
         // validacion de longitud de 'nombre'
@@ -126,6 +129,7 @@ export const createSubdivision = async (req, res) => {
 
         // Si hay errores, devolverlos
         if (errors.length > 0) {
+            console.log("Errores de valicion:", errors)
             return res.status(400).json({ errors }); // Devuelve un arreglo con los errores
         }
 
@@ -173,6 +177,7 @@ export const updateSubdivision = async (req, res) => {
         division_id, 
         nombre, 
         isDeleted 
+        
     } = req.body;
 
     const idNumber = parseInt(id);
@@ -183,6 +188,7 @@ export const updateSubdivision = async (req, res) => {
     }
 
     try {
+        console.log("Datos recibidos en el body:", req.body);
         const updates = {};
 
         // Validación de existencia de la división
@@ -207,14 +213,20 @@ export const updateSubdivision = async (req, res) => {
             }
 
             if (nombre.length > 45) {
+                console.log(`Longitud del nombre (${nombre.length}):`, nombre);
                 errors.push("Longitud de 'nombre' no debe exceder 45 caracteres");
             }
 
-            const [subdivisionExists] = await pool.query("SELECT 1 FROM subdivision WHERE nombre = ? AND id != ? AND isDeleted = 0", [nombre, idNumber]);
-            if (subdivisionExists.length > 0) {
+            // Validar que no exista ya la subdivisión con el mismo nombre
+            const [rows] = await pool.query(
+                'SELECT COUNT(*) AS count FROM subdivision WHERE nombre = ? AND id != ?',
+                [nombre, idNumber]
+            );
+            console.log("Respuesta de la consulta:", rows); // Depuración de la respuesta
+            if (rows[0] && rows[0].count > 0) {
                 errors.push("Ya existe una subdivisión con el mismo nombre");
             }
-            
+
             if (errors.length === 0) {
                 updates.nombre = nombre;
             }
@@ -231,6 +243,7 @@ export const updateSubdivision = async (req, res) => {
 
         // Si hay errores de validación, devolverlos
         if (errors.length > 0) {
+            console.log("Errores de validación detectados:", errors);
             return res.status(400).json({ errors });
         }
 
@@ -240,6 +253,7 @@ export const updateSubdivision = async (req, res) => {
             .join(", ");
 
         if (!setClause) {
+            console.log("Errores de validación detectados:", errors);
             return res.status(400).json({
                 message: "No se proporcionaron campos para actualizar"
             });

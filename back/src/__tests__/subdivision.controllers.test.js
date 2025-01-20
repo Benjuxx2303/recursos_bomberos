@@ -153,19 +153,25 @@ describe("Subdivision Controller", () => {
     it("debe actualizar la subdivisión correctamente", async () => {
       const updatedSubdivision = {
         division_id: 1,
-        nombre: "Subdivisión Actualizada",
-      };
+        nombre: "Subdivisión Actualizada", // Máximo 45 caracteres
+        isDeleted: 0,
+    };
+      mockQueryResponse([[]]); // Validación de duplicados (sin registros encontrados)
+      mockQueryResponse([[{ id: 1 }]]); // División existente
+      mockQueryResponse([{ affectedRows: 1 }]); // Actualización exitosa
+      mockQueryResponse([[{ id: 1, nombre: "Subdivisión Actualizada", isDeleted: 0 }]]); // Datos actualizados
+    
+    
 
-      mockQueryResponse([{ affectedRows: 1 }]);
-      mockQueryResponse([[{ id: 1, nombre: updatedSubdivision.nombre }]]);
+        const response = await request(app)
+          .patch("/api/subdivision/1")
+          .set("Authorization", `Bearer ${token}`)
+          .send(updatedSubdivision);
 
-      const response = await request(app)
-        .patch("/api/subdivision/1")
-        .set("Authorization", `Bearer ${token}`)
-        .send(updatedSubdivision);
 
-      expect(response.status).toBe(200);
-      expect(response.body.nombre).toBe(updatedSubdivision.nombre);
+        expect(response.status).toBe(200);
+        expect(response.body.nombre).toBe(updatedSubdivision.nombre);
+        expect(response.body.isDeleted).toBe(updatedSubdivision.isDeleted);
     });
 
     it("debe devolver un error 404 si la subdivisión no existe", async () => {

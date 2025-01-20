@@ -83,13 +83,13 @@ export const createRolPersonal = async (req, res) => {
         nombre = String(nombre).trim();
         descripcion = String(descripcion).trim();
 
-        // Validación de datos
-        if (typeof nombre !== "string") {
-            errors.push("Tipo de datos inválido para 'nombre'");
+         // Validación de datos
+        if (!nombre || typeof nombre !== "string") {
+          errors.push("Tipo de datos inválido para 'nombre'");
         }
 
-        if (typeof descripcion !== "string") {
-            errors.push("Tipo de datos inválido para 'descripcion'");
+        if (!descripcion || typeof descripcion !== "string") {
+          errors.push("Tipo de datos inválido para 'descripcion'");
         }
 
         // Validar longitud
@@ -179,10 +179,11 @@ export const updateRolPersonal = async (req, res) => {
             }
 
             // Validar que no exista ya el rol con el mismo nombre
-            const [rolExists] = await pool.query('SELECT * FROM rol_personal WHERE nombre = ? AND id != ?', [nombre, idNumber]);
-            if (rolExists.length > 0) {
+            const [rows] = await pool.query('SELECT COUNT(*) AS count FROM rol_personal WHERE nombre = ? AND id != ?', [nombre, idNumber]);
+            console.log("Respuesta de la consulta:", rows);  // Depuración de la respuesta
+            if (rows[0] && rows[0].count > 0) {
                 errors.push("Ya existe un rol_personal con ese nombre");
-            }
+        }
 
             updates.nombre = nombre;
         }

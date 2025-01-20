@@ -93,14 +93,18 @@ describe('Rol Personal Controller', () => {
 
     it('debe devolver un error 400 si los datos son inválidos', async () => {
       const invalidRol = { nombre: '', descripcion: '' };
-
+    
       const response = await request(app)
         .post('/api/rol_personal')
         .set('Authorization', `Bearer ${token}`)
         .send(invalidRol);
-
+    
+      // Verificar que el código de estado es 400 (Bad Request)
       expect(response.status).toBe(400);
+    
+      // Verificar que el cuerpo de la respuesta contiene los errores esperados
       expect(response.body.errors).toContain("Tipo de datos inválido para 'nombre'");
+      expect(response.body.errors).toContain("Tipo de datos inválido para 'descripcion'");
     });
   });
 
@@ -131,30 +135,46 @@ describe('Rol Personal Controller', () => {
   // Test para actualizar un rol personal
   describe('PATCH /api/rol_personal/:id', () => {
     it('debe actualizar el rol personal correctamente', async () => {
-      const updatedRol = { nombre: 'Rol Actualizado', descripcion: 'Descripción actualizada' };
+        const updatedRol = { nombre: 'Rol Actualizado', descripcion: 'Descripción actualizada', isDeleted: 0 };
 
-      mockQueryResponse([{ affectedRows: 1 }]);
+        // Simulamos que no existe un rol con el mismo nombre (el nombre 'Rol Actualizado' no debe existir en la base de datos)
+        mockQueryResponse([[ /* Simula que no existe un rol con ese nombre */ ]]);  // Respuesta vacía, lo que significa que el nombre no está duplicado
 
-      const response = await request(app)
-        .patch('/api/rol_personal/1')
-        .set('Authorization', `Bearer ${token}`)
-        .send(updatedRol);
+        // Simulamos la respuesta para la actualización en la base de datos
+        mockQueryResponse([{ affectedRows: 1 }]); // Simula que la actualización afecta una fila
 
-      expect(response.status).toBe(200);
-      expect(response.body.nombre).toBe(updatedRol.nombre);
+        // Simulamos la respuesta de la consulta posterior para obtener el rol actualizado
+        mockQueryResponse([[{ id: 1, nombre: updatedRol.nombre, descripcion: updatedRol.descripcion, isDeleted: updatedRol.isDeleted }]]);
+
+        const response = await request(app)
+            .patch('/api/rol_personal/1')
+            .set('Authorization', `Bearer ${token}`)
+            .send(updatedRol);
+
+        // Log para inspeccionar el cuerpo de la respuesta
+        console.log(response.body);  // Muestra los detalles de la respuesta para depurar
+
+        // Asegúrate de que la respuesta sea exitosa
+        expect(response.status).toBe(200);
+        expect(response.body.nombre).toBe(updatedRol.nombre);
+        expect(response.body.descripcion).toBe(updatedRol.descripcion);
+        expect(response.body.isDeleted).toBe(updatedRol.isDeleted);
     });
 
     it('debe devolver un error 404 si el rol no existe', async () => {
-      mockQueryResponse([{ affectedRows: 0 }]);
+        // Simulamos que no se encontró el rol al intentar actualizarlo
+        mockQueryResponse([{ affectedRows: 0 }]);  // No se ha afectado ninguna fila
 
-      const response = await request(app)
-        .patch('/api/rol_personal/999')
-        .set('Authorization', `Bearer ${token}`)
-        .send({ nombre: 'Rol No Existe' });
+        const response = await request(app)
+            .patch('/api/rol_personal/999')  // ID del rol que no existe
+            .set('Authorization', `Bearer ${token}`)
+            .send({ nombre: 'Rol No Existe' });
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('rol_personal no encontrado');
+        // Aseguramos que el código de respuesta sea 404, indicando que no se encontró el rol
+        expect(response.status).toBe(404);
+
+        // Verificamos que el mensaje de error sea el esperado
+        expect(response.body.message).toBe('rol_personal no encontrado');
     });
-  });
-
+});
 });

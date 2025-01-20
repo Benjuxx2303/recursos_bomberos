@@ -16,7 +16,7 @@ describe("Stats Controller", () => {
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
   // Test para obtener datos de mantenimiento
-  describe("GET /stats/maintenance", () => {
+  describe("GET /api/stats/maintenance", () => {
     it("debe devolver los datos de mantenimiento", async () => {
       const mockData = [
         { mes: 1, tipo_mantencion: "tipo1", total: 5 },
@@ -26,7 +26,7 @@ describe("Stats Controller", () => {
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/maintenance?startDate=2023-01-01&endDate=2023-01-31")
+        .get("/api/stats/maintenance")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -37,7 +37,7 @@ describe("Stats Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/stats/maintenance")
+        .get("/api/stats/maintenance")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);
@@ -46,7 +46,7 @@ describe("Stats Controller", () => {
   });
 
   // Test para obtener datos de servicio
-  describe("GET /stats/service", () => {
+  describe("GET /api/stats/service", () => {
     it("debe devolver los datos de servicio con claves", async () => {
       const mockData = [
         { mes: 1, tipo_clave: "tipo1", total: 5 },
@@ -56,7 +56,7 @@ describe("Stats Controller", () => {
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/service?startDate=2023-01-01&endDate=2023-01-31")
+        .get("/api/stats/service?startDate=2023-01-01&endDate=2023-01-31")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -67,7 +67,7 @@ describe("Stats Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/stats/service")
+        .get("/api/stats/service")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);
@@ -76,7 +76,7 @@ describe("Stats Controller", () => {
   });
 
   // Test para obtener datos de combustible
-  describe("GET /stats/fuel", () => {
+  describe("GET /api/stats/fuel", () => {
     it("debe devolver los datos de combustible", async () => {
       const mockData = [
         { mes: 1, compania: "Compania1", total_litros: 100, total_servicios: 5, promedio_litros_servicio: 20 },
@@ -85,7 +85,7 @@ describe("Stats Controller", () => {
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/fuel?startDate=2023-01-01&endDate=2023-01-31")
+        .get("/api/stats/fuel?startDate=2023-01-01&endDate=2023-01-31")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -96,7 +96,7 @@ describe("Stats Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/stats/fuel")
+        .get("/api/stats/fuel")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);
@@ -105,7 +105,7 @@ describe("Stats Controller", () => {
   });
 
   // Test para obtener datos de compañías
-  describe("GET /stats/company", () => {
+  describe("GET /api/stats/company", () => {
     it("debe devolver los datos de compañías", async () => {
       const mockData = [
         { compania: "Compania1", total_servicios: 10, total_maquinas: 5, total_personal: 3, promedio_minutos_servicio: 30 },
@@ -114,7 +114,7 @@ describe("Stats Controller", () => {
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/company")
+        .get("/api/stats/company")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -125,7 +125,7 @@ describe("Stats Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/stats/company")
+        .get("/api/stats/company")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);
@@ -134,7 +134,7 @@ describe("Stats Controller", () => {
   });
 
   // Test para obtener datos de conductores
-  describe("GET /stats/driver", () => {
+  describe("GET /api/stats/driver", () => {
     it("debe devolver los datos de conductores", async () => {
       const mockData = [
         { conductor: "Conductor1", compania: "Compania1", total_servicios: 10, maquinas_conducidas: 3, promedio_minutos_servicio: 25 },
@@ -143,7 +143,7 @@ describe("Stats Controller", () => {
       mockQueryResponse([mockData]);
 
       const response = await request(app)
-        .get("/stats/driver")
+        .get("/api/stats/driver")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -154,7 +154,7 @@ describe("Stats Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/stats/driver")
+        .get("/api/stats/driver")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);
@@ -163,7 +163,7 @@ describe("Stats Controller", () => {
   });
 
   // Test para obtener datos de resumen
-  describe("GET /stats/summary", () => {
+  describe("GET /api/stats/summary", () => {
     it("debe devolver los datos de resumen", async () => {
       const mockSummaryData = {
         pendingMaintenance: 5,
@@ -176,7 +176,7 @@ describe("Stats Controller", () => {
       mockQueryResponse([mockSummaryData]);
 
       const response = await request(app)
-        .get("/stats/summary")
+        .get("/api/stats/summary")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(200);
@@ -187,7 +187,7 @@ describe("Stats Controller", () => {
       mockQueryError(new Error("Database error"));
 
       const response = await request(app)
-        .get("/stats/summary")
+        .get("/api/stats/summary")
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(500);

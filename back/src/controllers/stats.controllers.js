@@ -48,7 +48,10 @@ export const getMaintenanceData = async (req, res) => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const defaultTypes = {};
     maintenanceTypes.forEach(type => {
-      defaultTypes[type.nombre.toLowerCase()] = 0;
+      // Asegurarse de que type.nombre no sea undefined o null
+      if (type.nombre) {
+        defaultTypes[type.nombre.toLowerCase()] = 0;
+      }
     });
 
     // Crear array con los últimos 6 meses
@@ -73,8 +76,11 @@ export const getMaintenanceData = async (req, res) => {
         item => item.month === meses[row.mes - 1]
       );
       if (monthIndex !== -1) {
-        const tipo = row.tipo_mantencion.toLowerCase();
-        monthsArray[monthIndex][tipo] = row.total;
+        const tipo = row.tipo_mantencion ? row.tipo_mantencion.toLowerCase() : null;
+        // Solo asignamos el valor si tipo_mantencion es válido
+        if (tipo && monthsArray[monthIndex].hasOwnProperty(tipo)) {
+          monthsArray[monthIndex][tipo] = row.total;
+        }
       }
     });
 
@@ -159,11 +165,11 @@ export const getServiceDataWithClaves = async (req, res) => {
     const params = [];
 
     const dateFilter = startDate && endDate ? 
-    'AND b.fh_salida BETWEEN ? AND ?' : 
-    'AND b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
+      'AND b.fh_salida BETWEEN ? AND ?' : 
+      'AND b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
     
     if (startDate && endDate) {
-    params.push(startDate, endDate);
+      params.push(startDate, endDate);
     }
 
     const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
@@ -174,27 +180,27 @@ export const getServiceDataWithClaves = async (req, res) => {
 
     // First, get all tipos_clave
     const [tiposClaves] = await pool.query(
-    'SELECT id, nombre FROM tipo_clave WHERE isDeleted = 0'
+      'SELECT id, nombre FROM tipo_clave WHERE isDeleted = 0'
     );
 
     const query = `
-    SELECT
-      MONTH(b.fh_salida) AS mes,
-      tc.nombre AS tipo_clave,
-      COUNT(*) AS total
-    FROM
-      bitacora b
-      INNER JOIN clave c ON b.clave_id = c.id
-      INNER JOIN tipo_clave tc ON c.tipo_clave_id = tc.id
-    WHERE
-      b.isDeleted = 0
-      ${dateFilter}
-      ${companyFilter}
-      ${machineFilter}
-    GROUP BY
-      mes, tc.nombre
-    ORDER BY
-      mes
+      SELECT
+        MONTH(b.fh_salida) AS mes,
+        tc.nombre AS tipo_clave,
+        COUNT(*) AS total
+      FROM
+        bitacora b
+        INNER JOIN clave c ON b.clave_id = c.id
+        INNER JOIN tipo_clave tc ON c.tipo_clave_id = tc.id
+      WHERE
+        b.isDeleted = 0
+        ${dateFilter}
+        ${companyFilter}
+        ${machineFilter}
+      GROUP BY
+        mes, tc.nombre
+      ORDER BY
+        mes
     `;
 
     const [rows] = await pool.query(query, params);
@@ -204,7 +210,10 @@ export const getServiceDataWithClaves = async (req, res) => {
     // Create default structure with all tipos_clave set to 0
     const defaultTypes = {};
     tiposClaves.forEach(tipo => {
-    defaultTypes[tipo.nombre.toLowerCase()] = 0;
+      // Verificar que tipo.nombre no sea undefined o null
+      if (tipo.nombre) {
+        defaultTypes[tipo.nombre.toLowerCase()] = 0;
+      }
     });
 
     // Crear array con los últimos 6 meses
@@ -229,8 +238,11 @@ export const getServiceDataWithClaves = async (req, res) => {
         item => item.month === meses[row.mes - 1]
       );
       if (monthIndex !== -1) {
-        const tipo = row.tipo_clave.toLowerCase();
-        monthsArray[monthIndex][tipo] = row.total;
+        // Validar que row.tipo_clave no sea undefined o null antes de usar toLowerCase()
+        const tipo = row.tipo_clave ? row.tipo_clave.toLowerCase() : null;
+        if (tipo && monthsArray[monthIndex].hasOwnProperty(tipo)) {
+          monthsArray[monthIndex][tipo] = row.total;
+        }
       }
     });
 
@@ -449,6 +461,7 @@ export const getSummaryData = async (req, res) => {
         OR m.fec_inicio > CURRENT_DATE()
       )
     `);
+    const pendingMaintenanceTotal = pendingMaintenance[0] ? pendingMaintenance[0].total : 0;
 
     // Obtener servicios del mes actual
     const [servicesThisMonth] = await pool.query(`
@@ -458,6 +471,7 @@ export const getSummaryData = async (req, res) => {
       AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
       AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
     `);
+    const servicesThisMonthTotal = servicesThisMonth[0] ? servicesThisMonth[0].total : 0;
 
     // Obtener consumo total de combustible del mes actual relacionado con bitácora
     const [fuelConsumption] = await pool.query(`
@@ -469,6 +483,7 @@ export const getSummaryData = async (req, res) => {
       AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
       AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
     `);
+    const fuelConsumptionTotal = fuelConsumption[0]?.total ?? 0;
 
     // Obtener total de compañías
     const [totalCompanies] = await pool.query(`
@@ -476,6 +491,7 @@ export const getSummaryData = async (req, res) => {
       FROM compania
       WHERE isDeleted = 0
     `);
+    const totalCompaniesTotal = totalCompanies[0] ? totalCompanies[0].total : 0;
 
     // Obtener conductores activos (que han tenido servicios en el último mes)
     const [activeDrivers] = await pool.query(`
@@ -486,19 +502,20 @@ export const getSummaryData = async (req, res) => {
       AND b.isDeleted = 0
       AND b.fh_salida >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
     `);
+    const activeDriversTotal = activeDrivers[0] ? activeDrivers[0].total : 0;
 
     const summaryData = {
-      pendingMaintenance: pendingMaintenance[0].total,
-      servicesThisMonth: servicesThisMonth[0].total,
-      fuelConsumption: Number(fuelConsumption[0].total),
-      totalCompanies: totalCompanies[0].total,
-      activeDrivers: activeDrivers[0].total
+      pendingMaintenance: pendingMaintenanceTotal,
+      servicesThisMonth: servicesThisMonthTotal,
+      fuelConsumption: fuelConsumptionTotal,
+      totalCompanies: totalCompaniesTotal,
+      activeDrivers: activeDriversTotal
     };
 
     res.json({ success: true, data: summaryData });
 
   } catch (error) {
-    console.error(error);
+    console.log({message: `error en /api/stats/summary: ${error.message}`})
     res.status(500).json({ 
       success: false, 
       message: 'Error al obtener los datos de resumen',

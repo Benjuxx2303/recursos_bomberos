@@ -183,7 +183,7 @@ export const updateRolPersonal = async (req, res) => {
             console.log("Respuesta de la consulta:", rows);  // Depuración de la respuesta
             if (rows[0] && rows[0].count > 0) {
                 errors.push("Ya existe un rol_personal con ese nombre");
-        }
+            }
 
             updates.nombre = nombre;
         }

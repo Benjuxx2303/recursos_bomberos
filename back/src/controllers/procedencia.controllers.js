@@ -156,12 +156,11 @@ export const updateProcedencia = async (req, res) => {
                 errors.push('Nombre no puede tener más de 30 caracteres');
             }
 
-            // TODO: mejorar logica. conflicto con la prueba unitaria
-            // // Validar si ya existe la procedencia
-            // const [procedenciaExists] = await pool.query("SELECT * FROM procedencia WHERE nombre = ? AND id != ?", [nombre, idNumber]);
-            // if (procedenciaExists.length > 0) {
-            //     errors.push('Ya existe una procedencia con ese nombre');
-            // }
+            // Validar si ya existe la procedencia con el mismo nombre (excluyendo el ID actual)
+            const [rows] = await pool.query('SELECT COUNT(*) AS count FROM procedencia WHERE nombre = ? AND id != ?', [nombre, idNumber]);
+            if (rows[0] && rows[0].count > 0) {
+                errors.push('Ya existe una procedencia con ese nombre');
+            }
 
             updates.nombre = nombre;
         }
@@ -198,8 +197,8 @@ export const updateProcedencia = async (req, res) => {
             });
         }
 
-        const [rows] = await pool.query("SELECT * FROM procedencia WHERE id = ?", [idNumber]);
-        res.json(rows[0]);
+        const [rowsUpdated] = await pool.query("SELECT * FROM procedencia WHERE id = ?", [idNumber]);
+        res.json(rowsUpdated[0]);
     } catch (error) {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }

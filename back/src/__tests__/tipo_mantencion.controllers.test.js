@@ -136,9 +136,21 @@ describe("Tipo Mantencion Controller", () => {
     it("debe actualizar el tipo de mantención correctamente", async () => {
       const updatedTipoMantencion = {
         nombre: "Mantención Actualizada",
+        isDeleted: 0 
       };
 
+      // Mock para verificar existencia
+      mockQueryResponse([[{ id: 1, nombre: "Nombre Original" }]]);
+      // Mock para verificar duplicados
+      mockQueryResponse([[{ count: 0 }]]);
+      // Mock para la actualización
       mockQueryResponse([{ affectedRows: 1 }]);
+      // Mock para obtener el registro actualizado
+      mockQueryResponse([[{ 
+        id: 1, 
+        nombre: updatedTipoMantencion.nombre,
+        isDeleted: updatedTipoMantencion.isDeleted 
+      }]]);
 
       const response = await request(app)
         .patch("/api/tipo_mantencion/1")
@@ -147,6 +159,7 @@ describe("Tipo Mantencion Controller", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.nombre).toBe(updatedTipoMantencion.nombre);
+      expect(response.body.isDeleted).toBe(updatedTipoMantencion.isDeleted);
     });
 
     it("debe devolver un error 404 si el tipo de mantención no existe", async () => {

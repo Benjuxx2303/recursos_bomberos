@@ -133,7 +133,10 @@ describe("Taller Controller", () => {
 
   describe("PATCH /api/taller/:id", () => {
     it("debe actualizar un taller", async () => {
-      const updatedTaller = { tipo: "TallerActualizado", razon_social: "Razón Actualizada" };
+      const updatedTaller = { 
+        tipo: "TallerActualizado", 
+        razon_social: "Razón Actualizada" 
+      };
 
       mockQueryResponse([{ affectedRows: 1 }]);
       mockQueryResponse([[{ id: 1, ...updatedTaller }]]);

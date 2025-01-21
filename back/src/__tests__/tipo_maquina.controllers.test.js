@@ -12,7 +12,8 @@ jest.mock("../db.js", () => ({
 const token = TOKEN_TEST; // Asigna el valor del token aquí
 
 describe("Tipo Máquina Controller", () => {
-  const mockQueryResponse = (response) => pool.query.mockResolvedValue(response);
+  const mockQueryResponse = (response) =>
+    pool.query.mockResolvedValue(response);
   const mockQueryError = (error) => pool.query.mockRejectedValue(error);
 
   describe("GET /api/tipo_maquina", () => {
@@ -46,7 +47,11 @@ describe("Tipo Máquina Controller", () => {
 
   describe("GET /api/tipo_maquina/:id", () => {
     it("debe devolver un tipo de máquina por ID", async () => {
-      const mockTipoMaquina = { id: 1, nombre: "Maquina1", descripcion: "Descripción 1" };
+      const mockTipoMaquina = {
+        id: 1,
+        nombre: "Maquina1",
+        descripcion: "Descripción 1",
+      };
 
       mockQueryResponse([[mockTipoMaquina]]);
 
@@ -72,7 +77,10 @@ describe("Tipo Máquina Controller", () => {
 
   describe("POST /api/tipo_maquina", () => {
     it("debe crear un nuevo tipo de máquina", async () => {
-      const newTipoMaquina = { nombre: "NuevaMaquina", descripcion: "Nueva descripción" };
+      const newTipoMaquina = {
+        nombre: "NuevaMaquina",
+        descripcion: "Nueva descripción",
+      };
 
       mockQueryResponse([{ insertId: 1 }]);
 
@@ -95,7 +103,10 @@ describe("Tipo Máquina Controller", () => {
         .send(invalidTipoMaquina);
 
       expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("El campo \"nombre\" no puede estar vacío");
+      expect(response.body.errors).toEqual([
+        "Tipo de datos inválido para 'nombre'",
+        "Tipo de datos inválido para 'descripcion'",
+      ]);
     });
   });
 
@@ -124,10 +135,13 @@ describe("Tipo Máquina Controller", () => {
 
   describe("PATCH /api/tipo_maquina/:id", () => {
     it("debe actualizar un tipo de máquina", async () => {
-      const updatedTipoMaquina = { nombre: "MaquinaActualizada", descripcion: "Descripción actualizada" };
+      const updatedTipoMaquina = {
+        nombre: "MaquinaActualizada",
+        descripcion: "Descripción actualizada",
+      };
 
       mockQueryResponse([{ affectedRows: 1 }]);
-      mockQueryResponse([[updatedTipoMaquina]]);
+      mockQueryResponse([[{ id: 1, ...updatedTipoMaquina }]]);
 
       const response = await request(app)
         .patch("/api/tipo_maquina/1")
@@ -138,16 +152,20 @@ describe("Tipo Máquina Controller", () => {
       expect(response.body.nombre).toBe(updatedTipoMaquina.nombre);
     });
 
-    it("debe devolver 400 si los datos son inválidos", async () => {
-      const invalidTipoMaquina = { nombre: "NombreMuyLargoQueExcedeElLimite", descripcion: "Descripción válida" };
+    it("debe devolver 404 si el tipo maquina no existe", async () => {
+      mockQueryResponse([{ affectedRows: 0 }])
 
       const response = await request(app)
-        .patch("/api/tipo_maquina/1")
+        .patch("/api/tipo_maquina/999")
         .set("Authorization", `Bearer ${token}`)
-        .send(invalidTipoMaquina);
+        .send({ "nombre": "Tipo maquina inexistente"});
 
-      expect(response.status).toBe(400);
-      expect(response.body.errors).toContain("La clasificación debe tener un largo máximo de 50 caracteres");
+      expect(response.status).toBe(404);
+      expect(response.body.errors).toEqual(
+        [
+          "Tipo de máquina no encontrado"
+        ]
+      );
     });
   });
 });

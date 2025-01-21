@@ -75,13 +75,12 @@ export const getTipoMantencionById = async (req, res) => {
     }
 };
 
-// Crear tipo de mantención
 export const createTipoMantencion = async (req, res) => {
     const { nombre } = req.body;
     let errors = [];
 
     // Validación de datos
-    if (typeof nombre !== "string") {
+    if (typeof nombre !== "string" || nombre.trim() === "") {
         errors.push("Tipo de datos inválido para 'nombre'");
     }
 
@@ -104,6 +103,7 @@ export const createTipoMantencion = async (req, res) => {
     try {
         // Se crea activo (isDeleted = 0) por defecto
         const [rows] = await pool.query("INSERT INTO tipo_mantencion (nombre, isDeleted) VALUES (?, 0)", [nombre]);
+        console.log('rows: ', rows);
         res.status(201).send({
             id: rows.insertId,
             nombre,
@@ -116,6 +116,7 @@ export const createTipoMantencion = async (req, res) => {
         });
     }
 };
+
 
 // Eliminar tipo de mantención (marcar como eliminado)
 export const deleteTipoMantencion = async (req, res) => {
@@ -148,26 +149,42 @@ export const deleteTipoMantencion = async (req, res) => {
 // Actualizar tipo de mantención
 export const updateTipoMantencion = async (req, res) => {
     const { id } = req.params;
-    const { nombre, isDeleted } = req.body;
+    let { nombre, isDeleted } = req.body;  // Cambiado a let para permitir modificación
     let errors = [];
 
     try {
-        // Validación de existencia de llaves foráneas
+        // Validación de ID
+        const idNumber = parseInt(id);
+        if (isNaN(idNumber)) {
+            errors.push("ID inválido");
+        }
+
         const updates = {};
 
         if (nombre !== undefined) {
-            if (typeof nombre !== "string") {
-                errors.push("Tipo de dato inválido para 'nombre'");
+            nombre = String(nombre).trim();
+
+            if (nombre === "") {
+                errors.push("El nombre no puede estar vacío");
             }
 
-            // Validar largo de campos
             if (nombre.length > 50) {
                 errors.push("Nombre de tipo de mantención muy largo");
             }
 
-            // Validar si ya existe el tipo de mantención con el mismo nombre
-            const [tipoMantencionExists] = await pool.query("SELECT * FROM tipo_mantencion WHERE nombre = ?", [nombre]);
-            if (tipoMantencionExists.length > 0) {
+            // Verificar existencia del registro antes de la actualización
+            const [existingRows] = await pool.query('SELECT * FROM tipo_mantencion WHERE id = ?', [idNumber]);
+            if (existingRows.length === 0) {
+                return res.status(404).json({ message: "Tipo de mantención no encontrada" });
+            }
+
+            // Validar nombre duplicado
+            const [duplicateRows] = await pool.query(
+                'SELECT COUNT(*) AS count FROM tipo_mantencion WHERE nombre = ? AND id != ?', 
+                [nombre, idNumber]
+            );
+            
+            if (duplicateRows[0].count > 0) {
                 errors.push("Ya existe un tipo de mantención con ese nombre");
             }
 
@@ -200,19 +217,29 @@ export const updateTipoMantencion = async (req, res) => {
 
         // Actualizar tipo de mantención en la base de datos
         const [result] = await pool.query(`UPDATE tipo_mantencion SET ${setClause} WHERE id = ?`, values);
+        console.log("Resultado de la actualización:", result);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Tipo de mantención no encontrado" });
         }
+        
+        
 
         // Obtener el registro actualizado
-        const [rows] = await pool.query("SELECT * FROM tipo_mantencion WHERE id = ?", [id]);
-        res.json(rows[0]);
+        const [rows] = await pool.query('SELECT * FROM tipo_mantencion WHERE id = ?', [idNumber]);
+        if (rows.length === 0) {
+            return res.status(404).json({
+                message: 'tipo_mantencion no encontrado'
+            });
+        }
+    console.log('Fila encontrada:', rows[0]);
+    res.json(rows[0]);
     } catch (error) {
-        console.error('error: ', error);
+        console.error('Error interno del servidor:', error); // Mostrar el error completo
+        console.error(error.stack); 
         return res.status(500).json({
             message: "Error interno del servidor",
-            error: error.message
+            error: error // Devuelve el error completo para ver más detalles
         });
     }
 };

@@ -170,44 +170,40 @@ describe("Stats Controller", () => {
 
   // Test para obtener datos de resumen
   describe("GET /api/stats/summary", () => {
-    // TODO: Arreglar este test. recibe valores en "0"
     it("debe devolver los datos de resumen", async () => {
-      const mockSummaryData = [
-        {
-          activeDrivers: 8,
-          fuelConsumption: 200,
-          pendingMaintenance: 5,
-          servicesThisMonth: 10,
-          totalCompanies: 3,
-        },
-      ];
+      const mockSummaryData = {
+        pendingMaintenance: 5,
+        servicesThisMonth: 10,
+        fuelConsumption: 200,
+        totalCompanies: 3,
+        activeDrivers: 8
+      };
     
-      // Verifica que mockQueryResponse esté configurado correctamente
-      mockQueryResponse([
-        {
-          activeDrivers: 8,
-          fuelConsumption: 200,  // Asegúrate de que esto refleje lo que esperas de la consulta
-          pendingMaintenance: 5,
-          servicesThisMonth: 10,
-          totalCompanies: 3,
-        },
-      ]);
-      
+      // Simulamos las respuestas para cada consulta basándonos en el SQL real
+      pool.query.mockImplementation((query) => {
+        if (query.includes('estado_mantencion')) {
+          return Promise.resolve([[{ total: 5 }]]);
+        } else if (query.includes('MONTH(b.fh_salida)') && !query.includes('carga_combustible')) {
+          return Promise.resolve([[{ total: 10 }]]);
+        } else if (query.includes('carga_combustible')) {
+          return Promise.resolve([[{ total: 200 }]]);
+        } else if (query.includes('FROM compania')) {
+          return Promise.resolve([[{ total: 3 }]]);
+        } else if (query.includes('DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)')) {
+          return Promise.resolve([[{ total: 8 }]]);
+        }
+        return Promise.resolve([[{ total: 0 }]]);
+      });
     
       const response = await request(app)
         .get("/api/stats/summary")
         .set("Authorization", `Bearer ${token}`);
     
-      console.log(mockSummaryData); // Añadir para depurar
-      console.log(response.body)
-    
       expect(response.status).toBe(200);
-    
-      // Verificar que los datos en la respuesta coincidan exactamente con los esperados
+      expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual(mockSummaryData);
     });
     
-
     it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
       mockQueryError(new Error("Database error"));
 

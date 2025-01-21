@@ -75,7 +75,7 @@ describe("Taller Controller", () => {
       const newTaller = {
         tipo: "NuevoTaller",
         razon_social: "Nueva Razón Social",
-        rut: "12345678-9",
+        rut: "10737848-0",
         telefono: "123456789",
         contacto: "Contacto",
         tel_contacto: "987654321",
@@ -96,7 +96,7 @@ describe("Taller Controller", () => {
     });
 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
-      const invalidTaller = { tipo: "", razon_social: "" };
+      const invalidTaller = { tipo: "MUCHOSCARACTERESAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", razon_social: "" };
 
       const response = await request(app)
         .post("/api/taller")

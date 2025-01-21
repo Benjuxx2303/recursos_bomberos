@@ -779,3 +779,46 @@ export const deactivatePersonal = async (req, res) => {
         });
     }
 };
+
+// TODO: pulir función
+export const updateUltimaFecServicio = async (req, res) => {
+    try {
+        // Obtener todos los registros de la tabla personal
+        const [personales] = await pool.query("SELECT id FROM personal");
+
+        // Iterar sobre cada registro de personal
+        for (const personal of personales) {
+            const personalId = personal.id;
+
+            // Obtener la última fecha de servicio para el personal actual
+            const [ultimaFecha] = await pool.query(
+                `SELECT createdAt 
+                 FROM bitacora 
+                 WHERE personal_id = ? 
+                 ORDER BY createdAt DESC 
+                 LIMIT 1`,
+                [personalId]
+            );
+
+            // Si existe una fecha, actualizar el campo ultima_fec_servicio
+            if (ultimaFecha.length > 0) {
+                const fecha = ultimaFecha[0].createdAt;
+
+                await pool.query(
+                    `UPDATE personal 
+                     SET ultima_fec_servicio = ? 
+                     WHERE id = ?`,
+                    [fecha, personalId]
+                );
+            }
+        }
+
+        res.status(200).json({ message: "Campo ultima_fec_servicio actualizado correctamente para todos los registros." });
+    } catch (error) {
+        console.error("Error al actualizar ultima_fec_servicio:", error);
+        res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message,
+        });
+    }
+};

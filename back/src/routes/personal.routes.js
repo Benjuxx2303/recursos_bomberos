@@ -9,6 +9,7 @@ import {
     updatePersonal,
     activatePersonal,
     deactivatePersonal,
+    updateUltimaFecServicio
 } from "../controllers/personal.controllers.js";
 
 // Configuración de multer
@@ -25,6 +26,8 @@ const uploadFields = upload.fields([
 
 const router = Router();
 const base_route = '/personal';
+
+router.get(`${base_route}/update-last-service-date`, checkRole(['TELECOM']), updateUltimaFecServicio);
 
 // router.get(base_route, getPersonalWithDetails);
 router.get(base_route, checkRole(['TELECOM']), getPersonalWithDetailsPage); // con paginación

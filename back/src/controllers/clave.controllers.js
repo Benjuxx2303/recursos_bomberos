@@ -160,6 +160,7 @@ export const updateClave = async (req, res) => {
             if (isNaN(tipo_clave_id)) {
                 errors.push("El campo 'tipo_clave_id' debe ser un número");
             } else {
+                // Consultar si el tipo_clave_id existe en la base de datos
                 const [tipo_clave] = await pool.query('SELECT * FROM tipo_clave WHERE id = ? AND isDeleted = 0', [tipo_clave_id]);
                 if (tipo_clave.length === 0) {
                     errors.push('El tipo de clave no existe');
@@ -208,12 +209,13 @@ export const updateClave = async (req, res) => {
         if (tipo_clave_id !== undefined) {
             if (isNaN(tipo_clave_id)) {
                 errors.push("El campo 'tipo_clave_id' debe ser un número");
+            } else {
+                const [tipo_clave] = await pool.query('SELECT * FROM tipo_clave WHERE id = ? AND isDeleted = 0', [tipo_clave_id]);
+                if (tipo_clave.length === 0) {
+                    errors.push('El tipo de clave no existe');
+                }
+                updates.tipo_clave_id = tipo_clave_id;
             }
-            const [tipo_clave] = await pool.query('SELECT * FROM tipo_clave WHERE id = ? AND isDeleted = 0', [tipo_clave_id]);
-            if (tipo_clave.length === 0) {
-                errors.push('El tipo de clave no existe');
-            }
-            updates.tipo_clave_id = tipo_clave_id;
         }
 
         // Si hay errores, devolverlos

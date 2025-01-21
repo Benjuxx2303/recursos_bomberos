@@ -239,6 +239,9 @@ describe("Clave Controller", () => {
           tipo_clave_id: 999,  // Tipo de clave que no existe
       };
   
+      mockQueryResponse([[{ id: 1, nombre: "TipoClave1" }]]); // Simulamos que tipo_clave_id = 1 existe
+      mockQueryResponse([[]]); // Simulamos que tipo_clave_id = 999 no existe
+
       const response = await request(app)
           .patch("/api/clave/1") // Suponiendo que el ID de la clave es 1
           .set("Authorization", `Bearer ${token}`)

@@ -27,7 +27,7 @@ import tallerRoutes from './routes/taller.routes.js';
 import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
 import tipo_maquinaRoutes from './routes/tipo_maquina.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
-import alertaRoutes from './routes/alertas.routes.js';
+import alertaRoutes from './routes/alerta.routes.js';
 
 const app = express();
 app.use(express.json());

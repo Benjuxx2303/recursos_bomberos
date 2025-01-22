@@ -6,6 +6,8 @@ config()
 export const PORT= process.env.PORT || 3000;
 export const HOST= process.env.HOST || 'localhost';
 
+export const FRONTEND_HOST= process.env.FRONTEND_HOST || 'http://localhost:3001';
+
 export const SALT_ROUNDS= process.env.SALT_ROUNDS || 10;
 export const SECRET_JWT_KEY = process.env.SECRET_JWT_KEY;
 

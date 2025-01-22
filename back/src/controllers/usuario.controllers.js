@@ -395,6 +395,7 @@ export const recoverPassword = async (req, res) => {
         );
 
         // Generar enlace para restablecer la contraseña
+        // TODO: manejo de links de recuperar contraseña de mejor manera
         const resetLink = `${HOST}/api/usuario/reset-password/${resetToken}`;
 
         // Generar contenido HTML para el correo

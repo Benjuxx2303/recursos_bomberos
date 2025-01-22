@@ -784,7 +784,7 @@ export const deactivatePersonal = async (req, res) => {
 export const updateUltimaFecServicio = async (req, res) => {
     try {
         // Obtener todos los registros de la tabla personal
-        const [personales] = await pool.query("SELECT id FROM personal");
+        const [personales] = await pool.query("SELECT id FROM personal ORDER BY id");
 
         // Iterar sobre cada registro de personal
         for (const personal of personales) {
@@ -792,17 +792,22 @@ export const updateUltimaFecServicio = async (req, res) => {
 
             // Obtener la última fecha de servicio para el personal actual
             const [ultimaFecha] = await pool.query(
-                `SELECT createdAt 
+                `SELECT fh_llegada 
                  FROM bitacora 
                  WHERE personal_id = ? 
-                 ORDER BY createdAt DESC 
+                 ORDER BY fh_llegada DESC 
                  LIMIT 1`,
                 [personalId]
             );
 
+            // console.log({
+            //     id: personalId,
+            // });
             // Si existe una fecha, actualizar el campo ultima_fec_servicio
             if (ultimaFecha.length > 0) {
-                const fecha = ultimaFecha[0].createdAt;
+                const fecha = ultimaFecha[0].fh_llegada;
+
+                // console.log(fecha)
 
                 await pool.query(
                     `UPDATE personal 

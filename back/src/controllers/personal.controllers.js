@@ -1,7 +1,5 @@
 import { pool } from "../db.js";
 import {
-    handleError,
-    updateImageUrlInDb,
     uploadFileToS3
 } from '../utils/fileUpload.js';
 import { validateDate, validateRUT } from '../utils/validations.js';
@@ -70,7 +68,9 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal,
                    c.nombre AS compania,
-                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia, p.ultima_fec_servicio,
+                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia, 
+                   DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
+                   TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
                    GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
             FROM personal p
@@ -154,7 +154,9 @@ export const getPersonalbyID = async (req, res) => {
                    p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
-                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia, p.ultima_fec_servicio,
+                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia,
+                   DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
+                   TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
                    GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
             FROM personal p

@@ -56,9 +56,7 @@ export const getMaquinasDetails = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Error interno del servidor", error: error.message });
-    return res
-      .status(500)
-      .json({ message: "Error interno del servidor", error: error.message });
+
   }
 };
 // Obtener detalles de las máquinas con paginación

@@ -16,7 +16,7 @@ const upload = multer({ storage: storage });
 
 // Configuración de multer para los campos o "key" de imagen
 const uploadFields = upload.fields([
-    { name: 'imagen' }
+    { name: 'imagen', maxCount: 1 }
 ]);
 
 const router = Router();

@@ -2,7 +2,7 @@ import { pool } from "../db.js";
 import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
-import { validateFloat, validateDate, validateStartEndDate } from "../utils/validations.js";
+import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
 
 
 // Obtener todas las cargas de combustible
@@ -188,54 +188,72 @@ export const getCargaCombustibleByID = async (req, res) => {
 
 // Crear una nueva carga de combustible
 export const createCargaCombustible = async (req, res) => {
-    const { bitacora_id, litros, valor_mon } = req.body;
-
     try {
-        const bitacoraIdNumber = parseInt(bitacora_id);
+        const bitacoraId = req.body.bitacora_id;
+        const litros = req.body.litros;
+        const valorMon = req.body.valor_mon;
 
-        // Validar existencia de la bitácora
-        const [bitacoraExists] = await pool.query("SELECT 1 FROM bitacora WHERE id = ? AND isDeleted = 0", [bitacoraIdNumber]);
-        if (bitacoraExists.length === 0) {
-            return res.status(400).json({ message: 'Bitácora no existe o está eliminada' });
+        // Convert and validate the numeric values
+        const bitacoraIdNumber = parseInt(bitacoraId);
+        const litrosNumber = parseFloat(litros);
+        const valorMonNumber = parseFloat(valorMon);
+
+        // Validate numeric conversions
+        if (isNaN(bitacoraIdNumber) || isNaN(litrosNumber) || isNaN(valorMonNumber)) {
+            return res.status(400).json({ 
+                message: 'Tipo de datos inválido',
+                details: 'Los campos bitacora_id, litros y valor_mon deben ser números válidos'
+            });
         }
 
-        if (isNaN(bitacoraIdNumber) || typeof litros !== 'number' || typeof valor_mon !== 'number') {
-            return res.status(400).json({ message: 'Tipo de datos inválido' });
+        // Validar existencia de la bitácora
+        const [bitacoraExists] = await pool.query(
+            "SELECT 1 FROM bitacora WHERE id = ? AND isDeleted = 0", 
+            [bitacoraIdNumber]
+        );
+        
+        if (bitacoraExists.length === 0) {
+            return res.status(400).json({ message: 'Bitácora no existe o está eliminada' });
         }
 
         // Manejar la carga de archivos si existen
         let img_url = null;
 
         // Manejo de subida de imagen S3
-        if (req.files) {
-            const imagen = req.files.imagen ? req.files.imagen[0] : null;
-
-            if (imagen) {
-                try {
-                    const imgData = await uploadFileToS3(imagen, "carga_combustible");
-                    if (imgData && imgData.Location) {
-                        img_url = imgData.Location;
-                    }
-                } catch (error) {
-                    return res.status(500).json({ message: 'Error al subir la imagen', error: error.message });
+        if (req.files && req.files.imagen && req.files.imagen[0]) {
+            try {
+                const imagen = req.files.imagen[0];
+                const imgData = await uploadFileToS3(imagen, "carga_combustible");
+                if (imgData && imgData.Location) {
+                    img_url = imgData.Location;
                 }
+            } catch (error) {
+                console.error('Error al subir imagen a S3:', error);
+                return res.status(500).json({ 
+                    message: 'Error al subir la imagen',
+                    error: error.message 
+                });
             }
         }
 
         const [rows] = await pool.query(
             'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)',
-            [bitacoraIdNumber, litros, valor_mon, img_url]
+            [bitacoraIdNumber, litrosNumber, valorMonNumber, img_url]
         );
 
         return res.status(201).json({
             id: rows.insertId,
             bitacora_id: bitacoraIdNumber,
-            litros,
-            valor_mon,
+            litros: litrosNumber,
+            valor_mon: valorMonNumber,
             img_url
         });
     } catch (error) {
-        return res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+        console.error('Error en createCargaCombustible:', error);
+        return res.status(500).json({ 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
     }
 };
 

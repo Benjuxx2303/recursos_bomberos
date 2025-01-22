@@ -9,6 +9,8 @@ export const getBitacora = async (req, res) => {
             SELECT b.id, 
                    c.nombre AS compania, 
                    p.rut AS "rut_conductor", 
+                   p.nombre AS "conductor_nombre",
+                   p.apellido AS "conductor_apellido",
                    m.patente AS "patente_maquina", 
                    tm.nombre AS tipo_maquina, 
                    DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
@@ -32,6 +34,7 @@ export const getBitacora = async (req, res) => {
 
         const params = [];
 
+        // Añadir condiciones de filtrado
         if (id) {
             query += " AND b.id = ?";
             params.push(id);
@@ -54,28 +57,6 @@ export const getBitacora = async (req, res) => {
         }
 
         const [rows] = await pool.query(query, params);
-   
-        if (id) {
-            query += " AND b.id = ?";
-            params.push(id);
-        }
-        if (compania) {
-            query += " AND c.nombre LIKE ?";
-            params.push(`%${compania}%`);
-        }
-        if (rut_personal) {
-            query += " AND p.rut LIKE ?";
-            params.push(`%${rut_personal}%`);
-        }
-        if (taller) {
-            query += " AND tm.nombre LIKE ?";
-            params.push(`%${taller}%`);
-        }
-        if (fecha_salida) {
-            query += " AND DATE_FORMAT(b.fh_salida, '%d-%m-%Y') = ?";
-            params.push(fecha_salida);
-        }
-
         res.json(rows);
     } catch (error) {
         return res.status(500).json({ message: error.message });

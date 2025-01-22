@@ -203,16 +203,36 @@ export const createCargaCombustible = async (req, res) => {
             return res.status(400).json({ message: 'Tipo de datos inválido' });
         }
 
+        // Manejar la carga de archivos si existen
+        let img_url = null;
+
+        // Manejo de subida de imagen S3
+        if (req.files) {
+            const imagen = req.files.imagen ? req.files.imagen[0] : null;
+
+            if (imagen) {
+                try {
+                    const imgData = await uploadFileToS3(imagen, "carga_combustible");
+                    if (imgData && imgData.Location) {
+                        img_url = imgData.Location;
+                    }
+                } catch (error) {
+                    return res.status(500).json({ message: 'Error al subir la imagen', error: error.message });
+                }
+            }
+        }
+
         const [rows] = await pool.query(
-            'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, isDeleted) VALUES (?, ?, ?, 0)',
-            [bitacoraIdNumber, litros, valor_mon]
+            'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)',
+            [bitacoraIdNumber, litros, valor_mon, img_url]
         );
 
         return res.status(201).json({
             id: rows.insertId,
             bitacora_id: bitacoraIdNumber,
             litros,
-            valor_mon
+            valor_mon,
+            img_url
         });
     } catch (error) {
         return res.status(500).json({ message: 'Error interno del servidor', error: error.message });

@@ -5,6 +5,7 @@ import {
     createCargaCombustibleBitacora,
     downCargaCombustible,
     updateCargaCombustible,
+    createCargaCombustible
 } from "../controllers/carga_combustible.controllers.js";
 import multer from 'multer';
 import { checkRole } from "../controllers/authMiddleware.js";
@@ -29,6 +30,7 @@ router.get(base_route, checkRole(['TELECOM']), getCargaCombustibleDetailsSearch)
 // pageSize:          10
 
 router.get(`${base_route}/:id`, checkRole(['TELECOM']), getCargaCombustibleByID); // Obtener una carga de combustible por ID
+router.post(`${base_route}/simple`, checkRole(['TELECOM']), uploadFields, createCargaCombustible); // Crear una nueva carga de combustible
 router.post(base_route, checkRole(['TELECOM']), uploadFields, createCargaCombustibleBitacora); // Crear una nueva carga de combustible
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']), downCargaCombustible); // dar de baja una carga de combustible
 router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateCargaCombustible); // actualizar la carga de combustible

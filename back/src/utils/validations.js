@@ -181,6 +181,12 @@ export function validateStartEndDate(startDate, endDate) {
  * @param {string[]} errors - An array to store error messages if the password does not meet the criteria.
  */
 export function validatePassword(password, errors) {
+  // Verificar que no esté vacía
+  if (!password || password.trim().length === 0) {
+    errors.push('La contraseña no puede estar vacía.');
+    return; // Si está vacía, no hace falta continuar con el resto de las validaciones
+  }
+
   // Verificar longitud
   if (password.length < 12 || password.length > 16) {
     errors.push('La contraseña debe tener entre 12 y 16 caracteres.');

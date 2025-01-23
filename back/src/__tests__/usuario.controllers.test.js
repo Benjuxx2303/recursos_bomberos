@@ -88,7 +88,7 @@ describe("Usuario Controller", () => {
       const newUsuario = {
         username: "nuevoUsuario",
         correo: "nuevo@example.com",
-        contrasena: "password123",
+        contrasena: "SecurePass321",
         personal_id: 1,
       };
 

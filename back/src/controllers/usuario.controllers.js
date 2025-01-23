@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { HOST, SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from '../utils/mailer.js';
-import { validateEmail } from '../utils/validations.js';
+import { validateEmail, validatePassword } from '../utils/validations.js';
 // TODO: hacer uso de la funcion para validar contraseñas
 
 
@@ -152,6 +152,7 @@ export const updateUsuario = async (req, res) => {
 
         if (contrasena !== undefined) {
             contrasena = contrasena.trim();
+            validatePassword(contrasena, errors);
             const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
             updates.contrasena = await bcrypt.hash(contrasena, salt);
         }
@@ -290,6 +291,9 @@ export const registerUser = async (req, res) => {
         if (!validateEmail(correo)) {
             errors.push("Correo inválido");
         }
+
+        // validar contraseña
+        validatePassword(contrasena, errors);
 
         // Validar existencia del personal
         const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
@@ -430,10 +434,8 @@ export const resetPassword = async (req, res) => {
     try {
         contrasena = contrasena.trim();
 
-        // Validar que la contraseña no esté vacía
-        if (!contrasena || contrasena.length < 6) {
-            errors.push("La contraseña debe tener al menos 6 caracteres");
-        }
+        // Validar contraseña
+        validatePassword(contrasena, errors);
 
         // Si hay errores, devolver la lista sin ejecutar el resto de la función
         if (errors.length > 0) {

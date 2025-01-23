@@ -4,6 +4,7 @@ import {
     updateImageUrlInDb,
     handleError,
 } from "../utils/fileUpload.js";
+import { checkIfExists } from "../utils/queries.js";
 
 export const getCompanias = async(req, res)=>{
     try {
@@ -128,11 +129,8 @@ export const createCompania = async (req, res) => {
         }
 
         // Validar que no exista una compañía con el mismo nombre
-        const [companias] = await pool.query('SELECT * FROM compania WHERE nombre = ?', [nombre]);
-        if (companias.length > 0) {
-            errors.push("Ya existe una compañía con el mismo nombre");
-        }
-
+        checkIfExists(pool, nombre, 'nombre', 'compania', errors);
+        
         // Si hay errores, devolverlos
         if (errors.length > 0) {
             return res.status(400).json({ errors });

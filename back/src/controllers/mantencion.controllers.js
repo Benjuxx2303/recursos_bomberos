@@ -295,8 +295,6 @@ export const createMantencionBitacora = async (req, res) => {
         "bitacora.direccion": direccion,
         "bitacora.f_salida": f_salida,
         "bitacora.h_salida": h_salida,
-        // "bitacora.f_llegada": f_llegada,
-        // "bitacora.h_llegada": h_llegada,
         "bitacora.clave_id": clave_id,
         "bitacora.km_salida": km_salida,
         "bitacora.km_llegada": km_llegada,
@@ -323,12 +321,10 @@ export const createMantencionBitacora = async (req, res) => {
         
         // Concatenar fecha y hora para formatear como datetime
         let fh_salida = null;
-        // let fh_llegada = null;
 
-        // Validar fechas y horas de salida y llegada
+        // Validar fechas y horas de salida
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
-            // console.log(`Validando fh_salida: ${error}`);
             if (!error) {
                 console.log(`${f_salida} ${h_salida}`);
                 errors.push(`Fecha y hora de salida inválida: ${error}`);
@@ -336,31 +332,10 @@ export const createMantencionBitacora = async (req, res) => {
             fh_salida = `${f_salida} ${h_salida}`;
         }
 
-        // if (f_llegada && h_llegada) {
-        //     const error = validateDate(f_llegada, h_llegada);
-        //     // console.log(`Validando fh_llegada: ${error}`);
-        //     if (!error) {
-        //         errors.push(`Fecha y hora de llegada inválida: ${error}`);
-        //     }
-        //     fh_llegada = `${f_llegada} ${h_llegada}`;
-        // }
-
         // si es que viene null
         if (f_salida === null || h_salida === null){
             fh_salida = null;
         }
-
-        // if (f_llegada === null || h_llegada === null){
-        //     fh_llegada = null;
-        // }
-
-        // Validar que la fecha y hora de salida no sea posterior a la de llegada
-        // if (fh_salida && fh_llegada) {
-        //     const error = validateStartEndDate(fh_salida, fh_llegada);
-        //     if (!error) {
-        //         errors.push(`Fecha y hora de salida no pueden ser posteriores a la fecha y hora de llegada`);
-        //     }
-        // }
 
         // Validación de datos de la bitácora
         const companiaIdNumber = parseInt(compania_id);
@@ -429,10 +404,6 @@ export const createMantencionBitacora = async (req, res) => {
         if (f_salida && h_salida && !validateDate(f_salida, h_salida)) {
             errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
-
-        // if (f_llegada && h_llegada && !validateDate(f_llegada, h_llegada)) {
-        //     errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
-        // }
 
         // Validación de fec_inicio usando validateDate
         let formattedFecInicio = null;
@@ -539,7 +510,6 @@ export const createMantencionBitacora = async (req, res) => {
                 maquina_id, 
                 direccion,
                 fh_salida, 
-                fh_llegada, 
                 clave_id, 
                 km_salida, 
                 km_llegada,
@@ -555,7 +525,6 @@ export const createMantencionBitacora = async (req, res) => {
                 ?, 
                 ?, 
                 STR_TO_DATE(?, "%d-%m-%Y %H:%i"),
-                NULL, 
                 ?, 
                 ?, 
                 ?, 
@@ -572,7 +541,6 @@ export const createMantencionBitacora = async (req, res) => {
                 maquinaIdNumber, 
                 direccion,
                 fh_salida, 
-                // fh_llegada, 
                 claveIdNumber, 
                 km_salida, 
                 km_llegada,

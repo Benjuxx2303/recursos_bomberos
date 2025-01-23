@@ -1,4 +1,5 @@
 import {pool} from "../db.js";
+import { checkIfDeletedByField, checkIfExistsForUpdate } from "../utils/queries.js";
 
 export const getRolesPersonal = async(req, res)=>{
     try {
@@ -102,10 +103,7 @@ export const createRolPersonal = async (req, res) => {
         }
         
         // Validar que no exista ya el rol con el mismo nombre
-        const [rolExists] = await pool.query('SELECT * FROM rol_personal WHERE nombre = ?', [nombre]);
-        if (rolExists.length > 0) {
-            errors.push("Ya existe un rol_personal con ese nombre");
-        }
+        checkIfDeletedByField(pool, nombre, 'nombre', 'rol_personal', errors)
 
         // Si hay errores de validación, devolverlos
         if (errors.length > 0) {
@@ -179,11 +177,7 @@ export const updateRolPersonal = async (req, res) => {
             }
 
             // Validar que no exista ya el rol con el mismo nombre
-            const [rows] = await pool.query('SELECT COUNT(*) AS count FROM rol_personal WHERE nombre = ? AND id != ?', [nombre, idNumber]);
-            console.log("Respuesta de la consulta:", rows);  // Depuración de la respuesta
-            if (rows[0] && rows[0].count > 0) {
-                errors.push("Ya existe un rol_personal con ese nombre");
-            }
+            checkIfExistsForUpdate(pool, nombre, 'nombre', 'rol_personal', idNumber, errors);
 
             updates.nombre = nombre;
         }

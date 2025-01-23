@@ -295,8 +295,8 @@ export const createMantencionBitacora = async (req, res) => {
         "bitacora.direccion": direccion,
         "bitacora.f_salida": f_salida,
         "bitacora.h_salida": h_salida,
-        "bitacora.f_llegada": f_llegada,
-        "bitacora.h_llegada": h_llegada,
+        // "bitacora.f_llegada": f_llegada,
+        // "bitacora.h_llegada": h_llegada,
         "bitacora.clave_id": clave_id,
         "bitacora.km_salida": km_salida,
         "bitacora.km_llegada": km_llegada,
@@ -323,7 +323,7 @@ export const createMantencionBitacora = async (req, res) => {
         
         // Concatenar fecha y hora para formatear como datetime
         let fh_salida = null;
-        let fh_llegada = null;
+        // let fh_llegada = null;
 
         // Validar fechas y horas de salida y llegada
         if (f_salida && h_salida) {
@@ -336,22 +336,31 @@ export const createMantencionBitacora = async (req, res) => {
             fh_salida = `${f_salida} ${h_salida}`;
         }
 
-        if (f_llegada && h_llegada) {
-            const error = validateDate(f_llegada, h_llegada);
-            // console.log(`Validando fh_llegada: ${error}`);
-            if (!error) {
-                errors.push(`Fecha y hora de llegada inválida: ${error}`);
-            }
-            fh_llegada = `${f_llegada} ${h_llegada}`;
+        // if (f_llegada && h_llegada) {
+        //     const error = validateDate(f_llegada, h_llegada);
+        //     // console.log(`Validando fh_llegada: ${error}`);
+        //     if (!error) {
+        //         errors.push(`Fecha y hora de llegada inválida: ${error}`);
+        //     }
+        //     fh_llegada = `${f_llegada} ${h_llegada}`;
+        // }
+
+        // si es que viene null
+        if (f_salida === null || h_salida === null){
+            fh_salida = null;
         }
 
+        // if (f_llegada === null || h_llegada === null){
+        //     fh_llegada = null;
+        // }
+
         // Validar que la fecha y hora de salida no sea posterior a la de llegada
-        if (fh_salida && fh_llegada) {
-            const error = validateStartEndDate(fh_salida, fh_llegada);
-            if (!error) {
-                errors.push(`Fecha y hora de salida no pueden ser posteriores a la fecha y hora de llegada`);
-            }
-        }
+        // if (fh_salida && fh_llegada) {
+        //     const error = validateStartEndDate(fh_salida, fh_llegada);
+        //     if (!error) {
+        //         errors.push(`Fecha y hora de salida no pueden ser posteriores a la fecha y hora de llegada`);
+        //     }
+        // }
 
         // Validación de datos de la bitácora
         const companiaIdNumber = parseInt(compania_id);
@@ -525,17 +534,53 @@ export const createMantencionBitacora = async (req, res) => {
         // Inserción de la bitácora en la base de datos
         const [bitacoraResult] = await pool.query(
             `INSERT INTO bitacora (
-                compania_id, personal_id, maquina_id, direccion,
-                fh_salida, fh_llegada, clave_id, km_salida, km_llegada,
-                hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs, isDeleted
+                compania_id, 
+                personal_id, 
+                maquina_id, 
+                direccion,
+                fh_salida, 
+                fh_llegada, 
+                clave_id, 
+                km_salida, 
+                km_llegada,
+                hmetro_salida, 
+                hmetro_llegada, 
+                hbomba_salida, 
+                hbomba_llegada, 
+                obs, 
+                isDeleted
             ) VALUES (
-                ?, ?, ?, ?, STR_TO_DATE(?, "%d-%m-%Y %H:%i"),
-                STR_TO_DATE(?, "%d-%m-%Y %H:%i"), ?, ?, ?, ?, ?, ?, ?, ?, 0
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                STR_TO_DATE(?, "%d-%m-%Y %H:%i"),
+                NULL, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                0
             )`,
             [
-                companiaIdNumber, personalIdNumber, maquinaIdNumber, direccion,
-                fh_salida, fh_llegada, claveIdNumber, km_salida, km_llegada,
-                hmetro_salida, hmetro_llegada, hbomba_salida, hbomba_llegada, obs || null
+                companiaIdNumber, 
+                personalIdNumber, 
+                maquinaIdNumber, 
+                direccion,
+                fh_salida, 
+                // fh_llegada, 
+                claveIdNumber, 
+                km_salida, 
+                km_llegada,
+                hmetro_salida, 
+                hmetro_llegada, 
+                hbomba_salida, 
+                hbomba_llegada, 
+                obs || null
             ]
         );
 

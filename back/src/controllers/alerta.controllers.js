@@ -2,9 +2,9 @@ import { pool } from "../db.js";
 import { sendEmail, generateEmailTemplate } from "../utils/mailer.js";
 
 export const getAlertasByUsuario = async (req, res) => {
-    const { usuario_id } = req.params;
-    try {
-      const query = `
+  const { usuario_id } = req.params;
+  try {
+    const query = `
               SELECT 
               a.id AS id,
               a.usuario_id AS usuario_id,
@@ -21,24 +21,25 @@ export const getAlertasByUsuario = async (req, res) => {
               ORDER BY createdAt DESC
               LIMIT 10
               `;
-      const [rows] = await pool.query(query, [usuario_id]);
-  
-      if (rows.length === 0){
-          return res.status(200).json({ message: "No hay alertas para este usuario."});
-      }
-  
-      // Limpiar el contenido de saltos de línea innecesarios
-      rows[0].contenido = rows[0].contenido.replace(/\n\s*/g, ' ').trim();
-  
-      res.status(200).json(rows[0]);
-  
-    } catch (error) {
-      console.log(error.message);
-      res
-        .status(500)
-        .json({ message: "Error interno del servidor", error: error.message });
+    const [rows] = await pool.query(query, [usuario_id]);
+
+    if (rows.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "No hay alertas para este usuario." });
     }
-  };  
+
+    // Limpiar el contenido de saltos de línea innecesarios
+    rows[0].contenido = rows[0].contenido.replace(/\n\s*/g, " ").trim();
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    console.log(error.message);
+    res
+      .status(500)
+      .json({ message: "Error interno del servidor", error: error.message });
+  }
+};  
 
 /**
  * Enviar alertas por correo y almacenarlas en la base de datos.

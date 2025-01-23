@@ -194,8 +194,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 }
-//TODO: RECIBIR ALERTA PARA PROXIMA MANTENCIÓN DE MAQUINAS
-
+//TODO: Pulir contenido que viene en el correo
 export const sendMantencionAlerts = async (req, res) => {
     try {
         // Consultar mantenciones pendientes

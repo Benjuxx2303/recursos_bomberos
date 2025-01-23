@@ -3,6 +3,7 @@ import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
 import { validateDate, validateRUT } from '../utils/validations.js';
+import { checkIfExistsForUpdate } from "../utils/queries.js";
 
 // TODO: implementacion de "imgLicencia"
 

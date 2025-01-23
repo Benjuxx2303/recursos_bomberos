@@ -1,6 +1,45 @@
 import { pool } from "../db.js";
 import { sendEmail, generateEmailTemplate } from "../utils/mailer.js";
 
+export const getAlertasByUsuario = async (req, res) => {
+    const { usuario_id } = req.params;
+    try {
+      const query = `
+              SELECT 
+              a.id AS id,
+              a.usuario_id AS usuario_id,
+              u.username AS usuario,
+              p.nombre AS nombre,
+              p.apellido AS apellido,
+              p.rut AS rut,
+              a.contenido AS contenido,
+              DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt
+              FROM alerta a
+              INNER JOIN usuario u ON a.usuario_id = u.id
+              INNER JOIN personal p ON u.personal_id = p.id
+              WHERE usuario_id = ?
+              ORDER BY createdAt DESC
+              LIMIT 10
+              `;
+      const [rows] = await pool.query(query, [usuario_id]);
+  
+      if (rows.length === 0){
+          return res.status(200).json({ message: "No hay alertas para este usuario."});
+      }
+  
+      // Limpiar el contenido de saltos de línea innecesarios
+      rows[0].contenido = rows[0].contenido.replace(/\n\s*/g, ' ').trim();
+  
+      res.status(200).json(rows[0]);
+  
+    } catch (error) {
+      console.log(error.message);
+      res
+        .status(500)
+        .json({ message: "Error interno del servidor", error: error.message });
+    }
+  };  
+
 /**
  * Enviar alertas por correo y almacenarlas en la base de datos.
  */
@@ -154,5 +193,4 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 }
-
-    //TODO: RECIBIR ALERTA PARA PROXIMA MANTENCIÓN DE MAQUINAS
+//TODO: RECIBIR ALERTA PARA PROXIMA MANTENCIÓN DE MAQUINAS

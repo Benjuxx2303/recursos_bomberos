@@ -173,3 +173,31 @@ export function validateStartEndDate(startDate, endDate) {
   // Comprobar si endDate es anterior a startDate
   return !isBefore(endDate, startDate);
 }
+
+/**
+ * Validates a password based on specific criteria and adds error messages to the errors array.
+ *
+ * @param {string} password - The password to validate.
+ * @param {string[]} errors - An array to store error messages if the password does not meet the criteria.
+ */
+export function validatePassword(password, errors) {
+  // Verificar longitud
+  if (password.length < 12 || password.length > 16) {
+    errors.push('La contraseña debe tener entre 12 y 16 caracteres.');
+  }
+
+  // Verificar mayúsculas
+  if (!/[A-Z]/.test(password)) {
+    errors.push('La contraseña debe incluir al menos una letra mayúscula.');
+  }
+
+  // Verificar minúsculas
+  if (!/[a-z]/.test(password)) {
+    errors.push('La contraseña debe incluir al menos una letra minúscula.');
+  }
+
+  // Verificar números
+  if (!/[0-9]/.test(password)) {
+    errors.push('La contraseña debe incluir al menos un número.');
+  }
+}

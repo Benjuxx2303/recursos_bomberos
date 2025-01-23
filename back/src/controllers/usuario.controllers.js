@@ -4,6 +4,7 @@ import { HOST, SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from '../utils/mailer.js';
 import { validateEmail } from '../utils/validations.js';
+// TODO: hacer uso de la funcion para validar contraseñas
 
 
 // Obtener todos los usuarios

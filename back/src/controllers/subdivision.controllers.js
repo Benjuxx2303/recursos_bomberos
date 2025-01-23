@@ -222,7 +222,7 @@ export const updateSubdivision = async (req, res) => {
                 'SELECT COUNT(*) AS count FROM subdivision WHERE nombre = ? AND id != ?',
                 [nombre, idNumber]
             );
-            console.log("Respuesta de la consulta:", rows); // Depuración de la respuesta
+            // console.log("Respuesta de la consulta:", rows); // Depuración de la respuesta
             if (rows[0] && rows[0].count > 0) {
                 errors.push("Ya existe una subdivisión con el mismo nombre");
             }

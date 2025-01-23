@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import { HOST, SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from '../utils/mailer.js';
-import { validateEmail, validatePassword } from '../utils/validations.js';
+import { validateEmail, validatePassword, validateUsername } from '../utils/validations.js';
+import { checkIfExists, checkIfExistsForUpdate, checkIfDeleted } from "../utils/queries.js";
 // TODO: hacer uso de la funcion para validar contraseñas
 
 
@@ -129,15 +130,10 @@ export const updateUsuario = async (req, res) => {
         if (username !== undefined){
             username = username.trim();
             // Validar largo del username
-            if (username.length < 4 || username.length > 25) {
-                errors.push("El nombre de usuario debe tener entre 4 y 25 caracteres");
-            } 
+            validateUsername(username, errors);
 
             // Validar existencia del username
-            const [userExists] = await pool.query("SELECT 1 FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
-            if (userExists.length > 0) {
-                errors.push("El nombre de usuario ya está en uso");
-            }
+            await checkIfExistsForUpdate(pool, username, "username", "usuario", id, errors);
             updates.username = username;
         }
 
@@ -294,23 +290,15 @@ export const registerUser = async (req, res) => {
 
         // validar contraseña
         validatePassword(contrasena, errors);
-
-        // Validar existencia del personal
-        const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
-        if (personalExists.length === 0) {
-            errors.push("Personal no existe o está eliminado");
-        }
-
-        // Validar largo del username
-        if (username.length < 4 || username.length > 25) {
-            errors.push("El nombre de usuario debe tener entre 4 y 25 caracteres");
-        }
+        
+        // Validar username
+        validateUsername(username, errors);
 
         // Validar existencia del usuario
-        const [userExists] = await pool.query("SELECT 1 FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
-        if (userExists.length > 0) {
-            errors.push("El nombre de usuario ya está en uso");
-        }
+        checkIfExists(pool, username, "username", "usuario", errors);
+
+        // Validar existencia del personal
+        checkIfDeleted(pool, personal_id, "personal", errors);
 
         // Si hay errores, devolvemos la lista sin ejecutar el resto de la función
         if (errors.length > 0) {

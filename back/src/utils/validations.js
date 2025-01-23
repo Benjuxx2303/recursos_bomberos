@@ -207,3 +207,37 @@ export function validatePassword(password, errors) {
     errors.push('La contraseña debe incluir al menos un número.');
   }
 }
+
+/**
+ * Validates a username based on specific criteria and adds error messages to the errors array.
+ *
+ * @param {string} username - The username to validate.
+ * @param {string[]} errors - An array to store error messages if the username does not meet the criteria.
+ */
+export function validateUsername(username, errors) {
+  // Verificar que no esté vacío
+  if (!username || username.trim().length === 0) {
+    errors.push('El nombre de usuario no puede estar vacío.');
+    return; // Si está vacío, no hace falta continuar con el resto de las validaciones
+  }
+
+  // Verificar longitud
+  if (username.length < 4 || username.length > 20) {
+    errors.push('El nombre de usuario debe tener entre 4 y 20 caracteres.');
+  }
+
+  // Verificar caracteres permitidos (letras, números y guion bajo)
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    errors.push('El nombre de usuario solo puede contener letras, números y guiones bajos.');
+  }
+
+  // Verificar que no empiece ni termine con un guion bajo
+  if (username.startsWith('_') || username.endsWith('_')) {
+    errors.push('El nombre de usuario no puede empezar ni terminar con un guion bajo.');
+  }
+
+  // Verificar que no contenga espacios
+  if (/\s/.test(username)) {
+    errors.push('El nombre de usuario no puede contener espacios.');
+  }
+}

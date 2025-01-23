@@ -430,9 +430,9 @@ export const createMantencionBitacora = async (req, res) => {
             errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
         }
 
-        if (f_llegada && h_llegada && !validateDate(f_llegada, h_llegada)) {
-            errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
-        }
+        // if (f_llegada && h_llegada && !validateDate(f_llegada, h_llegada)) {
+        //     errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
+        // }
 
         // Validación de fec_inicio usando validateDate
         let formattedFecInicio = null;

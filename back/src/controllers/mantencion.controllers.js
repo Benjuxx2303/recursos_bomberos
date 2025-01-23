@@ -524,7 +524,7 @@ export const createMantencionBitacora = async (req, res) => {
                 ?, 
                 ?, 
                 ?, 
-                STR_TO_DATE(?, "%d-%m-%Y %H:%i"),
+                STR_TO_DATE(?, '%d-%m-%Y %H:%i'),
                 ?, 
                 ?, 
                 ?, 

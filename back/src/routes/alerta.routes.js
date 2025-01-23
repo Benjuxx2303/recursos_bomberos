@@ -10,7 +10,7 @@ const router = Router();
 const base_route = '/alerta';
 
 // Ruta para enviar alertas
-router.get(`${base_route}/:usuario_id`, getAlertasByUsuario)
+router.get(`${base_route}/usuario/:usuario_id`, getAlertasByUsuario)
 router.get(`${base_route}/vencimientos`, sendVencimientoAlerts);
 router.get(`${base_route}/revision-tecnica`, sendRevisionTecnicaAlerts);
 router.get(`${base_route}/mantencion`, sendMantencionAlerts);

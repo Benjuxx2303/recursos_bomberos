@@ -51,14 +51,14 @@ export async function checkIfExists(pool, value, field, table, errors) {
 }
 
 /**
- * Verifica si un registro existe y no está marcado como eliminado.
+ * Verifica si un registro existe y no está marcado como eliminado mediante el ID.
  *
  * @param {Object} pool - La instancia de la conexión a la base de datos.
  * @param {number} id - El ID del registro a verificar (por ejemplo, el ID del personal).
  * @param {string} table - El nombre de la tabla en la que buscar (por ejemplo, "personal").
  * @param {Array} errors - Un array para almacenar los errores si el registro no existe o está eliminado.
  */
-export async function checkIfDeleted(pool, id, table, errors) {
+export async function checkIfDeletedById(pool, id, table, errors) {
   // Verificar si el registro existe y no está eliminado
   const [result] = await pool.query(
     `SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`,
@@ -68,5 +68,27 @@ export async function checkIfDeleted(pool, id, table, errors) {
   // Si no existe o está eliminado, agregar el error
   if (result.length === 0) {
     errors.push(`${table} no existe o está eliminado`);
+  }
+}
+
+/**
+ * Verifica si un registro existe y no está marcado como eliminado mediante un campo específico.
+ *
+ * @param {Object} pool - La instancia de la conexión a la base de datos.
+ * @param {string} value - El valor del campo a verificar (por ejemplo, el valor de "username").
+ * @param {string} field - El nombre del campo a verificar (por ejemplo, "username").
+ * @param {string} table - El nombre de la tabla en la que buscar (por ejemplo, "usuario").
+ * @param {Array} errors - Un array para almacenar los errores si el registro no existe o está eliminado.
+ */
+export async function checkIfDeletedByField(pool, value, field, table, errors) {
+  // Verificar si el registro existe y no está marcado como eliminado mediante el campo y valor proporcionados
+  const [result] = await pool.query(
+    `SELECT 1 FROM ${table} WHERE ${field} = ? AND isDeleted = 0`,
+    [value]
+  );
+
+  // Si no existe o está eliminado, agregar el error
+  if (result.length === 0) {
+    errors.push(`${field} no existe o está eliminado`);
   }
 }

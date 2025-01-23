@@ -4,8 +4,7 @@ import { HOST, SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from '../utils/mailer.js';
 import { validateEmail, validatePassword, validateUsername } from '../utils/validations.js';
-import { checkIfExists, checkIfExistsForUpdate, checkIfDeleted } from "../utils/queries.js";
-// TODO: hacer uso de la funcion para validar contraseñas
+import { checkIfExists, checkIfExistsForUpdate, checkIfDeletedById, checkIfDeletedByField } from "../utils/queries.js";
 
 
 // Obtener todos los usuarios
@@ -154,10 +153,7 @@ export const updateUsuario = async (req, res) => {
         }
 
         if (personal_id !== undefined) {
-            const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
-            if (personalExists.length === 0) {
-                errors.push("Personal no existe o está eliminado");
-            }
+            checkIfDeletedById(pool, personal_id, "personal", errors)
             updates.personal_id = personal_id;
         }
 
@@ -298,7 +294,7 @@ export const registerUser = async (req, res) => {
         checkIfExists(pool, username, "username", "usuario", errors);
 
         // Validar existencia del personal
-        checkIfDeleted(pool, personal_id, "personal", errors);
+        checkIfDeletedById(pool, personal_id, "personal", errors);
 
         // Si hay errores, devolvemos la lista sin ejecutar el resto de la función
         if (errors.length > 0) {
@@ -367,11 +363,7 @@ export const recoverPassword = async (req, res) => {
         }
 
         // Verificar si el correo existe en la base de datos
-        const [userRows] = await pool.query("SELECT * FROM usuario WHERE correo = ? AND isDeleted = 0", [correo]);
-
-        if (userRows.length === 0) {
-            errors.push("Correo no encontrado");
-        }
+        checkIfDeletedByField(pool, correo, "correo", "usuario", errors)
 
         // Si hay errores, devolver la lista sin ejecutar el resto de la función
         if (errors.length > 0) {
@@ -435,11 +427,9 @@ export const resetPassword = async (req, res) => {
 
         // Buscar al usuario en la base de datos
         const [userRows] = await pool.query("SELECT * FROM usuario WHERE id = ? AND isDeleted = 0", [decoded.userId]);
-
         if (userRows.length === 0) {
             return res.status(404).json({ message: "Usuario no encontrado" });
         }
-
         const user = userRows[0];
 
         // Encriptar la nueva contraseña
@@ -478,11 +468,9 @@ export const verifyEmail = async (req, res) => {
 
         // Buscar al usuario en la base de datos
         const [userRows] = await pool.query("SELECT * FROM usuario WHERE id = ? AND isDeleted = 0", [decoded.userId]);
-
         if (userRows.length === 0) {
             return res.status(404).json({ message: "Usuario no encontrado" });
         }
-
         const user = userRows[0];
 
         // Marcar al usuario como verificado

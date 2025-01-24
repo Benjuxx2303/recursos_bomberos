@@ -62,71 +62,31 @@ export const getMaquinasDetails = async (req, res) => {
 // Obtener detalles de las máquinas con paginación
 export const getMaquinasDetailsPage = async (req, res) => {
   try {
-    // Obtener los parámetros opcionales
-    const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
-    const pageSize = parseInt(req.query.pageSize) || 10; // Si no se proporciona, el tamaño por defecto es 10
+    // Función para formatear fechas y procesar conductores
+    const formatDates = (row) => {
+      try {
+        return {
+          ...row,
+          ven_patente: row.ven_patente ? format(new Date(row.ven_patente), 'dd-MM-yyyy') : null,
+          ven_rev_tec: row.ven_rev_tec ? format(new Date(row.ven_rev_tec), 'dd-MM-yyyy') : null,
+          ven_seg_auto: row.ven_seg_auto ? format(new Date(row.ven_seg_auto), 'dd-MM-yyyy') : null,
+          conductores: row.conductores ? JSON.parse(`[${row.conductores}]`) : [],
+        };
+      } catch (err) {
+        console.error('Error procesando fila:', err);
+        return row;
+      }
+    };
 
-    // Si no se proporciona "page", devolver todos los datos sin paginación
-    if (!req.query.page) {
-      const query = `
-        SELECT
-          m.*,
-          tm.nombre AS tipo_maquina,
-          c.id AS compania_id,
-          c.nombre AS compania,
-          p.nombre AS procedencia,
-          mo.nombre AS modelo,
-          (
-            SELECT GROUP_CONCAT(
-              JSON_OBJECT(
-                'id', per.id,
-                'nombre', CONCAT(per.nombre, ' ', per.apellido),
-                'rut', per.rut
-              )
-            )
-            FROM conductor_maquina cm
-            JOIN personal per ON cm.personal_id = per.id
-            WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND per.isDeleted = 0
-          ) as conductores
-        FROM maquina m
-        INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
-        INNER JOIN compania c ON m.compania_id = c.id
-        INNER JOIN procedencia p ON m.procedencia_id = p.id
-        Inner join modelo mo on m.modelo_id = mo.id
-        WHERE m.isDeleted = 0
-      `;
-      const [rows] = await pool.query(query);
-      
-      // Formatear fechas y procesar conductores
-      const formattedRows = rows.map(row => {
-        try {
-          return {
-            ...row,
-            ven_patente: row.ven_patente ? format(new Date(row.ven_patente), 'dd-MM-yyyy') : null,
-            ven_rev_tec: row.ven_rev_tec ? format(new Date(row.ven_rev_tec), 'dd-MM-yyyy') : null,
-            ven_seg_auto: row.ven_seg_auto ? format(new Date(row.ven_seg_auto), 'dd-MM-yyyy') : null,
-            conductores: row.conductores ? JSON.parse(`[${row.conductores}]`) : []
-          };
-        } catch (err) {
-          console.error('Error procesando fila:', err);
-          return row;
-        }
-      });
-      
-      return res.json(formattedRows);
-    }
+    // Parámetros de paginación
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
 
-    // Si se proporciona "page", se aplica paginación
-    const offset = (page - 1) * pageSize;
+    // Filtros opcionales
+    let { disponible, tipo_maquina_id, compania_id, codigo, patente, procedencia_id } = req.query;
 
-    // Get total count for pagination
-    const [countResult] = await pool.query(
-      'SELECT COUNT(*) as total FROM maquina WHERE isDeleted = 0'
-    );
-    const totalRecords = countResult[0].total;
-    const totalPages = Math.ceil(totalRecords / pageSize);
-
-    const query = `
+    // Construir la consulta SQL
+    let query = `
       SELECT
         m.*,
         tm.nombre AS tipo_maquina,
@@ -140,7 +100,6 @@ export const getMaquinasDetailsPage = async (req, res) => {
               'id', per.id,
               'nombre', CONCAT(per.nombre, ' ', per.apellido),
               'rut', per.rut
-
             )
           )
           FROM conductor_maquina cm
@@ -153,51 +112,70 @@ export const getMaquinasDetailsPage = async (req, res) => {
       INNER JOIN procedencia p ON m.procedencia_id = p.id
       INNER JOIN modelo mo ON m.modelo_id = mo.id
       WHERE m.isDeleted = 0
-      LIMIT ? OFFSET ?
     `;
+    const params = [];
 
-    const [rows] = await pool.query(query, [pageSize, offset]);
+    if (disponible !== undefined) {
+      query += ' AND m.disponible = ?';
+      params.push(disponible);
+    }
+    if (tipo_maquina_id) {
+      query += ' AND m.tipo_maquina_id = ?';
+      params.push(tipo_maquina_id);
+    }
+    if (compania_id) {
+      query += ' AND m.compania_id = ?';
+      params.push(compania_id);
+    }
+    if (codigo) {
+      query += ' AND m.codigo LIKE ?';
+      params.push(`%${codigo}%`);
+    }
+    if (patente) {
+      query += ' AND m.patente LIKE ?';
+      params.push(`%${patente}%`);
+    }
+    if (procedencia_id) {
+      query += ' AND m.procedencia_id = ?';
+      params.push(procedencia_id);
+    }
 
-    // Formatear fechas y procesar conductores
-    const formattedRows = rows.map((row) => {
-      try {
-        return {
-          ...row,
-          ven_patente: row.ven_patente
-        ? format(new Date(new Date(row.ven_patente)), "dd-MM-yyyy")
-        : null,
-          ven_rev_tec: row.ven_rev_tec
-        ? format(new Date(new Date(row.ven_rev_tec)), "dd-MM-yyyy")
-        : null,
-          ven_seg_auto: row.ven_seg_auto
-        ? format(new Date(new Date(row.ven_seg_auto)), "dd-MM-yyyy")
-        : null,
-          conductores: row.conductores ? JSON.parse(`[${row.conductores}]`) : [],
-        };
-      } catch (err) {
-        console.error('Error procesando fila:', err);
-        return row;
-      }
-    });
+    // Si no se proporciona "page", devolver todos los datos sin paginación
+    if (!req.query.page) {
+      const [rows] = await pool.query(query, params);
+      const formattedRows = rows.map(formatDates);
+      return res.json(formattedRows);
+    }
 
-    // Return data in the expected format
+    // Si se proporciona "page", se aplica paginación
+    // Contar el total de registros
+    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM maquina WHERE isDeleted = 0');
+    const totalRecords = countResult[0].total;
+    const totalPages = Math.ceil(totalRecords / pageSize);
+
+    // Agregar limit y offset a la consulta
+    query += ' LIMIT ? OFFSET ?';
+    params.push(pageSize, (page - 1) * pageSize);
+
+    const [rows] = await pool.query(query, params);
+    const formattedRows = rows.map(formatDates);
+
+    // Respuesta con paginación
     res.json({
-      data: formattedRows,
-      pagination: {
-        currentPage: page,
-        pageSize,
-        totalPages,
-        totalRecords
-      }
+      formattedRows,
+      totalRecords,
+      totalPages,
+      currentPage: page,
     });
   } catch (error) {
-    console.error("Error en getMaquinasDetailsPage: ", error);
+    console.error('Error en getMaquinasDetailsPage: ', error);
     return res.status(500).json({
-      message: "Error interno del servidor",
+      message: 'Error interno del servidor',
       error: error.message,
     });
   }
 };
+
 // Obtener máquina por ID
 export const getMaquinaById = async (req, res) => {
   const { id } = req.params;

@@ -4,7 +4,8 @@ import { validateDate, validateFloat, validateStartEndDate } from "../utils/vali
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
     try {
-        const { id, compania, rut_personal, taller, fecha_salida } = req.query;
+        const { id, compania, rut_personal, taller, fecha_salida, isCargaCombustible, isMantencion } = req.query;
+
         let query = `
             SELECT b.id, 
                    c.nombre AS compania, 
@@ -56,6 +57,39 @@ export const getBitacora = async (req, res) => {
             params.push(fecha_salida);
         }
 
+        // Lógica para isCargaCombustible e isMantencion
+        if (isCargaCombustible === "0") {
+            query += `
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM carga_combustible cc
+                    WHERE cc.bitacora_id = b.id
+                )`;
+        } else if (isCargaCombustible === "1") {
+            query += `
+                AND EXISTS (
+                    SELECT 1 
+                    FROM carga_combustible cc
+                    WHERE cc.bitacora_id = b.id
+                )`;
+        }
+
+        if (isMantencion === "0") {
+            query += `
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM mantencion m
+                    WHERE m.bitacora_id = b.id
+                )`;
+        } else if (isMantencion === "1") {
+            query += `
+                AND EXISTS (
+                    SELECT 1 
+                    FROM mantencion m
+                    WHERE m.bitacora_id = b.id
+                )`;
+        }
+
         const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (error) {
@@ -64,42 +98,80 @@ export const getBitacora = async (req, res) => {
 };
 
 // Paginado
+// Paginado con filtros adicionales
 export const getBitacoraPage = async (req, res) => {
     try {
         // Obtener los parámetros de la query
-        const page = parseInt(req.query.page) || 1; // Si no se pasa 'page', por defecto será 1
-        const pageSize = parseInt(req.query.pageSize) || 10; // Si no se pasa 'pageSize', por defecto será 10
+        const page = parseInt(req.query.page) || 1; // Por defecto, página 1
+        const pageSize = parseInt(req.query.pageSize) || 10; // Por defecto, 10 elementos por página
+        const { isCargaCombustible, isMantencion } = req.query;
 
         // Calcular el desplazamiento (offset)
         const offset = (page - 1) * pageSize;
 
-        // Consulta con paginación
-        const query = `
+        // Base de la consulta
+        let query = `
             SELECT b.id, 
-                    c.nombre AS compania, 
-                    p.rut AS "rut_conductor", 
-                    m.patente AS "patente_maquina", 
-                    tm.nombre AS tipo_maquina, 
-                    DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
-                    DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
-                    cl.nombre AS clave, 
-                    b.direccion, 
-                    b.maquina_id,
-                    b.km_salida, 
-                    b.km_llegada, 
-                    b.hmetro_salida, 
-                    b.hmetro_llegada, 
-                    b.hbomba_salida, 
-                    b.hbomba_llegada, 
-                    b.obs 
+                   c.nombre AS compania, 
+                   p.rut AS "rut_conductor", 
+                   m.patente AS "patente_maquina", 
+                   tm.nombre AS tipo_maquina, 
+                   DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
+                   DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
+                   cl.nombre AS clave, 
+                   b.direccion, 
+                   b.maquina_id,
+                   b.km_salida, 
+                   b.km_llegada, 
+                   b.hmetro_salida, 
+                   b.hmetro_llegada, 
+                   b.hbomba_salida, 
+                   b.hbomba_llegada, 
+                   b.obs 
             FROM bitacora b 
             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
             INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
-            WHERE b.isDeleted = 0
-            ORDER BY b.id desc
+            WHERE b.isDeleted = 0`;
+
+        // Agregar filtros dinámicos según los parámetros
+        if (isCargaCombustible === "0") {
+            query += `
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM carga_combustible cc
+                    WHERE cc.bitacora_id = b.id
+                )`;
+        } else if (isCargaCombustible === "1") {
+            query += `
+                AND EXISTS (
+                    SELECT 1 
+                    FROM carga_combustible cc
+                    WHERE cc.bitacora_id = b.id
+                )`;
+        }
+
+        if (isMantencion === "0") {
+            query += `
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM mantencion m
+                    WHERE m.bitacora_id = b.id
+                )`;
+        } else if (isMantencion === "1") {
+            query += `
+                AND EXISTS (
+                    SELECT 1 
+                    FROM mantencion m
+                    WHERE m.bitacora_id = b.id
+                )`;
+        }
+
+        // Ordenar y aplicar paginación
+        query += `
+            ORDER BY b.id DESC
             LIMIT ? OFFSET ?`;
 
         // Ejecutar la consulta con los parámetros de paginación

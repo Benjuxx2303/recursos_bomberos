@@ -35,7 +35,7 @@ describe("Máquina Controller", () => {
         .set("Authorization", `Bearer ${token}`);
     
       expect(response.status).toBe(200);
-      expect(response.body.data).toEqual(mockData);
+      expect(response.body.formattedRows).toEqual(mockData);  // Changed from data to formattedRows
     });
     
 

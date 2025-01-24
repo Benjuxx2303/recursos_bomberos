@@ -59,7 +59,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 10;
 
         // Nuevos filtros opcionales
-        const { compania_id, maquina_id, rol_personal_id, nombre } = req.query;
+        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut } = req.query;
 
         // Inicializar la consulta y los parámetros
         let query = `
@@ -103,6 +103,16 @@ export const getPersonalWithDetailsPage = async (req, res) => {
         if (maquina_id) {
             query += ' AND m.id = ?';
             params.push(maquina_id);
+        }
+
+        if (disponible !== undefined) {  // Si disponible es 0 o 1
+            query += ' AND p.disponible = ?';
+            params.push(disponible);
+        }
+
+        if (rut) {
+            query += ' AND p.rut LIKE ?';
+            params.push(`%${rut}%`);
         }
 
         query += ' GROUP BY p.id ORDER BY p.id DESC';

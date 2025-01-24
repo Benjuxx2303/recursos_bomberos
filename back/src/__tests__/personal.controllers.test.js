@@ -87,8 +87,8 @@ describe("Personal Controller", () => {
         rut: "19643285-K",
         nombre: "Juan",
         apellido: "Zarate",
-        fec_nac: "01-01-1990"
-    };
+        fec_nac: "01-01-1990",
+      };
 
       mockQueryResponse([{ insertId: 1 }]);
 
@@ -145,7 +145,9 @@ describe("Personal Controller", () => {
       const updatedData = { nombre: "Actualizado", apellido: "Apellido" };
 
       mockQueryResponse([{ affectedRows: 1 }]);
-      mockQueryResponse([[{ id: 1, nombre: updatedData.nombre, apellido: updatedData.apellido }]]);
+      mockQueryResponse([
+        [{ id: 1, nombre: updatedData.nombre, apellido: updatedData.apellido }],
+      ]);
 
       const response = await request(app)
         .patch("/api/personal/1")
@@ -320,77 +322,68 @@ describe("Personal Controller", () => {
   });
 
   // Test para actualizar la última fecha de servicio de todos los registros de personal
-describe("GET /api/personal/update-last-service-date", () => {
-  it("debe actualizar la última fecha de servicio para todos los registros de personal", async () => {
-    const mockPersonales = [
-      { id: 1 },
-      { id: 2 },
-    ];
-    const mockUltimaFecha = [
-      { fh_llegada: "2025-01-20" },
-    ];
+  describe("GET /api/personal/update-last-service-date", () => {
+    it("debe actualizar la última fecha de servicio para todos los registros de personal", async () => {
+      const mockPersonales = [{ id: 1 }, { id: 2 }];
+      const mockUltimaFecha = [{ fh_llegada: "2025-01-20" }];
 
-    // Simulamos que las consultas para obtener los registros de personal y las últimas fechas de servicio tengan éxito
-    mockQueryResponse([mockPersonales]); // Respuesta para la consulta de personal
-    mockQueryResponse([mockUltimaFecha]); // Respuesta para la consulta de la última fecha de servicio
+      // Simulamos que las consultas para obtener los registros de personal y las últimas fechas de servicio tengan éxito
+      mockQueryResponse([mockPersonales]); // Respuesta para la consulta de personal
+      mockQueryResponse([mockUltimaFecha]); // Respuesta para la consulta de la última fecha de servicio
 
-    const response = await request(app)
-      .get("/api/personal/update-last-service-date")
-      .set("Authorization", `Bearer ${token}`);
+      const response = await request(app)
+        .get("/api/personal/update-last-service-date")
+        .set("Authorization", `Bearer ${token}`);
 
-    expect(response.status).toBe(200);
-    expect(response.body.message).toBe("Campo ultima_fec_servicio actualizado correctamente para todos los registros.");
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe(
+        "Campo ultima_fec_servicio actualizado correctamente para todos los registros."
+      );
+    });
+
+    it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
+      mockQueryError(new Error("Database error"));
+
+      const response = await request(app)
+        .get("/api/personal/update-last-service-date")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error interno del servidor");
+    });
+
+    it("debe manejar el caso cuando no hay últimas fechas de servicio para algunos registros", async () => {
+      const mockPersonales = [{ id: 1 }, { id: 2 }];
+
+      // Simulamos que solo el primer personal tiene una última fecha de servicio
+      mockQueryResponse([mockPersonales]); // Respuesta para la consulta de personal
+      mockQueryResponse([[]]); // Respuesta para la consulta de la última fecha de servicio (sin resultados)
+
+      const response = await request(app)
+        .get("/api/personal/update-last-service-date")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe(
+        "Campo ultima_fec_servicio actualizado correctamente para todos los registros."
+      );
+    });
+
+    it("debe devolver un error 500 si hay un error al actualizar la fecha de servicio", async () => {
+      const mockPersonales = [{ id: 1 }];
+      const mockUltimaFecha = [{ fh_llegada: "2025-01-20" }];
+
+      // Simulamos que la actualización de la fecha de servicio falla
+      mockQueryResponse([mockPersonales]); // Respuesta para la consulta de personal
+      mockQueryResponse([mockUltimaFecha]); // Respuesta para la consulta de la última fecha de servicio
+      mockQueryError(new Error("Update failed")); // Simulamos un error en la actualización
+
+      const response = await request(app)
+        .get("/api/personal/update-last-service-date")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toBe("Error interno del servidor");
+    });
   });
-
-  it("debe devolver un error 500 si ocurre un error en la base de datos", async () => {
-    mockQueryError(new Error("Database error"));
-
-    const response = await request(app)
-      .get("/api/personal/update-last-service-date")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toBe("Error interno del servidor");
-  });
-
-  it("debe manejar el caso cuando no hay últimas fechas de servicio para algunos registros", async () => {
-    const mockPersonales = [
-      { id: 1 },
-      { id: 2 },
-    ];
-
-    // Simulamos que solo el primer personal tiene una última fecha de servicio
-    mockQueryResponse([mockPersonales]); // Respuesta para la consulta de personal
-    mockQueryResponse([[]]); // Respuesta para la consulta de la última fecha de servicio (sin resultados)
-
-    const response = await request(app)
-      .get("/api/personal/update-last-service-date")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.message).toBe("Campo ultima_fec_servicio actualizado correctamente para todos los registros.");
-  });
-
-  it("debe devolver un error 500 si hay un error al actualizar la fecha de servicio", async () => {
-    const mockPersonales = [
-      { id: 1 },
-    ];
-    const mockUltimaFecha = [
-      { fh_llegada: "2025-01-20" },
-    ];
-
-    // Simulamos que la actualización de la fecha de servicio falla
-    mockQueryResponse([mockPersonales]); // Respuesta para la consulta de personal
-    mockQueryResponse([mockUltimaFecha]); // Respuesta para la consulta de la última fecha de servicio
-    mockQueryError(new Error("Update failed")); // Simulamos un error en la actualización
-
-    const response = await request(app)
-      .get("/api/personal/update-last-service-date")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(500);
-    expect(response.body.message).toBe("Error interno del servidor");
-  });
-});
-
 });

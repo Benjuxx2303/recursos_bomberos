@@ -6,11 +6,12 @@ import {
     // getUsuariosWithDetails,
     getUsuariosWithDetailsPage,
     loginUser,
-    registerUser,
-    updateUsuario,
     recoverPassword,
+    registerUser,
     resetPassword,
-    verifyEmail
+    updateUsuario,
+    verifyEmail,
+    verifyResetToken
 } from "../controllers/usuario.controllers.js";
 
 const router = Router();
@@ -45,7 +46,8 @@ router.post(`${base_route}/register`, registerUser);
 // Iniciar sesión
 router.post(`${base_route}/login`, loginUser); // Iniciar sesión
 router.post(`${base_route}/recover-password`, recoverPassword); // Recuperar contraseña
-router.post(`${base_route}/reset-password/:token`, resetPassword); // Resetear contraseña
+router.post(`${base_route}/verify-reset-token`, verifyResetToken); // Verificar token de restablecimiento
+router.post(`${base_route}/reset-password`, resetPassword); // Resetear contraseña
 router.get(`${base_route}/verify-email/:token`, verifyEmail); // Ruta para verificar correo
 
 

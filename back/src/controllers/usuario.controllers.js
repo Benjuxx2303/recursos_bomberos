@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 import { HOST, SALT_ROUNDS, SECRET_JWT_KEY } from "../config.js";
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from '../utils/mailer.js';
+import { checkIfDeletedById, checkIfExists, checkIfExistsForUpdate } from "../utils/queries.js";
 import { validateEmail, validatePassword, validateUsername } from '../utils/validations.js';
-import { checkIfExists, checkIfExistsForUpdate, checkIfDeletedById, checkIfDeletedByField } from "../utils/queries.js";
 
 
 // Obtener todos los usuarios
@@ -350,11 +350,10 @@ export const registerUser = async (req, res) => {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
-
 // Recuperar Contraseña (enviar correo con link para cambiar contraseña)
 export const recoverPassword = async (req, res) => {
     let { correo } = req.body;
-    let errors = []; // Array para capturar los errores
+    let errors = [];
 
     try {
         correo = correo.trim();
@@ -364,91 +363,190 @@ export const recoverPassword = async (req, res) => {
             errors.push("Correo inválido");
         }
 
-        // Verificar si el correo existe en la base de datos
-        checkIfDeletedByField(pool, correo, "correo", "usuario", errors)
+        // Verificar si el correo existe en la base de datos y obtener información del usuario
+        const [userRows] = await pool.query(
+            `SELECT u.id, u.correo, p.nombre, p.apellido 
+             FROM usuario u 
+             INNER JOIN personal p ON u.personal_id = p.id 
+             WHERE u.correo = ? AND u.isDeleted = 0`,
+            [correo]
+        );
 
-        // Si hay errores, devolver la lista sin ejecutar el resto de la función
-        if (errors.length > 0) {
-            return res.status(400).json({ message: "Errores en los campos", errors });
+        if (userRows.length === 0) {
+            return res.status(404).json({ 
+                message: "No se encontró una cuenta con este correo electrónico" 
+            });
         }
 
         const user = userRows[0];
+        const nombreCompleto = `${user.nombre} ${user.apellido}`;
 
         // Crear un token JWT que caducará en 1 hora
         const resetToken = jwt.sign(
-            { userId: user.id },
+            { 
+                userId: user.id,
+                email: user.correo,
+                type: 'password-reset'
+            },
             SECRET_JWT_KEY,
             { expiresIn: '1h' }
         );
 
         // Generar enlace para restablecer la contraseña
-        // TODO: manejo de links de recuperar contraseña de mejor manera
-        const resetLink = `${HOST}/api/usuario/reset-password/${resetToken}`;
+        const resetLink = `${process.env.FRONTEND_URL}/restablecer-contrasena?token=${resetToken}`;
 
         // Generar contenido HTML para el correo
-        const htmlContent = generateEmailTemplate(
-            'Recuperación de Contraseña',
-            'Restablecer Contraseña',
-            resetLink
-        );
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #e53e3e;">Recuperación de Contraseña</h2>
+                <p>Hola ${nombreCompleto},</p>
+                <p>Has solicitado restablecer tu contraseña. Utiliza el siguiente enlace para crear una nueva contraseña:</p>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
+                    <tr>
+                        <td align="center">
+                            <a href="${resetLink}" 
+                               style="background-color: #e53e3e; 
+                                      color: #ffffff; 
+                                      display: inline-block; 
+                                      padding: 12px 24px; 
+                                      text-decoration: none; 
+                                      border-radius: 5px;
+                                      font-weight: bold;">
+                                Restablecer Contraseña
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+                <p>O copia y pega el siguiente enlace en tu navegador:</p>
+                <p style="word-break: break-all; color: #2563eb;">${resetLink}</p>
+                <p style="color: #666;">Este enlace expirará en 1 hora por razones de seguridad.</p>
+                <p style="color: #666;">Si no solicitaste este cambio, puedes ignorar este correo.</p>
+                <hr style="margin: 20px 0; border: 1px solid #eee;">
+                <p style="font-size: 12px; color: #999;">Este es un correo automático, por favor no respondas a este mensaje.</p>
+            </div>
+        `;
 
         // Enviar el correo con el enlace de recuperación
         await sendEmail(
             correo, 
-            'Recuperación de Contraseña', 
-            `Para restablecer tu contraseña, haz clic en el siguiente enlace: ${resetLink}`,
+            'Recuperación de Contraseña - Bomberos', 
+            `Para restablecer tu contraseña, visita: ${resetLink}`,
             htmlContent
         );
 
-        res.status(200).json({ message: "Correo de recuperación enviado" });
+        // Guardar el token en la base de datos
+        await pool.query(
+            'UPDATE usuario SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?',
+            [resetToken, user.id]
+        );
+
+        res.status(200).json({ 
+            message: "Se ha enviado un correo con las instrucciones para restablecer tu contraseña" 
+        });
 
     } catch (error) {
-        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+        console.error('Error en recoverPassword:', error);
+        return res.status(500).json({ 
+            message: "Error al procesar la solicitud de recuperación de contraseña",
+            error: error.message 
+        });
     }
 };
 
-// Resetear la contraseña
-export const resetPassword = async (req, res) => {
-    const { token } = req.params;  // Token enviado por el correo
-    let { contrasena } = req.body;  // Nueva contraseña
-    let errors = []; // Array para capturar los errores
+// Verificar token de restablecimiento
+export const verifyResetToken = async (req, res) => {
+    const { token } = req.body;
 
     try {
-        contrasena = contrasena.trim();
-
-        // Validar contraseña
-        validatePassword(contrasena, errors);
-
-        // Si hay errores, devolver la lista sin ejecutar el resto de la función
-        if (errors.length > 0) {
-            return res.status(400).json({ errors });
+        if (!token) {
+            return res.status(400).json({ message: "Token no proporcionado" });
         }
 
         // Verificar el token
         const decoded = jwt.verify(token, SECRET_JWT_KEY);
 
-        // Buscar al usuario en la base de datos
-        const [userRows] = await pool.query("SELECT * FROM usuario WHERE id = ? AND isDeleted = 0", [decoded.userId]);
-        if (userRows.length === 0) {
-            return res.status(404).json({ message: "Usuario no encontrado" });
+        // Verificar que sea un token de restablecimiento de contraseña
+        if (decoded.type !== 'password-reset') {
+            return res.status(400).json({ message: "Token inválido" });
         }
-        const user = userRows[0];
 
-        // Encriptar la nueva contraseña
-        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
-        const hashedPassword = await bcrypt.hash(contrasena, salt);
+        // Verificar que el usuario existe y el token no ha expirado
+        const [userRows] = await pool.query(
+            "SELECT id FROM usuario WHERE id = ? AND reset_token = ? AND reset_token_expires > NOW() AND isDeleted = 0",
+            [decoded.userId, token]
+        );
 
-        // Actualizar la contraseña en la base de datos
-        await pool.query("UPDATE usuario SET contrasena = ? WHERE id = ?", [hashedPassword, user.id]);
+        if (userRows.length === 0) {
+            return res.status(400).json({ message: "Token inválido o expirado" });
+        }
 
-        res.status(200).json({ message: "Contraseña restablecida con éxito" });
-
+        res.status(200).json({ message: "Token válido" });
     } catch (error) {
-        console.error('Error al resetear contraseña: ', error);
+        console.error('Error al verificar token:', error);
         return res.status(400).json({ message: "Token inválido o expirado" });
     }
 };
 
+// Resetear la contraseña
+export const resetPassword = async (req, res) => {
+    const { token, contrasena } = req.body;
+    let errors = [];
+
+    try {
+        if (!token || !contrasena) {
+            return res.status(400).json({ message: "Token y contraseña son requeridos" });
+        }
+
+        // Validar contraseña
+        validatePassword(contrasena.trim(), errors);
+
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        try {
+            // Verificar el token
+            const decoded = jwt.verify(token, SECRET_JWT_KEY);
+
+            // Verificar que sea un token de restablecimiento de contraseña
+            if (decoded.type !== 'password-reset') {
+                return res.status(400).json({ message: "Token inválido" });
+            }
+
+            // Verificar que el usuario existe y el token no ha expirado
+            const [userRows] = await pool.query(
+                "SELECT id FROM usuario WHERE id = ? AND reset_token = ? AND reset_token_expires > NOW() AND isDeleted = 0",
+                [decoded.userId, token]
+            );
+
+            if (userRows.length === 0) {
+                return res.status(400).json({ message: "Token inválido o expirado" });
+            }
+
+            // Encriptar la nueva contraseña
+            const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
+            const hashedPassword = await bcrypt.hash(contrasena.trim(), salt);
+
+            // Actualizar la contraseña y limpiar el token
+            await pool.query(
+                "UPDATE usuario SET contrasena = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
+                [hashedPassword, decoded.userId]
+            );
+
+            res.status(200).json({ message: "Contraseña actualizada correctamente" });
+        } catch (jwtError) {
+            console.error('Error al verificar token:', jwtError);
+            return res.status(400).json({ message: "Token inválido o expirado" });
+        }
+    } catch (error) {
+        console.error('Error al resetear contraseña:', error);
+        return res.status(500).json({ 
+            message: "Error al restablecer la contraseña",
+            error: error.message 
+        });
+    }
+};
+    
 // Verificar Correo
 export const verifyEmail = async (req, res) => {
     const { token } = req.params;

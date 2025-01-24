@@ -90,6 +90,8 @@ export const getBitacora = async (req, res) => {
                 )`;
         }
 
+        query += " ORDER BY b.id DESC";
+
         const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (error) {

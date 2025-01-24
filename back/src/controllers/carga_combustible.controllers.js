@@ -91,6 +91,8 @@ export const getCargaCombustibleDetailsSearch = async (req, res) => {
             params.push(currentPageSize, offset);
         }
 
+        query += " ORDER BY b.id DESC";
+
         // Ejecutar la consulta con los parámetros
         const [rows] = await pool.query(query, params);
 

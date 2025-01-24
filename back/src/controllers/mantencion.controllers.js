@@ -159,6 +159,8 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
             params.push(currentPageSize, offset);
         }
 
+        query += " ORDER BY m.id DESC"
+
         // Ejecutar la consulta con los parámetros
         const [rows] = await pool.query(query, params);
 

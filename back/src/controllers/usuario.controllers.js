@@ -55,6 +55,7 @@ export const getUsuariosWithDetailsPage = async (req, res) => {
                 FROM usuario u
                 INNER JOIN personal p ON u.personal_id = p.id
                 WHERE u.isDeleted = 0
+                ORDER BY u.id DESC
             `;
             const [rows] = await pool.query(query);
             return res.json(rows); // Devuelve todos los registros sin paginación
@@ -72,6 +73,7 @@ export const getUsuariosWithDetailsPage = async (req, res) => {
             FROM usuario u
             INNER JOIN personal p ON u.personal_id = p.id
             WHERE u.isDeleted = 0
+            ORDER BY u.id DESC
             LIMIT ? OFFSET ?
         `;
 

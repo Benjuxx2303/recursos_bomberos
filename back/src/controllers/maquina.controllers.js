@@ -140,18 +140,23 @@ export const getMaquinasDetailsPage = async (req, res) => {
       params.push(procedencia_id);
     }
 
+
+    //TODO: SI ALGO FALLA REVISAR DESDE AQUI
     // Si no se proporciona "page", devolver todos los datos sin paginación
     if (!req.query.page) {
+      query += " ORDER BY m.id DESC";  // Asegúrate que el id sea numérico y auto-incremental
       const [rows] = await pool.query(query, params);
       const formattedRows = rows.map(formatDates);
       return res.json(formattedRows);
     }
-
     // Si se proporciona "page", se aplica paginación
     // Contar el total de registros
     const [countResult] = await pool.query('SELECT COUNT(*) as total FROM maquina WHERE isDeleted = 0');
     const totalRecords = countResult[0].total;
     const totalPages = Math.ceil(totalRecords / pageSize);
+
+    // Se agrega el orden de los registros de + nuevo a + antiguo
+    query += " ORDER BY m.id DESC";
 
     // Agregar limit y offset a la consulta
     query += ' LIMIT ? OFFSET ?';

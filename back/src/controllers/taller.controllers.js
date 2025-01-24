@@ -35,6 +35,7 @@ export const getTalleresPage = async (req, res) => {
     const page = parseInt(req.query.page) || 1; // Si no se proporciona, se asume la primera página
     const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño por defecto es 10
 
+    //TODO: SE AGREGO ORDER BY t.id DESC PARA QUE SE VEAN DE + NUEVO A + ANTIGUO
     // Si no se proporciona "page", devolver todos los datos sin paginación
     if (!req.query.page) {
       const query = `
@@ -50,11 +51,13 @@ export const getTalleresPage = async (req, res) => {
           t.correo
         FROM taller t
         WHERE t.isDeleted = 0
+        ORDER BY t.id DESC
       `;
       const [rows] = await pool.query(query);
       return res.json(rows); // Devuelve todos los registros sin paginación
     }
 
+    //TODO: SE AGREGO ORDER BY t.id DESC PARA QUE SE VEAN DE + NUEVO A + ANTIGUO
     // Si se proporciona "page", se aplica paginación
     const offset = (page - 1) * pageSize; // Calcular el offset
 
@@ -71,6 +74,7 @@ export const getTalleresPage = async (req, res) => {
         t.correo
       FROM taller t
       WHERE t.isDeleted = 0
+      ORDER BY t.id DESC
       LIMIT ? OFFSET ?
     `;
     

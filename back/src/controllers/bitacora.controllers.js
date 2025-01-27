@@ -30,7 +30,8 @@ export const getBitacora = async (req, res) => {
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
             INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
-            INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
+            INNER JOIN modelo mo ON m.modelo_id = mo.id
+            INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
             WHERE b.isDeleted = 0`;
 
         const params = [];
@@ -135,7 +136,8 @@ export const getBitacoraPage = async (req, res) => {
             INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
             INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
-            INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
+            INNER JOIN modelo mo ON m.modelo_id = mo.id
+            INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
             WHERE b.isDeleted = 0`;
 
         // Agregar filtros dinámicos según los parámetros
@@ -212,7 +214,8 @@ export const getBitacoraById = async (req, res) => {
              INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0 
              INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
              INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
-             INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id AND tm.isDeleted = 0
+             INNER JOIN modelo mo ON m.modelo_id = mo.id
+             INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
              WHERE b.isDeleted = 0 AND b.id = ?`,
             [id]
         );

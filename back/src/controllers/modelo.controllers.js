@@ -143,12 +143,13 @@ export const updateModelo = async (req, res) => {
         if (isNaN(idNumber)) {
             return res.status(400).json({
                 message: "ID inválido"
+                
             });
         }
 
         if (typeof nombre !== 'string' || isNaN(marca_id) || isNaN(tipo_maquina_id)) {
             return res.status(400).json({
-                message: 'Datos inválidos'
+                message: 'Tipo de dato inválido para \"nombre\"'
             });
         }
 

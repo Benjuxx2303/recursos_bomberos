@@ -138,6 +138,8 @@ describe("Modelo Controller", () => {
     it("debe actualizar el modelo correctamente", async () => {
       const updatedModelo = {
         nombre: "ModeloActualizado",
+        marca_id: 1,
+        tipo_maquina_id: 1
       };
 
       mockQueryResponse([{ affectedRows: 1 }]);
@@ -154,14 +156,19 @@ describe("Modelo Controller", () => {
 
     it("debe devolver un error 404 si el modelo no existe", async () => {
       mockQueryResponse([{ affectedRows: 0 }]); // No se encuentra el modelo
-
+   
       const response = await request(app)
         .patch("/api/modelo/999")
-        .send({ nombre: "ModeloNoExistente" });
-
+        .send({
+          nombre: "ModeloNoExistente",
+          marca_id: 1, // Asegúrate de enviar todos los parámetros necesarios
+          tipo_maquina_id: 2
+        });
+   
       expect(response.status).toBe(404);
       expect(response.body.message).toBe("Modelo no encontrado");
     });
+   
 
     it("debe devolver un error 400 si el nombre es inválido", async () => {
       const invalidModelo = {

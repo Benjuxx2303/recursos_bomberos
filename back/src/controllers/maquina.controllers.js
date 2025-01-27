@@ -140,8 +140,6 @@ export const getMaquinasDetailsPage = async (req, res) => {
       params.push(procedencia_id);
     }
 
-
-    //TODO: SI ALGO FALLA REVISAR DESDE AQUI
     // Si no se proporciona "page", devolver todos los datos sin paginación
     if (!req.query.page) {
       query += " ORDER BY m.id DESC";  // Asegúrate que el id sea numérico y auto-incremental

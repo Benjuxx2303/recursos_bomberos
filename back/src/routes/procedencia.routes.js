@@ -1,23 +1,31 @@
 import { Router } from "express";
 import {
-    getProcedencias,
+    // getProcedencias,
+    getProcedenciasPage,
     getProcedenciaById,
     createProcedencia,
     deleteProcedencia,
     updateProcedencia
 } from "../controllers/procedencia.controllers.js";
+import { checkRole } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
 const base_route = "/procedencia";
 
-router.get(base_route, getProcedencias);
-router.get(`${base_route}/:id`, getProcedenciaById);
+// router.get(base_route, getProcedencias);
+router.get(base_route, checkRole(['TELECOM']), getProcedenciasPage); // paginado
+// http://{url}/api/procedencia
+// QueryParams:
+// page:              1
+// pageSize:          10
 
-router.post(base_route, createProcedencia);
+router.get(`${base_route}/:id`, checkRole(['TELECOM']), getProcedenciaById);
 
-router.delete(`${base_route}/:id`, deleteProcedencia);
+router.post(base_route, checkRole(['TELECOM']), createProcedencia);
 
-router.patch(`${base_route}/:id`, updateProcedencia);
+router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteProcedencia);
+
+router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateProcedencia);
 
 export default router;

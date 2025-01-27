@@ -7,7 +7,37 @@ export const getConductorMaquina = async (req, res) => {
     const [rows] = await pool.query("SELECT * FROM conductor_maquina WHERE isDeleted = 0");
     res.json(rows);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+  }
+};
+
+// paginacion
+export const getConductorMaquinaPage = async (req, res) => {
+  try {
+    // Obtener los parámetros de la página y el tamaño de página
+    const page = parseInt(req.query.page) || 1;  // Si no se proporciona, se asume la primera página
+    const pageSize = parseInt(req.query.pageSize) || 10;  // Si no se proporciona, se asume un tamaño de página de 10
+
+    // Calcular el offset para la paginación
+    const offset = (page - 1) * pageSize;
+
+    // Consulta con paginación
+    const query = `
+      SELECT * 
+      FROM conductor_maquina 
+      WHERE isDeleted = 0
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await pool.query(query, [pageSize, offset]);
+    res.json(rows);
+
+  } catch (error) {
+    console.error('Error: ', error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message
+    });
   }
 };
 
@@ -31,72 +61,61 @@ export const getConductorMaquinaById = async (req, res) => {
     }
     res.json(rows[0]);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
 export const createConductorMaquina = async (req, res) => {
-  const { personal_id, maquina_id, tipo_maquina_id, ven_licencia } = req.body;
+  const { personal_id, maquina_id } = req.body;
+  const errors = []; // Arreglo para capturar errores
 
   try {
     // Validación de datos
     const personalIdNumber = parseInt(personal_id);
     const maquinaIdNumber = parseInt(maquina_id);
-    const tipoMaquinaIdNumber = parseInt(tipo_maquina_id);
 
-    if (
-      isNaN(personalIdNumber) ||
-      isNaN(maquinaIdNumber) ||
-      isNaN(tipoMaquinaIdNumber) ||
-      typeof ven_licencia !== 'string' // Debe ser un string para validación de fecha
-    ) {
-      return res.status(400).json({ message: 'Tipo de datos inválido' });
+    if (isNaN(personalIdNumber) || isNaN(maquinaIdNumber)) {
+      errors.push('Tipo de datos inválido');
     }
 
     // Validación de existencia de llaves foráneas
     const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
-    if (checkPersonal.length === 0) return res.status(400).json({ message: "ID de personal no válido" });
+    if (checkPersonal.length === 0) {
+      errors.push("ID de personal no válido");
+    }
 
     const [checkMaquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
-    if (checkMaquina.length === 0) return res.status(400).json({ message: "ID de máquina no válido" });
+    if (checkMaquina.length === 0) {
+      errors.push("ID de máquina no válido");
+    }
 
-    const [checkTipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipoMaquinaIdNumber]);
-    if (checkTipoMaquina.length === 0) return res.status(400).json({ message: "ID de tipo de máquina no válido" });
+    // validar si el personal ya esta asignado a esa maquina y viceversa
+    const [checkConductorMaquina] = await pool.query("SELECT * FROM conductor_maquina WHERE personal_id = ? AND maquina_id = ? AND isDeleted = 0", [personalIdNumber, maquinaIdNumber]);
+    if (checkConductorMaquina.length > 0) {
+      errors.push("El personal ya está asignado a esa máquina");
+    }
 
-    // Validación de fecha
-    const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-    if (!fechaRegex.test(ven_licencia)) {
-      return res.status(400).json({
-        message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
-      });
+    // Si se encontraron errores, devolverlos
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
     }
 
     // Inserción en la base de datos
     const [rows] = await pool.query(
-      "INSERT INTO conductor_maquina (personal_id, maquina_id, tipo_maquina_id, ven_licencia, isDeleted) VALUES (?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), 0)",
-      [
-        personalIdNumber,
-        maquinaIdNumber,
-        tipoMaquinaIdNumber,
-        ven_licencia
-      ]
+      "INSERT INTO conductor_maquina (personal_id, maquina_id, isDeleted) VALUES (?, ?, 0)",
+      [personalIdNumber, maquinaIdNumber]
     );
 
     res.status(201).json({
       id: rows.insertId,
       personal_id: personalIdNumber,
-      maquina_id: maquinaIdNumber,
-      tipo_maquina_id: tipoMaquinaIdNumber,
-      ven_licencia,
+      maquina_id: maquinaIdNumber
     });
   } catch (error) {
-    console.error('Error: ', error);
-    return res.status(500).json({ message: error.message });
+    errors.push(error.message);
+    return res.status(500).json({ message: "Error interno del servidor", errors });
   }
 };
-
-
-
 
 export const deleteConductorMaquina = async (req, res) => {
   const { id } = req.params;
@@ -118,108 +137,112 @@ export const deleteConductorMaquina = async (req, res) => {
     }
     res.sendStatus(204);
   } catch (error) {
-    return res.status(500).json({ message: error });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
 export const updateConductorMaquina = async (req, res) => {
   const { id } = req.params;
-  const { personal_id, rol_personal_id, maquina_id, tipo_maquina_id, ven_licencia, isDeleted } = req.body;
+  const { personal_id, maquina_id, isDeleted } = req.body;
+  const errors = [];
+  const updates = {};
 
   try {
-    // Validación de datos
-    const idNumber = parseInt(id);
+    // Validación de ID
+    const idNumber = parseInt(id, 10);
     if (isNaN(idNumber)) {
-      return res.status(400).json({ message: "ID inválido" });
+      return res.status(400).json({ errors: ["ID inválido"] });
     }
 
-    const updates = {};
+    // Validar y procesar `personal_id`
     if (personal_id !== undefined) {
       if (typeof personal_id !== "number") {
-        return res.status(400).json({ message: "Tipo de dato inválido para 'personal_id'" });
+        errors.push("Tipo de dato inválido para 'personal_id'");
+      } else {
+        const [[personalExists]] = await pool.query(
+          "SELECT COUNT(*) as count FROM personal WHERE id = ? AND isDeleted = 0",
+          [personal_id]
+        );
+        if (personalExists.count === 0) {
+          errors.push("Personal no encontrado");
+        } else {
+          updates.personal_id = personal_id;
+        }
       }
-      updates.personal_id = personal_id;
     }
 
-    if (rol_personal_id !== undefined) {
-      if (typeof rol_personal_id !== "number") {
-        return res.status(400).json({ message: "Tipo de dato inválido para 'rol_personal_id'" });
-      }
-      updates.rol_personal_id = rol_personal_id;
-    }
-
+    // Validar y procesar `maquina_id`
     if (maquina_id !== undefined) {
       if (typeof maquina_id !== "number") {
-        return res.status(400).json({ message: "Tipo de dato inválido para 'maquina_id'" });
-      }
-    }
-
-    if (tipo_maquina_id !== undefined) {
-      if (typeof tipo_maquina_id !== "number") {
-        return res.status(400).json({ message: "Tipo de dato inválido para 'tipo_maquina_id'" });
-      }
-      updates.tipo_maquina_id = tipo_maquina_id;
-    }
-
-    if (ven_licencia !== undefined) {
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/; // Formato dd-mm-yyyy
-      if (typeof ven_licencia !== 'string' || !fechaRegex.test(ven_licencia)) {
-        return res.status(400).json({
-          message: 'El formato de la fecha es inválido. Debe ser dd-mm-aaaa'
-        });
-      }
-      updates.ven_licencia = ven_licencia;
-    }
-
-    if (isDeleted !== undefined) {
-      if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-        return res.status(400).json({ message: "Tipo de dato inválido para 'isDeleted'" });
-      }
-      updates.isDeleted = isDeleted;
-    }
-
-    // Validación de llaves foráneas
-    if (personal_id) {
-      const [checkPersonal] = await pool.query("SELECT * FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
-      if (checkPersonal.length === 0) return res.status(400).json({ message: "ID de personal no válido" });
-    }
-
-    if (maquina_id) {
-      const [checkMaquina] = await pool.query("SELECT * FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
-      if (checkMaquina.length === 0) return res.status(400).json({ message: "ID de máquina no válido" });
-    }
-
-    if (tipo_maquina_id) {
-      const [checkTipoMaquina] = await pool.query("SELECT * FROM tipo_maquina WHERE id = ? AND isDeleted = 0", [tipo_maquina_id]);
-      if (checkTipoMaquina.length === 0) return res.status(400).json({ message: "ID de tipo de máquina no válido" });
-    }
-
-    // Construir la consulta de actualización
-    const setClause = Object.keys(updates)
-      .map((key) => {
-        if (key === 'ven_licencia') {
-          return `ven_licencia = STR_TO_DATE(?, '%d-%m-%Y')`;
+        errors.push("Tipo de dato inválido para 'maquina_id'");
+      } else {
+        const [[maquinaExists]] = await pool.query(
+          "SELECT COUNT(*) as count FROM maquina WHERE id = ? AND isDeleted = 0",
+          [maquina_id]
+        );
+        if (maquinaExists.count === 0) {
+          errors.push("Máquina no encontrada");
+        } else {
+          updates.maquina_id = maquina_id;
         }
-        return `${key} = ?`;
-      })
-      .join(", ");
+      }
+    }
 
-    if (!setClause) {
+    // Validar relación entre `personal_id` y `maquina_id`
+    if (personal_id && maquina_id) {
+      const [[relationExists]] = await pool.query(
+        "SELECT COUNT(*) as count FROM conductor_maquina WHERE personal_id = ? AND maquina_id = ? AND isDeleted = 0",
+        [personal_id, maquina_id]
+      );
+      if (relationExists.count > 0) {
+        errors.push("El personal ya está asignado a esa máquina");
+      }
+    }
+
+    // Validar y procesar `isDeleted`
+    if (isDeleted !== undefined) {
+      if (typeof isDeleted !== "number" || ![0, 1].includes(isDeleted)) {
+        errors.push("Tipo de dato inválido para 'isDeleted'");
+      } else {
+        updates.isDeleted = isDeleted;
+      }
+    }
+
+    // Verificar errores de validación
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    // Construir y ejecutar la consulta de actualización
+    const updateKeys = Object.keys(updates);
+    if (updateKeys.length === 0) {
       return res.status(400).json({
-        message: "No se proporcionaron campos para actualizar"
+        message: "No se proporcionaron campos para actualizar",
       });
     }
 
-    const values = Object.values(updates).concat(idNumber);
-    const [result] = await pool.query(`UPDATE conductor_maquina SET ${setClause} WHERE id = ? AND isDeleted = 0`, values);
+    const setClause = updateKeys.map((key) => `${key} = ?`).join(", ");
+    const values = [...Object.values(updates), idNumber];
+
+    const [result] = await pool.query(
+      `UPDATE conductor_maquina SET ${setClause} WHERE id = ? AND isDeleted = 0`,
+      values
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Conductor de máquina no encontrado" });
     }
 
-    const [rows] = await pool.query("SELECT * FROM conductor_maquina WHERE id = ?", [idNumber]);
-    res.json(rows[0]);
+    // Obtener y devolver el registro actualizado
+    const [[updatedRecord]] = await pool.query(
+      "SELECT * FROM conductor_maquina WHERE id = ?",
+      [idNumber]
+    );
+    res.status(200).json(updatedRecord);
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      errors: [error.message],
+    });
   }
 };

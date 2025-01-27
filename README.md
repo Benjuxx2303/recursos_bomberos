@@ -7,17 +7,24 @@ Guia para usar o testear la API:
 6. Ejecutar la API  usando el siguiente comando en consola (dentro de la carpeta "back"): npm run dev
 7. Para probar si la API se conectó correctamente con la base de datos y todo está funcionando correctamente, ir a la siguiente dirección: http://localhost:3000/ping
 
-
+----------------------------------
 
 Guia de uso de la API en una instancia EC2:
 1. Conectar via SSH:
 ```
+PARA UBUNTU 
 ssh -i "ruta-al-archivo-pem" ubuntu@<ipv4>
+PARA LINUX
+ssh -i .\"ruta-al-archivo-pem" ec2-user@<ipv4>
 ```
 
-2. Iniciar XAMPP/LAMPP
+2. Iniciar XAMPP/LAMPP (MySQL)
 ```
-sudo /opt/lampp/lampp start
+sudo /opt/lampp/lampp startmysql
+```
+2.2. Iniciar XAMPP/LAMPP (MySQL)
+```
+sudo /opt/lampp/lampp stopmysql
 ```
 
 3. Clonar el repositorio
@@ -28,6 +35,8 @@ git clone --branch dev https://github.com/Benjuxx2303/recursos_bomberos/
 4. Verificar la rama del repositorio (debe ser dev)
 ```
 cd recursos_bomberos
+```
+```
 git branch
 ```
 
@@ -36,9 +45,9 @@ git branch
 git pull 
 ```
 
-5.2. Actualizar el repositorio
+5.2. Actualizar el repositorio (otra rama)
 ```
-git pull origin dev
+git pull origin <rama>
 ```
 
 6. Volver a la raíz de la instancia
@@ -46,13 +55,44 @@ git pull origin dev
 cd
 ```
 
-7. Modificar la configuración del archivo dotenv
+7. Instalar las dependencias
 ```
-sudo nano recursos_bomberos/back/.env
+cd recursos_bomberos/back/
+```
+```
+npm install
 ```
 
-8. Iniciar la API
+8. Modificar la configuración del archivo dotenv
+```
+sudo nano recursos_bomberos/back/.env.example
+```
+
+9. Iniciar la API
 ```
 cd recursos_bomberos/back/src/
+```
+```
 npm run dev
+```
+
+----------------------------------
+
+Matar procesos de node
+
+1. Listar procesos
+```
+ps aux | grep node
+```
+
+2. Cerrar procesos de node
+```
+pkill node
+```
+----------------------------------
+
+Abrir MySQL
+
+```
+sudo /opt/lampp/bin/mysql -u root -p
 ```

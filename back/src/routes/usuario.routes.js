@@ -1,29 +1,54 @@
 import { Router } from "express";
+import { checkRole } from "../controllers/authMiddleware.js";
 import {
-  getUsuarios,
-  getUsuarioById,
-  createUsuario,
-  deleteUsuario,
-  updateUsuario,
-  registerUser,    // Función para registrar usuario
-  loginUser        // Función para iniciar sesión
+    deleteUsuario,
+    getUsuarioById,
+    // getUsuariosWithDetails,
+    getUsuariosWithDetailsPage,
+    loginUser,
+    recoverPassword,
+    registerUser,
+    resetPassword,
+    updateUsuario,
+    verifyEmail,
+    verifyResetToken
 } from "../controllers/usuario.controllers.js";
 
 const router = Router();
 
-const base_route = "/usuario";
+const base_route = "/usuario"; 
 
-// Rutas para la gestión de usuarios
-router.get(base_route, getUsuarios);                      // Obtener todos los usuarios
-router.get(`${base_route}/:id`, getUsuarioById);          // Obtener usuario por ID
+// Obtener todos los usuarios
+// router.get(base_route, getUsuarios);
 
-router.post(base_route, createUsuario);                   // Crear un nuevo usuario
+// Obtener usuarios con detalles
+// router.get(`${base_route}/detalles`, getUsuariosWithDetails);
+// router.get(base_route, getUsuariosWithDetails);
+router.get(base_route, checkRole(['TELECOM']), getUsuariosWithDetailsPage); // paginado
+// http://{url}/api/usuario
+// QueryParams:
+// page:              1
+// pageSize:          10
 
-router.delete(`${base_route}/:id`, deleteUsuario);         // Eliminar usuario por ID
-router.patch(`${base_route}/:id`, updateUsuario);          // Actualizar usuario por ID
+// Obtener usuario por ID
+router.get(`${base_route}/:id`, checkRole(['TELECOM']), getUsuarioById);
 
-// Rutas para autenticación
-router.post(`${base_route}/register`, registerUser);       // Ruta para registrar usuario
-router.post(`${base_route}/login`, loginUser);             // Ruta para iniciar sesión
+// Eliminar usuario (cambiar estado)
+router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteUsuario);
+
+// Actualizar usuario
+router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateUsuario);
+
+// -----Logica login
+// Registrar nuevo usuario (con validaciones y encriptación)
+router.post(`${base_route}/register`, registerUser);
+
+// Iniciar sesión
+router.post(`${base_route}/login`, loginUser); // Iniciar sesión
+router.post(`${base_route}/recover-password`, recoverPassword); // Recuperar contraseña
+router.post(`${base_route}/verify-reset-token`, verifyResetToken); // Verificar token de restablecimiento
+router.post(`${base_route}/reset-password`, resetPassword); // Resetear contraseña
+router.get(`${base_route}/verify-email/:token`, verifyEmail); // Ruta para verificar correo
+
 
 export default router;

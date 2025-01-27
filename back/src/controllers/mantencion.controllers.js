@@ -1,9 +1,9 @@
 import { pool } from "../db.js";
+import { exportToExcel } from "../utils/excelExport.js";
 import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
-import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
-import { exportToExcel } from "../utils/excelExport.js";
+import { validateDate, validateFloat } from "../utils/validations.js";
 
 
 export const getMantencionesAllDetails = async (req, res) => {
@@ -234,6 +234,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 m.ord_trabajo,
                 m.n_factura,
                 m.cost_ser,
+                m.aprobada,
                 t.razon_social AS 'taller',
                 em.nombre AS 'estado_mantencion',
                 tm.nombre AS 'tipo_mantencion'
@@ -273,6 +274,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
             cost_ser: row.cost_ser,
+            aprobada: row.aprobada,
             taller: row.taller,
             img_url: row.img_url,
             estado_mantencion: row.estado_mantencion,

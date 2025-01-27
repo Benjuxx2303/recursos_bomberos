@@ -7,9 +7,7 @@ import {
 // Obtener todas las máquinas
 export const getMaquinas = async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      "SELECT * FROM maquina WHERE isDeleted = 0"
-    );
+    const [rows] = await pool.query("SELECT * FROM maquina WHERE isDeleted = 0");
     res.json(rows);
   } catch (error) {
     return res
@@ -137,9 +135,6 @@ export const getMaquinasDetailsPage = async (req, res) => {
       params.push(procedencia_id);
     }
 
-
-    //TODO: SI ALGO FALLA REVISAR DESDE AQUI
-    // Si no se proporciona "page", devolver todos los datos sin paginación
     if (!req.query.page) {
       query += " ORDER BY m.id DESC";
       const [rows] = await pool.query(query, params);
@@ -176,8 +171,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
 export const getMaquinaById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query(
-      `
+    const [rows] = await pool.query(`
       SELECT
         m.id AS id,
         m.disponible AS disponible,

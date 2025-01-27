@@ -3,7 +3,14 @@ import { pool } from "../db.js";
 // Devuelve todos los modelos
 export const getModelos = async (req, res) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM modelo");
+        const query = `
+            SELECT m.id, m.nombre, ma.nombre AS marca, t.nombre AS tipo_maquina, t.descripcion AS tipo_maquina_descripcion
+            FROM modelo m
+            JOIN marca ma ON m.marca_id = ma.id
+            JOIN tipo_maquina t ON m.tipo_maquina_id = t.id
+            WHERE m.isDeleted = 0
+        `;
+        const [rows] = await pool.query(query);
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
@@ -19,18 +26,15 @@ export const getModelosPage = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const pageSize = parseInt(req.query.pageSize) || 10;
 
-        if (!req.query.page) {
-            const query = "SELECT * FROM modelo";
-            const [rows] = await pool.query(query);
-            return res.json(rows);
-        }
-
         const offset = (page - 1) * pageSize;
         const query = `
-            SELECT * 
-            FROM modelo 
-            LIMIT ? OFFSET ?`;
-
+            SELECT m.id, m.nombre, ma.nombre AS marca, t.nombre AS tipo_maquina, t.descripcion AS tipo_maquina_descripcion
+            FROM modelo m
+            JOIN marca ma ON m.marca_id = ma.id
+            JOIN tipo_maquina t ON m.tipo_maquina_id = t.id
+            WHERE m.isDeleted = 0
+            LIMIT ? OFFSET ?
+        `;
         const [rows] = await pool.query(query, [pageSize, offset]);
         res.json(rows);
     } catch (error) {
@@ -53,7 +57,14 @@ export const getModeloById = async (req, res) => {
             });
         }
         
-        const [rows] = await pool.query("SELECT * FROM modelo WHERE id = ?", [idNumber]);
+        const query = `
+            SELECT m.id, m.nombre, ma.nombre AS marca, t.nombre AS tipo_maquina, t.descripcion AS tipo_maquina_descripcion
+            FROM modelo m
+            JOIN marca ma ON m.marca_id = ma.id
+            JOIN tipo_maquina t ON m.tipo_maquina_id = t.id
+            WHERE m.id = ? AND m.isDeleted = 0
+        `;
+        const [rows] = await pool.query(query, [idNumber]);
         if (rows.length <= 0) {
             return res.status(404).json({
                 message: "Modelo no encontrado"
@@ -70,19 +81,21 @@ export const getModeloById = async (req, res) => {
 
 // Crear modelo
 export const createModelo = async (req, res) => {
-    const { nombre } = req.body;
+    const { nombre, marca_id, tipo_maquina_id } = req.body;
 
     try {
-        if (typeof nombre !== 'string') {
+        if (typeof nombre !== 'string' || isNaN(marca_id) || isNaN(tipo_maquina_id)) {
             return res.status(400).json({
-                message: 'Tipo de datos inválido para nombre'
+                message: 'Datos inválidos'
             });
         }
 
-        const [rows] = await pool.query("INSERT INTO modelo (nombre) VALUES (?)", [nombre]);
+        const [rows] = await pool.query("INSERT INTO modelo (nombre, marca_id, tipo_maquina_id) VALUES (?, ?, ?)", [nombre, marca_id, tipo_maquina_id]);
         res.status(201).json({
             id: rows.insertId,
-            nombre
+            nombre,
+            marca_id,
+            tipo_maquina_id
         });
     } catch (error) {
         return res.status(500).json({
@@ -104,13 +117,13 @@ export const deleteModelo = async (req, res) => {
             });
         }
 
-        const [result] = await pool.query("DELETE FROM modelo WHERE id = ?", [idNumber]);
+        const [result] = await pool.query("UPDATE modelo SET isDeleted = 1 WHERE id = ?", [idNumber]);
         if (result.affectedRows === 0) {
             return res.status(404).json({
                 message: "Modelo no encontrado"
             });
         }
-        
+
         res.status(204).end();
     } catch (error) {
         return res.status(500).json({
@@ -123,25 +136,26 @@ export const deleteModelo = async (req, res) => {
 // Actualizar modelo
 export const updateModelo = async (req, res) => {
     const { id } = req.params;
-    const { nombre } = req.body;
+    const { nombre, marca_id, tipo_maquina_id } = req.body;
 
     try {
         const idNumber = parseInt(id);
         if (isNaN(idNumber)) {
             return res.status(400).json({
                 message: "ID inválido"
+                
             });
         }
 
-        if (typeof nombre !== 'string') {
+        if (typeof nombre !== 'string' || isNaN(marca_id) || isNaN(tipo_maquina_id)) {
             return res.status(400).json({
-                message: 'Tipo de dato inválido para "nombre"'
+                message: 'Tipo de dato inválido para \"nombre\"'
             });
         }
 
         const [result] = await pool.query(
-            "UPDATE modelo SET nombre = ? WHERE id = ?", 
-            [nombre, idNumber]
+            "UPDATE modelo SET nombre = ?, marca_id = ?, tipo_maquina_id = ? WHERE id = ?", 
+            [nombre, marca_id, tipo_maquina_id, idNumber]
         );
 
         if (result.affectedRows === 0) {
@@ -150,7 +164,13 @@ export const updateModelo = async (req, res) => {
             });
         }
 
-        const [rows] = await pool.query("SELECT * FROM modelo WHERE id = ?", [idNumber]);
+        const [rows] = await pool.query(`
+            SELECT m.id, m.nombre, ma.nombre AS marca, t.nombre AS tipo_maquina, t.descripcion AS tipo_maquina_descripcion
+            FROM modelo m
+            JOIN marca ma ON m.marca_id = ma.id
+            JOIN tipo_maquina t ON m.tipo_maquina_id = t.id
+            WHERE m.id = ?
+        `, [idNumber]);
         res.json(rows[0]);
     } catch (error) {
         return res.status(500).json({

@@ -40,13 +40,14 @@ export const getMaquinasDetails = async (req, res) => {
         DATE_FORMAT(m.ven_rev_tec, '%d-%m-%Y') AS ven_rev_tec,
         m.cost_seg_auto AS cost_seg_auto,
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
+        mo.nombre AS modelo,
         tm.nombre AS tipo_maquina,
-        c.id AS compania_id,
         c.nombre AS compania,
         p.nombre AS procedencia,
         m.img_url AS img_url
       FROM maquina m
-      INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
+      INNER JOIN modelo mo ON m.modelo_id = mo.id
+      INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
       INNER JOIN compania c ON m.compania_id = c.id
       INNER JOIN procedencia p ON m.procedencia_id = p.id
       WHERE m.isDeleted = 0
@@ -56,36 +57,32 @@ export const getMaquinasDetails = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Error interno del servidor", error: error.message });
-
   }
 };
+
 // Obtener detalles de las máquinas con paginación
 export const getMaquinasDetailsPage = async (req, res) => {
   try {
-    // Función para formatear fechas y procesar conductores
     const formatDates = (row) => {
       try {
         return {
           ...row,
-          ven_patente: row.ven_patente ? format(new Date(row.ven_patente), 'dd-MM-yyyy') : null,
-          ven_rev_tec: row.ven_rev_tec ? format(new Date(row.ven_rev_tec), 'dd-MM-yyyy') : null,
-          ven_seg_auto: row.ven_seg_auto ? format(new Date(row.ven_seg_auto), 'dd-MM-yyyy') : null,
+          ven_patente: row.ven_patente ? format(new Date(row.ven_patente), "dd-MM-yyyy") : null,
+          ven_rev_tec: row.ven_rev_tec ? format(new Date(row.ven_rev_tec), "dd-MM-yyyy") : null,
+          ven_seg_auto: row.ven_seg_auto ? format(new Date(row.ven_seg_auto), "dd-MM-yyyy") : null,
           conductores: row.conductores ? JSON.parse(`[${row.conductores}]`) : [],
         };
       } catch (err) {
-        console.error('Error procesando fila:', err);
+        console.error("Error procesando fila:", err);
         return row;
       }
     };
 
-    // Parámetros de paginación
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
 
-    // Filtros opcionales
-    let { disponible, tipo_maquina_id, compania_id, codigo, patente, procedencia_id } = req.query;
+    let { disponible, modelo_id, compania_id, codigo, patente, procedencia_id } = req.query;
 
-    // Construir la consulta SQL
     let query = `
       SELECT
         m.*,
@@ -107,65 +104,56 @@ export const getMaquinasDetailsPage = async (req, res) => {
           WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND per.isDeleted = 0
         ) as conductores
       FROM maquina m
-      INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
+      INNER JOIN modelo mo ON m.modelo_id = mo.id
+      INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
       INNER JOIN compania c ON m.compania_id = c.id
       INNER JOIN procedencia p ON m.procedencia_id = p.id
-      INNER JOIN modelo mo ON m.modelo_id = mo.id
       WHERE m.isDeleted = 0
     `;
     const params = [];
 
     if (disponible !== undefined) {
-      query += ' AND m.disponible = ?';
+      query += " AND m.disponible = ?";
       params.push(disponible);
     }
-    if (tipo_maquina_id) {
-      query += ' AND m.tipo_maquina_id = ?';
-      params.push(tipo_maquina_id);
+    if (modelo_id) {
+      query += " AND m.modelo_id = ?";
+      params.push(modelo_id);
     }
     if (compania_id) {
-      query += ' AND m.compania_id = ?';
+      query += " AND m.compania_id = ?";
       params.push(compania_id);
     }
     if (codigo) {
-      query += ' AND m.codigo LIKE ?';
+      query += " AND m.codigo LIKE ?";
       params.push(`%${codigo}%`);
     }
     if (patente) {
-      query += ' AND m.patente LIKE ?';
+      query += " AND m.patente LIKE ?";
       params.push(`%${patente}%`);
     }
     if (procedencia_id) {
-      query += ' AND m.procedencia_id = ?';
+      query += " AND m.procedencia_id = ?";
       params.push(procedencia_id);
     }
 
-
-    //TODO: SI ALGO FALLA REVISAR DESDE AQUI
-    // Si no se proporciona "page", devolver todos los datos sin paginación
     if (!req.query.page) {
-      query += " ORDER BY m.id DESC";  // Asegúrate que el id sea numérico y auto-incremental
+      query += " ORDER BY m.id DESC";
       const [rows] = await pool.query(query, params);
       const formattedRows = rows.map(formatDates);
       return res.json(formattedRows);
     }
-    // Si se proporciona "page", se aplica paginación
-    // Contar el total de registros
-    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM maquina WHERE isDeleted = 0');
+
+    const [countResult] = await pool.query("SELECT COUNT(*) as total FROM maquina WHERE isDeleted = 0");
     const totalRecords = countResult[0].total;
     const totalPages = Math.ceil(totalRecords / pageSize);
 
-    // Se agrega el orden de los registros de + nuevo a + antiguo
-    query += " ORDER BY m.id DESC";
-
-    // Agregar limit y offset a la consulta
-    query += ' LIMIT ? OFFSET ?';
+    query += " ORDER BY m.id DESC LIMIT ? OFFSET ?";
     params.push(pageSize, (page - 1) * pageSize);
 
     const [rows] = await pool.query(query, params);
     const formattedRows = rows.map(formatDates);
 
-    // Respuesta con paginación
     res.json({
       formattedRows,
       totalRecords,
@@ -173,9 +161,9 @@ export const getMaquinasDetailsPage = async (req, res) => {
       currentPage: page,
     });
   } catch (error) {
-    console.error('Error en getMaquinasDetailsPage: ', error);
+    console.error("Error en getMaquinasDetailsPage: ", error);
     return res.status(500).json({
-      message: 'Error interno del servidor',
+      message: "Error interno del servidor",
       error: error.message,
     });
   }
@@ -206,7 +194,7 @@ export const getMaquinaById = async (req, res) => {
         DATE_FORMAT(m.ven_seg_auto, '%d-%m-%Y') AS ven_seg_auto,
         m.ven_seg_auto AS ven_seg_auto,
         m.peso_kg AS peso_kg,
-        m.tipo_maquina_id AS tipo_maquina_id,
+        mo.tipo_maquina_id AS tipo_maquina_id,
         tm.nombre AS tipo_maquina,
         c.id AS compania_id,
         c.nombre AS compania,
@@ -224,19 +212,17 @@ export const getMaquinaById = async (req, res) => {
           WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND per.isDeleted = 0
         ) as conductores
       FROM maquina m
-      INNER JOIN tipo_maquina tm ON m.tipo_maquina_id = tm.id
+      INNER JOIN modelo mo ON m.modelo_id = mo.id
+      INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
       INNER JOIN compania c ON m.compania_id = c.id
       INNER JOIN procedencia p ON m.procedencia_id = p.id
       WHERE m.id = ? AND m.isDeleted = 0
-    `,
-      [id]
-    );
+    `, [id]);
 
     if (rows.length <= 0) {
       return res.status(404).json({ message: "Máquina no encontrada" });
     }
 
-    // Formatear fechas y procesar conductores
     const formattedRow = {
       ...rows[0],
       ven_patente: rows[0].ven_patente ? format(new Date(rows[0].ven_patente), "dd-MM-yyyy") : null,
@@ -246,22 +232,15 @@ export const getMaquinaById = async (req, res) => {
     };
 
     res.json(formattedRow);
-    
   } catch (error) {
     console.error("Error en getMaquinaById:", error);
-    return res
-      .status(500)
-      .json({ 
-        message: "Error interno del servidor", 
-        error: error.message 
-      });
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
 
 // Crear nueva máquina
 export const createMaquina = async (req, res) => {
   let {
-    tipo_maquina_id,
     compania_id,
     modelo_id,
     codigo,
@@ -298,7 +277,6 @@ export const createMaquina = async (req, res) => {
 
   // Validación de campos
   const fieldsToValidate = [
-    { value: tipo_maquina_id, type: 'number', field: 'tipo_maquina_id' },
     { value: compania_id, type: 'number', field: 'compania_id' },
     { value: modelo_id, type: 'number', field: 'modelo_id' },
     { value: codigo, type: 'string', field: 'codigo' },
@@ -337,7 +315,6 @@ export const createMaquina = async (req, res) => {
   };
 
   await Promise.all([
-    validateExists('tipo_maquina_id', 'tipo_maquina', tipo_maquina_id),
     validateExists('compania_id', 'compania', compania_id),
     validateExists('procedencia_id', 'procedencia', procedencia_id),
     validateExists('modelo_id', 'modelo', modelo_id)
@@ -379,12 +356,12 @@ export const createMaquina = async (req, res) => {
     // Inserción en la base de datos
     const [rows] = await pool.query(
       `INSERT INTO maquina (
-        tipo_maquina_id, compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
+        compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
         hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
         ven_seg_auto, peso_kg, img_url, nombre, disponible, isDeleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 1, 0)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 1, 0)`,
       [
-        tipo_maquina_id, compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
+        compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
         hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
         ven_seg_auto, peso_kg, img_url, nombre
       ]
@@ -425,7 +402,6 @@ export const updateMaquina = async (req, res) => {
 
   // Lista de campos permitidos para actualización
   const allowedFields = [
-    "tipo_maquina_id",
     "compania_id",
     "modelo_id",
     "codigo",

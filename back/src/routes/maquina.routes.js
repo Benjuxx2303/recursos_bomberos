@@ -2,12 +2,12 @@ import { Router } from "express";
 import multer from 'multer';
 import { checkRole } from "../controllers/authMiddleware.js";
 import {
-    asignarConductores,
-    createMaquina,
-    deleteMaquina,
     getMaquinaById,
     getMaquinasDetailsPage,
+    createMaquina,
+    deleteMaquina,
     updateMaquina,
+    asignarConductores,
     activarMaquinaPorPatente,
 } from "../controllers/maquina.controllers.js";
 

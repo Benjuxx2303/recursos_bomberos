@@ -110,30 +110,27 @@ Se debe enviar un archivo en `form-data` con las claves `imagen` y `imgLicencia`
 # 8. maquina
 ### "/api/maquina"
 ```
-
 {
-  "tipo_maquina_id": 1,
-  "compania_id": 1,
-  "modelo_id": 123,
-  "codigo": "ABC123",
-  "patente": "XYZ-1234",
-  "num_chasis": "1234567890",
+  "modelo_id": 1,
+  "compania_id": 2,
+  "procedencia_id": 1,
+  "codigo": "MAQ12345",
+  "patente": "ABC125",
+  "num_chasis": "CH123456789",
   "vin": "1HGBH41JXMN109186",
-  "bomba": "Bomba A1",
-  "hmetro_bomba": 1500.75,
-  "hmetro_motor": 2500.50,
-  "kmetraje": 10000,
-  "num_motor": "M123456",
-  "ven_patente": "15-03-2025",
-  "procedencia_id": 2,
-  "cost_rev_tec": 1500.25,
-  "ven_rev_tec": "15-06-2025",
-  "cost_seg_auto": 200.50,
-  "ven_seg_auto": "15-06-2025",
-  "peso_kg": 5000,
-  "nombre": "Máquina Excavadora"
+  "bomba": 1,
+  "hmetro_bomba": 12000.5,
+  "hmetro_motor": 20000.3,
+  "kmetraje": 150000,
+  "num_motor": "MOTOR123456",
+  "ven_patente": "31-12-2025",
+  "cost_rev_tec": 1000.50,
+  "ven_rev_tec": "30-06-2025",
+  "cost_seg_auto": 300.75,
+  "ven_seg_auto": "30-06-2025",
+  "peso_kg": 12000,
+  "nombre": "Maquina 1"
 }
-
 ```
 
 # 9. taller

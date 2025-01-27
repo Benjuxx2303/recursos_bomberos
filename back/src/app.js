@@ -2,7 +2,6 @@ import cors from "cors";
 import express from "express";
 import morgan from "morgan";
 
-
 import indexRoutes from './routes/index.routes.js';
 
 import bitacoraRoutes from './routes/bitacora.routes.js';
@@ -28,6 +27,7 @@ import tipoMantencionRoutes from './routes/tipo_mantencion.routes.js';
 import tipo_maquinaRoutes from './routes/tipo_maquina.routes.js';
 import usuarioRoutes from './routes/usuario.routes.js';
 import alertaRoutes from './routes/alerta.routes.js';
+import marcaRoutes from './routes/marca.routes.js';
 
 const app = express();
 app.use(express.json());
@@ -35,7 +35,6 @@ app.use(morgan('dev'));
 app.use(cors());
 
 const base_route = "/api/";
-
 
 app.use(indexRoutes);
 app.use(base_route, rol_personalRoutes); 
@@ -61,6 +60,7 @@ app.use(base_route, statsRoutes);
 app.use(base_route,stats_mantencionesRoutes);
 app.use(base_route, modelosRoutes);
 app.use(base_route, alertaRoutes);
+app.use(base_route, marcaRoutes);
 // endpoint
 app.use((req, res) =>{
     res.status(404).json({

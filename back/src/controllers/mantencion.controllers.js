@@ -1028,3 +1028,49 @@ export const downloadExcel = async (req, res) => {
     });
   }
 };
+
+// Nueva función para aprobar/rechazar mantención
+export const toggleAprobacionMantencion = async (req, res) => {
+  const { id } = req.params;
+  const { usuario_id } = req.body;
+
+  try {
+    // Verificar si la mantención existe
+    const [mantencion] = await pool.query(
+      "SELECT aprobada FROM mantencion WHERE id = ? AND isDeleted = 0",
+      [id]
+    );
+
+    if (mantencion.length === 0) {
+      return res.status(404).json({ message: "Mantención no encontrada" });
+    }
+
+    // Determinar el nuevo estado (toggle)
+    const nuevoEstado = mantencion[0].aprobada === 1 ? 0 : 1;
+    
+    // Actualizar el estado
+    const [result] = await pool.query(
+      `UPDATE mantencion 
+       SET aprobada = ?,
+           aprobada_por = ?,
+           fecha_aprobacion = ${nuevoEstado === 1 ? 'NOW()' : 'NULL'}
+       WHERE id = ?`,
+      [nuevoEstado, nuevoEstado === 1 ? usuario_id : null, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "No se pudo actualizar la mantención" });
+    }
+
+    res.json({ 
+      message: nuevoEstado === 1 ? "Mantención aprobada exitosamente" : "Mantención rechazada exitosamente",
+      aprobada: nuevoEstado
+    });
+  } catch (error) {
+    console.error("Error al aprobar/rechazar mantención:", error);
+    return res.status(500).json({ 
+      message: "Error interno del servidor", 
+      error: error.message 
+    });
+  }
+};

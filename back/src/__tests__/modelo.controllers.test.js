@@ -80,6 +80,8 @@ describe("Modelo Controller", () => {
     it("debe crear un nuevo modelo", async () => {
       const newModelo = {
         nombre: "ModeloNuevo",
+        marca_id: 1,
+        tipo_maquina_id: 1,
       };
 
       mockQueryResponse([{ insertId: 1 }]);
@@ -103,7 +105,7 @@ describe("Modelo Controller", () => {
         .send(invalidModelo);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Tipo de datos inválido para nombre');
+      expect(response.body.message).toBe('Datos inválidos');
     });
   });
 

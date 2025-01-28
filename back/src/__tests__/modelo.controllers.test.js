@@ -159,6 +159,7 @@ describe("Modelo Controller", () => {
    
       const response = await request(app)
         .patch("/api/modelo/999")
+        .set("Authorization", `Bearer ${token}`)
         .send({
           nombre: "ModeloNoExistente",
           marca_id: 1, // Asegúrate de enviar todos los parámetros necesarios

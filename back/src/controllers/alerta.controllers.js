@@ -1,45 +1,99 @@
 import { pool } from "../db.js";
-import { sendEmail, generateEmailTemplate } from "../utils/mailer.js";
+import { generateEmailTemplate, sendEmail } from "../utils/mailer.js";
 
 export const getAlertasByUsuario = async (req, res) => {
-  const { usuario_id } = req.params;
-  try {
-    const query = `
-              SELECT 
-              a.id AS id,
-              a.usuario_id AS usuario_id,
-              u.username AS usuario,
-              p.nombre AS nombre,
-              p.apellido AS apellido,
-              p.rut AS rut,
-              a.contenido AS contenido,
-              DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt
-              FROM alerta a
-              INNER JOIN usuario u ON a.usuario_id = u.id
-              INNER JOIN personal p ON u.personal_id = p.id
-              WHERE usuario_id = ?
-              ORDER BY createdAt DESC
-              LIMIT 10
-              `;
-    const [rows] = await pool.query(query, [usuario_id]);
+    const { usuario_id } = req.params;
+    try {
+        // Obtener información del usuario, incluyendo rol y compañía
+        const userQuery = `
+            SELECT 
+                u.id,
+                u.username,
+                rp.nombre AS rol,
+                p.compania_id
+            FROM usuario u
+            INNER JOIN personal p ON u.personal_id = p.id
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE u.id = ?
+        `;
+        const [userInfo] = await pool.query(userQuery, [usuario_id]);
 
-    if (rows.length === 0) {
-      return res
-        .status(200)
-        .json({ message: "No hay alertas para este usuario." });
+        if (!userInfo[0]) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        const { rol, compania_id } = userInfo[0];
+
+        // Consulta base para alertas
+        let query = `
+            SELECT DISTINCT
+                a.id,
+                a.contenido,
+                DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
+                'general' as tipo
+            FROM alerta a
+            WHERE a.usuario_id = ?
+        `;
+
+        const params = [usuario_id];
+
+        // Agregar alertas específicas según el rol
+        if (rol === 'TELECOM' || rol === 'Teniente de Máquina' || rol === 'Capitán') {
+            query += `
+                UNION
+                SELECT 
+                    m.id,
+                    CONCAT('Mantención programada para ', DATE_FORMAT(m.fec_inicio, '%d-%m-%Y'), ' - ', m.descripcion) as contenido,
+                    DATE_FORMAT(NOW(), '%d-%m-%Y %H:%i') as createdAt,
+                    'mantencion' as tipo
+                FROM mantencion m
+                INNER JOIN bitacora b ON m.bitacora_id = b.id
+                INNER JOIN maquina maq ON b.maquina_id = maq.id
+                WHERE maq.compania_id = ?
+                AND m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
+                AND m.isDeleted = 0
+            `;
+            params.push(compania_id);
+        }
+
+        // Alertas de carga de combustible para roles específicos
+        if (rol === 'TELECOM' || rol === 'Capitán') {
+            query += `
+                UNION
+                SELECT 
+                    c.id,
+                    CONCAT('Nueva carga de combustible registrada - ', 
+                           m.codigo, ' - ', 
+                           c.litros, ' litros - $', 
+                           c.valor_mon) as contenido,
+                    DATE_FORMAT(c.createdAt, '%d-%m-%Y %H:%i') as createdAt,
+                    'combustible' as tipo
+                FROM carga_combustible c
+                INNER JOIN bitacora b ON c.bitacora_id = b.id
+                INNER JOIN maquina m ON b.maquina_id = m.id
+                WHERE m.compania_id = ?
+                AND c.createdAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            `;
+            params.push(compania_id);
+        }
+
+        query += ` ORDER BY createdAt DESC LIMIT 50`;
+
+        const [rows] = await pool.query(query, params);
+
+        if (rows.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ 
+            message: "Error interno del servidor", 
+            error: error.message 
+        });
     }
-
-    // Limpiar el contenido de saltos de línea innecesarios
-    rows[0].contenido = rows[0].contenido.replace(/\n\s*/g, " ").trim();
-
-    res.status(200).json(rows[0]);
-  } catch (error) {
-    console.log(error.message);
-    res
-      .status(500)
-      .json({ message: "Error interno del servidor", error: error.message });
-  }
-};  
+};
 
 /**
  * Enviar alertas por correo y almacenarlas en la base de datos.
@@ -289,6 +343,89 @@ export const sendMantencionAlerts = async (req, res) => {
     } catch (error) {
         console.error('Error enviando alertas de mantenciones pendientes: ', error);
         return res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+    }
+};
+
+// Nueva función para enviar alertas de mantenciones próximas
+export const sendProximaMantencionAlerts = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                m.id,
+                m.descripcion,
+                m.fec_inicio,
+                maq.codigo,
+                maq.compania_id,
+                (
+                    SELECT GROUP_CONCAT(
+                        JSON_OBJECT(
+                            'id', u.id,
+                            'correo', u.correo,
+                            'nombre', CONCAT(p.nombre, ' ', p.apellido),
+                            'rol', rp.nombre
+                        )
+                    )
+                    FROM usuario u
+                    INNER JOIN personal p ON u.personal_id = p.id
+                    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+                    WHERE p.compania_id = maq.compania_id
+                    AND rp.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán')
+                    AND u.isDeleted = 0
+                ) as usuarios
+            FROM mantencion m
+            INNER JOIN bitacora b ON m.bitacora_id = b.id
+            INNER JOIN maquina maq ON b.maquina_id = maq.id
+            WHERE m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
+            AND m.isDeleted = 0
+        `;
+
+        const [mantenciones] = await pool.query(query);
+
+        for (const mantencion of mantenciones) {
+            if (!mantencion.usuarios) continue;
+
+            const usuarios = JSON.parse(`[${mantencion.usuarios}]`);
+            const fechaFormateada = new Date(mantencion.fec_inicio).toLocaleDateString('es-ES');
+
+            for (const usuario of usuarios) {
+                const contenido = `
+                    Mantención próxima a realizarse:
+                    Máquina: ${mantencion.codigo}
+                    Fecha: ${fechaFormateada}
+                    Descripción: ${mantencion.descripcion}
+                `;
+
+                // Guardar alerta en la base de datos
+                await pool.query(
+                    'INSERT INTO alerta (usuario_id, contenido, createdAt) VALUES (?, ?, NOW())',
+                    [usuario.id, contenido]
+                );
+
+                // Enviar correo
+                const htmlContent = generateEmailTemplate(
+                    'Próxima Mantención Programada',
+                    'Ver Detalles',
+                    `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`
+                );
+
+                await sendEmail(
+                    usuario.correo,
+                    'Próxima Mantención Programada',
+                    contenido,
+                    htmlContent
+                );
+            }
+        }
+
+        if (!res) return; // Si se llama desde el cron job
+        res.status(200).json({ message: "Alertas de mantenciones enviadas correctamente" });
+    } catch (error) {
+        console.error('Error enviando alertas de mantenciones:', error);
+        if (!res) return; // Si se llama desde el cron job
+        res.status(500).json({ 
+            message: "Error interno del servidor", 
+            error: error.message 
+        });
     }
 };
 

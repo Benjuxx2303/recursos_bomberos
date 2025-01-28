@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from 'multer';
-import { checkRole } from "../controllers/authMiddleware.js";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
     getMaquinaById,
     getMaquinasDetailsPage,
@@ -25,20 +25,20 @@ const router = Router();
 const base_route = '/maquina'
 
 // router.get(base_route, getMaquinasDetails);
-router.get(base_route,  getMaquinasDetailsPage); // paginado
+router.get(base_route, checkPermission('getMaquina'), getMaquinasDetailsPage); // paginado
 // http://{url}/api/maquina
 // QueryParams:
 // page:              1
 // pageSize:          10
-router.patch(`${base_route}/activar/:patente`, checkRole(['TELECOM']), activarMaquinaPorPatente);
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getMaquinaById); // Obtener una máquina por ID
-router.post(base_route, checkRole(['TELECOM']), uploadFields, createMaquina); // Crear una nueva máquina
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteMaquina); // dar de baja una máquina
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateMaquina); // actualizar la máquina
-router.get(`${base_route}/:id`, getMaquinaById);
+router.patch(`${base_route}/activar/:patente`, checkPermission('updateMaquina'), activarMaquinaPorPatente);
+router.get(`${base_route}/:id`, checkPermission('getMaquina'), getMaquinaById); // Obtener una máquina por ID
+router.post(base_route, checkPermission('createMaquina'), uploadFields, createMaquina); // Crear una nueva máquina
+router.delete(`${base_route}/:id`, checkPermission('deleteMaquina'), deleteMaquina); // dar de baja una máquina
+router.patch(`${base_route}/:id`, checkPermission('updateMaquina'), uploadFields, updateMaquina); // actualizar la máquina
+router.get(`${base_route}/:id`, checkPermission('getMaquina'),getMaquinaById);
 
 // Asignar conductor/es  a una maquina 
-router.post(`${base_route}/asignar-conductores`, asignarConductores);
+router.post(`${base_route}/asignar-conductores`, checkPermission('createMaquina'), asignarConductores);
 
 
 export default router;

@@ -461,7 +461,7 @@ export const createCargaCombustibleBitacora = async (req, res) => {
 };
 
 
-// Dar de baja una carga de combustible
+// Dar de baja una carga de combustible (DELETE)
 export const downCargaCombustible = async (req, res) => {
     const { id } = req.params;
     try {

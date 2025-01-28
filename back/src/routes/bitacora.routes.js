@@ -22,7 +22,7 @@ router.get(`${base_route}/search`, checkPermission('getBitacora'), getBitacora);
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkPermission('getBitacoraId'), getBitacoraById);
+router.get(`${base_route}/:id`, checkPermission('getBitacora'), getBitacoraById);
 router.get(`${base_route}/last`, checkPermission('getBitacora'),  getLastBitacora);
 router.post(base_route, checkPermission('createBitacora'), createBitacora);
 

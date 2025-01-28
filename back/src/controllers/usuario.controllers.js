@@ -246,7 +246,6 @@ export const loginUser = async (req, res) => {
             SELECT 
                 JSON_ARRAYAGG(
                     JSON_OBJECT(
-                        'id', perm.id,
                         'nombre', perm.nombre,
                         'descripcion', perm.descripcion
                     )

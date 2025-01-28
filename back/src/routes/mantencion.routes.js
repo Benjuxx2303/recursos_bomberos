@@ -5,11 +5,12 @@ import {
   createMantencion,
   createMantencionBitacora,
   deleteMantencion,
+  downloadExcel,
   getMantencionAllDetailsById,
   getMantencionesAllDetailsSearch,
+  toggleAprobacionMantencion,
   updateMaintenanceStatus,
-  updateMantencion,
-  downloadExcel
+  updateMantencion
 } from "../controllers/mantencion.controllers.js";
 import { getMantencionCostosByAnio, getReporteGeneral, getReporteMantencionesEstadoCosto } from "../controllers/stats_mantencion.js";
 
@@ -54,6 +55,8 @@ router.post(`${base_route}/old`, checkRole(['TELECOM']), createMantencion);
 router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteMantencion);
 router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateMantencion);
 
+// Nueva ruta para aprobar/rechazar mantenciones
+router.patch(`${base_route}/:id/aprobacion`, checkRole(['TELECOM']), toggleAprobacionMantencion);
 
 router.patch(`${base_route}/:id/status`, checkRole(['TELECOM']), updateMaintenanceStatus);
 

@@ -1,9 +1,9 @@
 import { pool } from "../db.js";
+import { exportToExcel } from "../utils/excelExport.js";
 import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
-import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
-import { exportToExcel } from "../utils/excelExport.js";
+import { validateDate, validateFloat } from "../utils/validations.js";
 
 
 export const getMantencionesAllDetails = async (req, res) => {
@@ -234,6 +234,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 m.ord_trabajo,
                 m.n_factura,
                 m.cost_ser,
+                m.aprobada,
                 t.razon_social AS 'taller',
                 em.nombre AS 'estado_mantencion',
                 tm.nombre AS 'tipo_mantencion'
@@ -273,6 +274,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
             ord_trabajo: row.ord_trabajo,
             n_factura: row.n_factura,
             cost_ser: row.cost_ser,
+            aprobada: row.aprobada,
             taller: row.taller,
             img_url: row.img_url,
             estado_mantencion: row.estado_mantencion,
@@ -1023,6 +1025,52 @@ export const downloadExcel = async (req, res) => {
     res.status(500).json({
       message: "Error interno del servidor",
       error: error.message,
+    });
+  }
+};
+
+// Nueva función para aprobar/rechazar mantención
+export const toggleAprobacionMantencion = async (req, res) => {
+  const { id } = req.params;
+  const { usuario_id } = req.body;
+
+  try {
+    // Verificar si la mantención existe
+    const [mantencion] = await pool.query(
+      "SELECT aprobada FROM mantencion WHERE id = ? AND isDeleted = 0",
+      [id]
+    );
+
+    if (mantencion.length === 0) {
+      return res.status(404).json({ message: "Mantención no encontrada" });
+    }
+
+    // Determinar el nuevo estado (toggle)
+    const nuevoEstado = mantencion[0].aprobada === 1 ? 0 : 1;
+    
+    // Actualizar el estado
+    const [result] = await pool.query(
+      `UPDATE mantencion 
+       SET aprobada = ?,
+           aprobada_por = ?,
+           fecha_aprobacion = ${nuevoEstado === 1 ? 'NOW()' : 'NULL'}
+       WHERE id = ?`,
+      [nuevoEstado, nuevoEstado === 1 ? usuario_id : null, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "No se pudo actualizar la mantención" });
+    }
+
+    res.json({ 
+      message: nuevoEstado === 1 ? "Mantención aprobada exitosamente" : "Mantención rechazada exitosamente",
+      aprobada: nuevoEstado
+    });
+  } catch (error) {
+    console.error("Error al aprobar/rechazar mantención:", error);
+    return res.status(500).json({ 
+      message: "Error interno del servidor", 
+      error: error.message 
     });
   }
 };

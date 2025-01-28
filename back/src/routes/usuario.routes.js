@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { checkRole } from "../controllers/authMiddleware.js";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
     deleteUsuario,
     getUsuarioById,
@@ -24,20 +24,20 @@ const base_route = "/usuario";
 // Obtener usuarios con detalles
 // router.get(`${base_route}/detalles`, getUsuariosWithDetails);
 // router.get(base_route, getUsuariosWithDetails);
-router.get(base_route, checkRole(['TELECOM']), getUsuariosWithDetailsPage); // paginado
+router.get(base_route, checkPermission('getUsuario'), getUsuariosWithDetailsPage); // paginado
 // http://{url}/api/usuario
 // QueryParams:
 // page:              1
 // pageSize:          10
 
 // Obtener usuario por ID
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getUsuarioById);
+router.get(`${base_route}/:id`, checkPermission('getUsuario'), getUsuarioById);
 
 // Eliminar usuario (cambiar estado)
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteUsuario);
+router.delete(`${base_route}/:id`, checkPermission('deleteUsuario'), deleteUsuario);
 
 // Actualizar usuario
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateUsuario);
+router.patch(`${base_route}/:id`, checkPermission('updateUsuario'), updateUsuario);
 
 // -----Logica login
 // Registrar nuevo usuario (con validaciones y encriptación)

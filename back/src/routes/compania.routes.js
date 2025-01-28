@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from 'multer';
-import { checkRole } from "../controllers/authMiddleware.js";
+import { checkPermission} from "../controllers/authMiddleware.js";
 import {
     createCompania,
     deleteCompania,
@@ -28,9 +28,9 @@ router.get(base_route, getCompaniasPage); // paginado
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`,getCompania); // Obtener una compañía por ID
-router.post(base_route, checkRole(['TELECOM']), uploadFields, createCompania); // Crear una nueva compañía
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteCompania); // dar de baja una compañía
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateCompania); // actualizar la compañía
+router.get(`${base_route}/:id`, checkPermission('getCompania'), getCompania); // Obtener una compañía por ID
+router.post(base_route, checkPermission('createCompania'), uploadFields, createCompania); // Crear una nueva compañía
+router.delete(`${base_route}/:id`, checkPermission('deleteCompania'), deleteCompania); // dar de baja una compañía
+router.patch(`${base_route}/:id`, checkPermission('updateCompania'), uploadFields, updateCompania); // actualizar la compañía
 
 export default router;

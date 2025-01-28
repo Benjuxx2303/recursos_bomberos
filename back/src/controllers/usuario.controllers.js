@@ -239,6 +239,34 @@ export const loginUser = async (req, res) => {
         // Obtener imagen del usuario
         const [imageRows] = await pool.query("SELECT img_url FROM personal WHERE id = ?", [user.personal_id]);
         const img_url = imageRows[0]?.img_url || null;
+
+        // obtener permisos del usuario
+        const [permisosRows]= await pool.query(
+            `
+            SELECT 
+                JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'id', perm.id,
+                        'nombre', perm.nombre,
+                        'descripcion', perm.descripcion
+                    )
+                ) AS permisos
+            FROM 
+                personal p
+            JOIN 
+                rol_personal rp ON p.rol_personal_id = rp.id
+            JOIN 
+                rol_permisos rp_perm ON rp.id = rp_perm.rol_personal_id
+            JOIN 
+                permiso perm ON rp_perm.permiso_id = perm.id
+            WHERE 
+                p.id = ?
+            GROUP BY 
+                p.id;
+            ;
+            `, [user.personal_id]
+        )
+        const permisos = permisosRows[0]?.permisos || null;
         // ----------------------------
 
         // JSON Web Token
@@ -249,6 +277,7 @@ export const loginUser = async (req, res) => {
             rol_personal: rol,
             compania: company,
             img_url: img_url,
+            permisos: permisos,
         }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 5 días de duración para desarrollo
 
         // Enviar el token y la información del usuario.
@@ -262,6 +291,7 @@ export const loginUser = async (req, res) => {
                 rol: rol,
                 compania: company,
                 img_url: img_url,
+                permisos: permisos,
             }
         });
     } catch (error) {

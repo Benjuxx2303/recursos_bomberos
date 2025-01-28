@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from 'multer';
-import { checkRole } from "../controllers/authMiddleware.js";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
   createMantencion,
   createMantencionBitacora,
@@ -27,7 +27,7 @@ const router = Router();
 
 const base_route = "/mantencion"; 
 
-router.get(`${base_route}/excel`, checkRole(['TELECOM']), downloadExcel);
+router.get(`${base_route}/excel`, checkPermission('getMantencion'), downloadExcel);
 // http://{url}/api/mantencion
 // QueryParams:
 // fields:           id,bitacora.id,bitacora.compania,bitacora.conductor,bitacora.direccion,bitacora.fh_salida,bitacora.fh_llegada,bitacora.km_salida,bitacora.km_llegada,bitacora.hmetro_salida,bitacora.hmetro_llegada,bitacora.hbomba_salida,bitacora.hbomba_llegada,bitacora.obs,patente,fec_inicio,fec_termino,ord_trabajo,n_factura,img_url 
@@ -37,7 +37,7 @@ router.get(`${base_route}/excel`, checkRole(['TELECOM']), downloadExcel);
 // ord_trabajo:       OT-12345
 // compania:          compañia 1
 
-router.get(base_route, checkRole(['TELECOM']), getMantencionesAllDetailsSearch);
+router.get(base_route, checkPermission('getMantencion'), getMantencionesAllDetailsSearch);
 // http://{url}/api/mantencion
 // QueryParams:
 // page:              1
@@ -48,32 +48,32 @@ router.get(base_route, checkRole(['TELECOM']), getMantencionesAllDetailsSearch);
 // ord_trabajo:       OT-12345
 // compania:          compañia 1
 
-router.get(`${base_route}/:id`, getMantencionAllDetailsById);
+router.get(`${base_route}/:id`, checkPermission('getMantencion'), getMantencionAllDetailsById);
 
-router.post(base_route, createMantencionBitacora);
-router.post(`${base_route}/old`, checkRole(['TELECOM']), createMantencion);
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteMantencion);
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updateMantencion);
+router.post(base_route, checkPermission('createMantencion'), createMantencionBitacora);
+router.post(`${base_route}/old`, checkPermission('createMantencion'), createMantencion);
+router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMantencion);
+router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);
 
 // Nueva ruta para aprobar/rechazar mantenciones
-router.patch(`${base_route}/:id/aprobacion`, checkRole(['TELECOM']), toggleAprobacionMantencion);
+router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion'), toggleAprobacionMantencion);
 
-router.patch(`${base_route}/:id/status`, checkRole(['TELECOM']), updateMaintenanceStatus);
+router.patch(`${base_route}/:id/status`, checkPermission('updateMantencion'), updateMaintenanceStatus);
 
 // ---- reportes
-router.get(`/reportes${base_route}/costos`, checkRole(['TELECOM']), getMantencionCostosByAnio)
+router.get(`/reportes${base_route}/costos`, checkPermission('getMantencion'), getMantencionCostosByAnio)
 // ej: {url}/api/reportes/mantencion/costos
 // QueryParams:
 // year:   2024
 
-router.get(`/reportes${base_route}/stats`, checkRole(['TELECOM']), getReporteMantencionesEstadoCosto);
+router.get(`/reportes${base_route}/stats`, checkPermission('getMantencion'), getReporteMantencionesEstadoCosto);
 // http://{url}/api/reportes/mantencion/datosMantencion
 // QueryParams:
 // startDate:   01-01-2024
 // endDate:     01-01-2025
 // companiaId:  2
 
-router.get(`/reportes${base_route}/dashboard`, checkRole(['TELECOM']), getReporteGeneral);
+router.get(`/reportes${base_route}/dashboard`, checkPermission('getMantencion'), getReporteGeneral);
 // http://{url}/api/reportes/mantencion/dashboard
 
 // Nueva ruta para descargar el archivo Excel de mantenciones

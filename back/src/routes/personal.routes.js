@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from 'multer';
-import { checkRole } from "../controllers/authMiddleware.js";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
     createPersonal,
     downPersonal,
@@ -27,29 +27,29 @@ const uploadFields = upload.fields([
 const router = Router();
 const base_route = '/personal';
 
-router.get(`${base_route}/update-last-service-date`, checkRole(['TELECOM']), updateUltimaFecServicio);
+router.get(`${base_route}/update-last-service-date`, checkPermission('getPersonal'), updateUltimaFecServicio);
 
 // router.get(base_route, getPersonalWithDetails);
-router.get(base_route, checkRole(['TELECOM']), getPersonalWithDetailsPage); // con paginación
+router.get(base_route, checkPermission('getPersonal'), getPersonalWithDetailsPage); // con paginación
 // http://{url}/api/personal/
 // QueryParams:
 // id:          61
 // rut:         23904666-5
 
-router.patch(`${base_route}/activate`, activatePersonal);
+router.patch(`${base_route}/activate`, checkPermission('updatePersonal'), activatePersonal);
 // http://{url}/api/personal/activate
 // QueryParams:
 // id:          61
 // rut:         23904666-5
 
-router.patch(`${base_route}/deactivate`, deactivatePersonal);
+router.patch(`${base_route}/deactivate`, checkPermission('updatePersonal'), deactivatePersonal);
 // http://{url}/api/personal/deactivate
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getPersonalbyID); // Obtener un personal por ID
-router.post(base_route, checkRole(['TELECOM']), uploadFields, createPersonal); // Crear un nuevo personal
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), downPersonal); // dar de baja un personal
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), uploadFields, updatePersonal); // actualizar el personal
+router.get(`${base_route}/:id`, checkPermission('getPersonal'), getPersonalbyID); // Obtener un personal por ID
+router.post(base_route, checkPermission('createPersonal'), uploadFields, createPersonal); // Crear un nuevo personal
+router.delete(`${base_route}/:id`, checkPermission('deletePersonal'), downPersonal); // dar de baja un personal
+router.patch(`${base_route}/:id`, checkPermission('updatePersonal'), uploadFields, updatePersonal); // actualizar el personal
 export default router;

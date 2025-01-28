@@ -7,25 +7,25 @@ import {
     deleteDivision,
     updateDivision,
 } from "../controllers/division.controllers.js";
-import { checkRole } from "../controllers/authMiddleware.js";
+import { checkPermission } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
 const base_route = '/division';
 
 // router.get(base_route, getDivisiones);
-router.get(base_route, checkRole(['TELECOM']), getDivisionesPage); // paginado
+router.get(base_route, checkPermission('getDivision'), getDivisionesPage); // paginado
 // http://{url}/api/division
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkRole(['TELECOM']), getDivision);
+router.get(`${base_route}/:id`, checkPermission('getDivision'), getDivision);
 
-router.post(base_route, checkRole(['TELECOM']), createDivision);
+router.post(base_route, checkPermission('createDivision'), createDivision);
 
-router.delete(`${base_route}/:id`, checkRole(['TELECOM']), deleteDivision);
+router.delete(`${base_route}/:id`, checkPermission('deleteDivision'), deleteDivision);
 
-router.patch(`${base_route}/:id`, checkRole(['TELECOM']), updateDivision);
+router.patch(`${base_route}/:id`, checkPermission('updateDivision'), updateDivision);
 
 export default router;

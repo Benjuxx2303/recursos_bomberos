@@ -86,8 +86,6 @@ describe("Bitacora Controller", () => {
         direccion: "Calle Falsa 123",
         f_salida: "01-01-2023",
         h_salida: "12:00",
-        f_llegada: "01-01-2023",
-        h_llegada: "14:00",
         clave_id: 1,
         km_salida: 10,
         km_llegada: 20,
@@ -98,7 +96,11 @@ describe("Bitacora Controller", () => {
         obs: "Observaciones",
       };
 
-      mockQueryResponse([{ insertId: 1 }]);
+      mockQueryResponse([
+        { insertId: 1 }, // Simula una inserción exitosa
+        { disponible: 1 }, // Simula que la máquina está disponible
+        { disponible: 1 }, // Simula que el personal está disponible
+      ]);
 
       const response = await request(app)
         .post("/api/bitacora")
@@ -112,22 +114,27 @@ describe("Bitacora Controller", () => {
 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidBitacora = { direccion: "" }; // Datos inválidos
-
+    
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidBitacora);
-
+    
+        console.log(response.body.errors)
       expect(response.status).toBe(400);
-      expect(response.body.errors).toEqual([
-        "Tipo de datos inválido",
-        "Km llegada es requerido",
-        "Km salida es requerido",
-        "Hmetro llegada es requerido",
-        "Hmetro salida es requerido",
-        "Hbomba llegada es requerido",
-        "Hbomba salida es requerido"
-      ])
+      expect(response.body.errors).toEqual(
+        [
+          "Tipo de datos inválido.", 
+          "Km salida es requerido y debe ser un número válido.", 
+          "Km llegada es requerido y debe ser un número válido.", 
+          "Hmetro salida es requerido y debe ser un número válido.", 
+          "Hmetro llegada es requerido y debe ser un número válido.", 
+          "Hbomba salida es requerido y debe ser un número válido.", 
+          "Hbomba llegada es requerido y debe ser un número válido.", 
+          "La máquina no está disponible.", 
+          "El personal no está disponible."
+        ]
+      );
     });
   });
 

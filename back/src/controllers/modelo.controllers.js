@@ -303,14 +303,21 @@ export const updateModelo = async (req, res) => {
 
       const updates = {};
       
-      if (nombre !== undefined) {
-          nombre = String(nombre).trim();
-          if (nombre.length === 0) {
-              errors.push('El nombre no puede estar vacío');
-          } else {
-              updates.nombre = nombre;
-          }
-      }
+if (nombre !== undefined) {
+    nombre = String(nombre).trim();
+    if (nombre.length === 0) {
+        errors.push('El nombre no puede estar vacío');
+    } else if (!isNaN(nombre)) {  // Agregar esta validación extra
+        errors.push('Tipo de dato inválido para "nombre"');
+    } else {
+        updates.nombre = nombre;
+    }
+}
+
+if (errors.length > 0) {
+    return res.status(400).json({ message: errors.join(", ") });  // Asegúrate de enviar el mensaje correctamente
+}
+
 
       if (marca_id !== undefined) {
           marca_id = parseInt(marca_id);

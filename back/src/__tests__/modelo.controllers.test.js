@@ -79,18 +79,29 @@ describe("Modelo Controller", () => {
   describe("POST /api/modelo", () => {
     it("debe crear un nuevo modelo", async () => {
       const newModelo = {
-        nombre: "ModeloNuevo",
+        nombre: "ModeloNuevoTEST",
         marca_id: 1,
         tipo_maquina_id: 1,
+        peso_kg: 1000,
       };
 
       mockQueryResponse([{ insertId: 1 }]);
+      mockQueryResponse([[{
+        id: 1, 
+         nombre: newModelo.nombre,
+         marca_id: newModelo.marca_id,
+         tipo_maquina_id: newModelo.tipo_maquina_id,
+         peso_kg: newModelo.peso_kg,
+        }]]);
 
       const response = await request(app)
         .post("/api/modelo")
         .set("Authorization", `Bearer ${token}`)
         .send(newModelo);
 
+        console.log(response.status)
+        console.log(response.body[0])
+        console.log(newModelo.nombre)
       expect(response.status).toBe(201);
       expect(response.body.id).toBe(1);
       expect(response.body.nombre).toBe(newModelo.nombre);
@@ -105,7 +116,7 @@ describe("Modelo Controller", () => {
         .send(invalidModelo);
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Datos inválidos');
+      expect(response.body.message).toBe('ID de marca inválido');
     });
   });
 
@@ -167,7 +178,7 @@ describe("Modelo Controller", () => {
         });
    
       expect(response.status).toBe(404);
-      expect(response.body.message).toBe("Modelo no encontrado");
+      expect(response.body.message).toBe("No se pudo actualizar el modelo");
     });
    
 

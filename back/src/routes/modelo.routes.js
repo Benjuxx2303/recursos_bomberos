@@ -1,33 +1,55 @@
 import { Router } from "express";
-import { 
-    // getClaves,
-  getModeloById,
-  getModelosPage,
-  getModelos,
+import multer from "multer";
+import { checkPermission } from "../controllers/authMiddleware.js";
+import {
   createModelo,
   deleteModelo,
-  updateModelo   
+  getModeloById,
+  getModelos,
+  getModelosPage,
+  updateModelo,
 } from "../controllers/modelo.controllers.js";
-import { checkPermission } from "../controllers/authMiddleware.js";
+// Configuración de multer
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Configuración de multer para los campos o "key" de imagen
+const uploadFields = upload.fields([{ name: "imagen" }]);
 
 const router = Router();
 
-const base_route = '/modelo'
+const base_route = "/modelo";
 
-// router.get(base_route, getClaves);
-router.get(base_route, checkPermission('getModelo'),  getModelos); // paginado
-// http://{url}/api/clave
-// QueryParams:
-// page:              1
-// pageSize:          10
+// Ruta para obtener todos los modelos (sin paginación)
+router.get(base_route, checkPermission("getModelo"), getModelos);
 
-router.get(`${base_route}/:id`, checkPermission('getModelo'), getModeloById);
+// Ruta para obtener modelos paginados
+router.get(`${base_route}/page`, checkPermission("getModelo"), getModelosPage);
 
-router.post(base_route, checkPermission('createModelo'), createModelo);
+// Ruta para obtener un modelo específico
+router.get(`${base_route}/:id`, checkPermission("getModelo"), getModeloById);
 
-router.delete(`${base_route}/:id`, checkPermission('deleteModelo'), deleteModelo);
+// Ruta para crear un nuevo modelo
+router.post(
+  base_route,
+  checkPermission("createModelo"),
+  uploadFields,
+  createModelo
+);
 
-// TODO: reemplazar PUT por PATCH
-router.patch(`${base_route}/:id`, checkPermission('updateModelo'), updateModelo);
+// Ruta para eliminar un modelo
+router.delete(
+  `${base_route}/:id`,
+  checkPermission("deleteModelo"),
+  deleteModelo
+);
+
+// Ruta para actualizar un modelo
+router.patch(
+  `${base_route}/:id`,
+  checkPermission("updateModelo"),
+  uploadFields,
+  updateModelo
+);
 
 export default router;

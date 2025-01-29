@@ -30,6 +30,7 @@ import alertaRoutes from './routes/alerta.routes.js';
 import marcaRoutes from './routes/marca.routes.js';
 import tipo_claveRoutes from './routes/tipo_clave.routes.js';
 import permisoRoutes from './routes/permiso.routes.js';
+import rol_permisoRoutes from './routes/rol_permiso.routes.js';
 
 const app = express();
 app.use(express.json());
@@ -65,6 +66,7 @@ app.use(base_route, alertaRoutes);
 app.use(base_route, marcaRoutes);
 app.use(base_route, tipo_claveRoutes);
 app.use(base_route, permisoRoutes);
+app.use(base_route, rol_permisoRoutes);
 // endpoint
 app.use((req, res) =>{
     res.status(404).json({

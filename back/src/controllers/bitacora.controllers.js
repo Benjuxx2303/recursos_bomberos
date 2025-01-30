@@ -325,32 +325,20 @@ export const createBitacora = async (req, res) => {
             [personalIdNumber]
         );
 
-        console.log(personalDisponible)
+        // console.log(personalDisponible)
 
         if (!personalDisponible || personalDisponible.length === 0 || personalDisponible[0]?.disponible !== 1) errors.push("El personal no está disponible.");
 
-        // Verificar si ya existe una bitácora asociada
-        const [bitacoraMantencion] = await pool.query(
-            "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
-            [companiaIdNumber]
-        );
-
-        const [bitacoraCargaCombustible] = await pool.query(
-            "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
-            [companiaIdNumber]
-        );
-
-        if (bitacoraMantencion.length > 0 || bitacoraCargaCombustible.length > 0) errors.push("Ya existe una bitácora asociada a una mantención o carga de combustible.");
-
+        
         if (errors.length > 0) {
-            console.log({errores_post: errors})
+            // console.log({errores_post: errors})
             return res.status(400).json({ errors });
         }
-
+        
         const obsValue = obs || null;
-
+        
         const [rows] = await pool.query(
-            `INSERT INTO bitacora (
+          `INSERT INTO bitacora (
             compania_id, 
             personal_id, 
             maquina_id, 
@@ -365,39 +353,54 @@ export const createBitacora = async (req, res) => {
             hbomba_llegada, 
             obs, 
             isDeleted
-            ) VALUES (
-             ?, 
-             ?, 
-             ?, 
-             ?, 
-             STR_TO_DATE(?, '%d-%m-%Y %H:%i'), 
-             ?, 
-             ?, 
-             ?, 
-             ?, 
-             ?, 
-             ?, 
-             ?, 
-             ?, 
-             ?) `,
-            [
-                companiaIdNumber,
-                personalIdNumber,
-                maquinaIdNumber,
-                direccion,
-                fh_salida,
-                claveIdNumber,
-                km_salida,
-                km_llegada,
-                hmetro_salida,
-                hmetro_llegada,
-                hbomba_salida,
-                hbomba_llegada,
-                obsValue,
-                0,
-            ]
+            ) 
+            VALUES (
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                STR_TO_DATE(?, '%d-%m-%Y %H:%i'), 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?, 
+                ?
+            ) `,
+          [
+            companiaIdNumber,
+            personalIdNumber,
+            maquinaIdNumber,
+            direccion,
+            fh_salida,
+            claveIdNumber,
+            km_salida,
+            km_llegada,
+            hmetro_salida,
+            hmetro_llegada,
+            hbomba_salida,
+            hbomba_llegada,
+            obsValue,
+            0,
+          ]
         );
 
+        // Verificar si ya existe una bitácora asociada
+        // const [bitacoraMantencion] = await pool.query(
+        //     "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
+        //     [rows.insertId]
+        // );
+
+        // const [bitacoraCargaCombustible] = await pool.query(
+        //     "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
+        //     [rows.insertId]
+        // );
+
+        // if (bitacoraMantencion.length > 0 || bitacoraCargaCombustible.length > 0) errors.push("Ya existe una bitácora asociada a una mantención o carga de combustible.");
+        
         await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNumber]);
         await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNumber]);
 

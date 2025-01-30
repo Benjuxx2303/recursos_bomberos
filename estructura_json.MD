@@ -162,15 +162,15 @@ Se debe enviar un archivo en `form-data` con las claves `imagen` y `imgLicencia`
 - Se separaron los campos para fecha y hora. Pero al ingresar los datos, se mostrará como un solo campo.
 ```
 {
-    "personal_id": 29,
+    "personal_id": 30,
     "compania_id": 16,
-    "maquina_id": 1,
-    "clave_id": 1,
+    "maquina_id": 8,
+    "clave_id": 11,
     "direccion": "123 Calle Ejemplo",
     "f_salida": "04-11-2024",
     "h_salida": "08:50",
-    "f_llegada": "10-11-2024",
-    "h_llegada": "10:50",
+    // "f_llegada": "10-11-2024",
+    // "h_llegada": "10:50",
     "km_salida": 50.5,
     "km_llegada": 75.0,
     "hmetro_salida": 30.0,

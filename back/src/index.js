@@ -1,5 +1,6 @@
-import app from "./app.js";
-import { PORT, HOST } from "./config.js";
+import { httpServer } from "./app.js";
+import { HOST, PORT } from "./config.js";
 
-app.listen(PORT);
-console.log(`Server running on port ${PORT} \n http://${HOST}:${PORT}`);
+httpServer.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} \n http://${HOST}:${PORT}`);
+});

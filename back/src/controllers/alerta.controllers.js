@@ -1,5 +1,6 @@
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from "../utils/mailer.js";
+import { saveAndEmitAlert } from "../utils/notifications.js";
 
 export const getAlertasByUsuario = async (req, res) => {
     const { usuario_id } = req.params;
@@ -30,9 +31,11 @@ export const getAlertasByUsuario = async (req, res) => {
                 a.id,
                 a.contenido,
                 DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
-                'general' as tipo
+                a.tipo,
+                a.isRead
             FROM alerta a
             WHERE a.usuario_id = ?
+            AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         `;
 
         const params = [usuario_id];
@@ -45,7 +48,8 @@ export const getAlertasByUsuario = async (req, res) => {
                     m.id,
                     CONCAT('Mantención programada para ', DATE_FORMAT(m.fec_inicio, '%d-%m-%Y'), ' - ', m.descripcion) as contenido,
                     DATE_FORMAT(NOW(), '%d-%m-%Y %H:%i') as createdAt,
-                    'mantencion' as tipo
+                    'mantencion' as tipo,
+                    0 AS isRead
                 FROM mantencion m
                 INNER JOIN bitacora b ON m.bitacora_id = b.id
                 INNER JOIN maquina maq ON b.maquina_id = maq.id
@@ -67,7 +71,8 @@ export const getAlertasByUsuario = async (req, res) => {
                            c.litros, ' litros - $', 
                            c.valor_mon) as contenido,
                     DATE_FORMAT(c.createdAt, '%d-%m-%Y %H:%i') as createdAt,
-                    'combustible' as tipo
+                    'combustible' as tipo,
+                    0 AS isRead
                 FROM carga_combustible c
                 INNER JOIN bitacora b ON c.bitacora_id = b.id
                 INNER JOIN maquina m ON b.maquina_id = m.id
@@ -100,8 +105,7 @@ export const getAlertasByUsuario = async (req, res) => {
  */
 export const sendVencimientoAlerts = async (req, res) => {
     try {
-        // Consultar permisos próximos a vencer en los próximos 7 días
-        const query = `
+        const [rows] = await pool.query(`
             SELECT 
                 p.id AS personal_id,
                 p.nombre, 
@@ -114,8 +118,7 @@ export const sendVencimientoAlerts = async (req, res) => {
             WHERE p.isDeleted = 0 
               AND u.isDeleted = 0 
               AND p.ven_licencia BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-        `;
-        const [rows] = await pool.query(query);
+        `);
 
         if (rows.length === 0) {
             return res.status(200).json({ message: "No hay permisos próximos a vencer." });
@@ -127,18 +130,16 @@ export const sendVencimientoAlerts = async (req, res) => {
             const fechaFormateada = new Date(ven_licencia).toLocaleDateString("es-ES");
 
             // Crear contenido de la alerta
-            const contenido = `
-                Hola ${nombre} ${apellido},
-                
-                Te recordamos que tu permiso de circulación vence el ${fechaFormateada}.
-                Por favor, asegúrate de renovarlo a tiempo.
-            `;
+            const contenido = `Hola ${nombre} ${apellido}, te recordamos que tu licencia vence el ${fechaFormateada}. Por favor, asegúrate de renovarlo a tiempo.`;
+
+            // Usar saveAndEmitAlert en lugar de inserción directa
+            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
 
             // Enviar el correo
             const htmlContent = generateEmailTemplate(
                 "Recordatorio: Próximo Vencimiento de Permiso",
                 "Renovar Permiso",
-                "https://example.com/renovar-permiso" // Cambiar al enlace real
+                "https://example.com/renovar-permiso"
             );
 
             await sendEmail(
@@ -147,13 +148,6 @@ export const sendVencimientoAlerts = async (req, res) => {
                 contenido,
                 htmlContent
             );
-
-            // Guardar la alerta en la base de datos
-            const insertQuery = `
-                INSERT INTO alerta (usuario_id, contenido, createdAt)
-                VALUES (?, ?, NOW())
-            `;
-            await pool.query(insertQuery, [usuario_id, contenido]);
         }
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
@@ -388,18 +382,13 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             const fechaFormateada = new Date(mantencion.fec_inicio).toLocaleDateString('es-ES');
 
             for (const usuario of usuarios) {
-                const contenido = `
-                    Mantención próxima a realizarse:
+                const contenido = `Mantención próxima a realizarse:
                     Máquina: ${mantencion.codigo}
                     Fecha: ${fechaFormateada}
-                    Descripción: ${mantencion.descripcion}
-                `;
+                    Descripción: ${mantencion.descripcion}`;
 
-                // Guardar alerta en la base de datos
-                await pool.query(
-                    'INSERT INTO alerta (usuario_id, contenido, createdAt) VALUES (?, ?, NOW())',
-                    [usuario.id, contenido]
-                );
+                // Usar saveAndEmitAlert en lugar de inserción directa
+                await saveAndEmitAlert(usuario.id, contenido, 'mantencion');
 
                 // Enviar correo
                 const htmlContent = generateEmailTemplate(
@@ -417,15 +406,45 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             }
         }
 
-        if (!res) return; // Si se llama desde el cron job
+        if (!res) return;
         res.status(200).json({ message: "Alertas de mantenciones enviadas correctamente" });
     } catch (error) {
         console.error('Error enviando alertas de mantenciones:', error);
-        if (!res) return; // Si se llama desde el cron job
+        if (!res) return;
+        res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    }
+};
+
+// Nueva función para marcar alertas como leídas
+export const markAlertAsRead = async (req, res) => {
+    const { alerta_id } = req.params;
+    const { usuario_id } = req.body;
+    
+    try {
+        await pool.query(
+            'UPDATE alerta SET isRead = true WHERE id = ? AND usuario_id = ?',
+            [alerta_id, usuario_id]
+        );
+        
+        res.status(200).json({ message: "Alerta marcada como leída" });
+    } catch (error) {
+        console.error(error);
         res.status(500).json({ 
-            message: "Error interno del servidor", 
+            message: "Error al marcar la alerta como leída", 
             error: error.message 
         });
+    }
+};
+
+// Nueva función para eliminar alertas antiguas
+export const deleteOldAlerts = async () => {
+    try {
+        await pool.query(
+            'DELETE FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)'
+        );
+        console.log('Alertas antiguas eliminadas correctamente');
+    } catch (error) {
+        console.error('Error al eliminar alertas antiguas:', error);
     }
 };
 

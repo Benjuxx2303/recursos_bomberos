@@ -1,7 +1,9 @@
 import { Router } from "express";
 import cron from 'node-cron';
 import {
+    deleteOldAlerts,
     getAlertasByUsuario,
+    markAlertAsRead,
     sendMantencionAlerts,
     sendProximaMantencionAlerts,
     sendRevisionTecnicaAlerts,
@@ -37,8 +39,20 @@ cron.schedule('0 */4 * * *', async () => {
     }
 });
 
-// Rutas para enviar alertas manualmente
+// Limpiar alertas antiguas todos los días a la 1:00 AM
+cron.schedule('0 1 * * *', async () => {
+    try {
+        await deleteOldAlerts();
+    } catch (error) {
+        console.error('Error al limpiar alertas antiguas:', error);
+    }
+});
+
+// Rutas para gestionar alertas
 router.get(`${base_route}/usuario/:usuario_id`, getAlertasByUsuario);
+router.put(`${base_route}/:alerta_id/read`, markAlertAsRead);
+
+// Rutas para enviar alertas manualmente
 router.get(`${base_route}/vencimientos`, sendVencimientoAlerts);
 router.get(`${base_route}/revision-tecnica`, sendRevisionTecnicaAlerts);
 router.get(`${base_route}/mantencion`, sendMantencionAlerts);

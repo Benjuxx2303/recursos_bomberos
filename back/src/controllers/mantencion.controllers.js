@@ -1,14 +1,12 @@
 import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
-import {
-    uploadFileToS3
-} from '../utils/fileUpload.js';
-import { validateDate, validateFloat } from "../utils/validations.js";
-
+import { uploadFileToS3 } from "../utils/fileUpload.js";
+import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
+import { validateFloat } from "../utils/validations.js";
 
 export const getMantencionesAllDetails = async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
+  try {
+    const [rows] = await pool.query(`
             SELECT
                 m.id,
                 b.id AS 'bitacora.id',
@@ -45,52 +43,53 @@ export const getMantencionesAllDetails = async (req, res) => {
             WHERE m.isDeleted = 0 AND b.isDeleted = 0
         `);
 
-        const result = rows.map(row => ({
-            id: row.id,
-            bitacora: {
-                id: row['bitacora.id'],
-                compania: row['bitacora.compania'],
-                conductor: row['bitacora.conductor'],
-                direccion: row['bitacora.direccion'],
-                h_salida: row['bitacora.h_salida'],
-                h_llegada: row['bitacora.h_llegada'],
-                km_salida: row['bitacora.km_salida'],
-                km_llegada: row['bitacora.km_llegada'],
-                hmetro_salida: row['bitacora.hmetro_salida'],
-                hmetro_llegada: row['bitacora.hmetro_llegada'],
-                hbomba_salida: row['bitacora.hbomba_salida'],
-                hbomba_llegada: row['bitacora.hbomba_llegada'],
-                obs: row['bitacora.obs'],
-            },
-            patente: row.patente,
-            fec_inicio: row.fec_i,
-            fec_termino: row.fec_termino,
-            ord_trabajo: row.ord_trabajo,
-            n_factura: row.n_factura,
-            img_url: row.img_url,
-            cost_ser: row.cost_ser,
-            taller: row.taller,
-            estado_mantencion: row.estado_mantencion,
-            tipo_mantencion_id: row.tipo_mantencion_id
-        }));
+    const result = rows.map((row) => ({
+      id: row.id,
+      bitacora: {
+        id: row["bitacora.id"],
+        compania: row["bitacora.compania"],
+        conductor: row["bitacora.conductor"],
+        direccion: row["bitacora.direccion"],
+        h_salida: row["bitacora.h_salida"],
+        h_llegada: row["bitacora.h_llegada"],
+        km_salida: row["bitacora.km_salida"],
+        km_llegada: row["bitacora.km_llegada"],
+        hmetro_salida: row["bitacora.hmetro_salida"],
+        hmetro_llegada: row["bitacora.hmetro_llegada"],
+        hbomba_salida: row["bitacora.hbomba_salida"],
+        hbomba_llegada: row["bitacora.hbomba_llegada"],
+        obs: row["bitacora.obs"],
+      },
+      patente: row.patente,
+      fec_inicio: row.fec_i,
+      fec_termino: row.fec_termino,
+      ord_trabajo: row.ord_trabajo,
+      n_factura: row.n_factura,
+      img_url: row.img_url,
+      cost_ser: row.cost_ser,
+      taller: row.taller,
+      estado_mantencion: row.estado_mantencion,
+      tipo_mantencion_id: row.tipo_mantencion_id,
+    }));
 
-        res.json(result);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message,
-        });
-    }
+    res.json(result);
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
 };
 
-// con parámetros de búsqueda 
+// con parámetros de búsqueda
 // Paginacion
 export const getMantencionesAllDetailsSearch = async (req, res) => {
-    try {
-        const { taller, estado_mantencion, ord_trabajo, compania, page, pageSize } = req.query;
+  try {
+    const { taller, estado_mantencion, ord_trabajo, compania, page, pageSize } =
+      req.query;
 
-        // Inicializar la consulta SQL base
-        let query = `
+    // Inicializar la consulta SQL base
+    let query = `
             SELECT
                 m.id,
                 b.id AS 'bitacora.id',
@@ -128,89 +127,89 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
             WHERE m.isDeleted = 0 AND b.isDeleted = 0
         `;
 
-        // Array para almacenar los parámetros a inyectar
-        const params = [];
+    // Array para almacenar los parámetros a inyectar
+    const params = [];
 
-        if (taller) {
-            query += ' AND t.razon_social = ?';
-            params.push(taller);
-        }
-        if (estado_mantencion) {
-            query += ' AND em.nombre = ?';
-            params.push(estado_mantencion);
-        }
-        if (ord_trabajo) {
-            query += ' AND m.ord_trabajo = ?';
-            params.push(ord_trabajo);
-        }
-        if (compania) {
-            query += ' AND c.nombre = ?';
-            params.push(compania);
-        }
-
-        // Si se proporciona "page", se aplica paginación
-        if (page) {
-            const currentPage = parseInt(page) || 1; // Página actual, por defecto 1
-            const currentPageSize = parseInt(pageSize) || 10; // Página tamaño, por defecto 10
-            const offset = (currentPage - 1) * currentPageSize; // Calcular el offset para la consulta
-
-            // Añadir LIMIT y OFFSET a la consulta
-            query += ' LIMIT ? OFFSET ?';
-            params.push(currentPageSize, offset);
-        }
-
-        query += " ORDER BY m.id DESC"
-
-        // Ejecutar la consulta con los parámetros
-        const [rows] = await pool.query(query, params);
-
-        // Mapeo de resultados a la estructura deseada
-        const result = rows.map(row => ({
-            id: row.id,
-            'bitacora.id': row['bitacora.id'],
-            'bitacora.compania': row['bitacora.compania'],
-            'bitacora.conductor': row['bitacora.conductor'],
-            'bitacora.direccion': row['bitacora.direccion'],
-            'bitacora.fh_salida': row['bitacora.fh_salida'],
-            'bitacora.fh_llegada': row['bitacora.fh_llegada'],
-            'bitacora.km_salida': row['bitacora.km_salida'],
-            'bitacora.km_llegada': row['bitacora.km_llegada'],
-            'bitacora.hmetro_salida': row['bitacora.hmetro_salida'],
-            'bitacora.hmetro_llegada': row['bitacora.hmetro_llegada'],
-            'bitacora.hbomba_salida': row['bitacora.hbomba_salida'],
-            'bitacora.hbomba_llegada': row['bitacora.hbomba_llegada'],
-            'bitacora.obs': row['bitacora.obs'],
-            patente: row.patente,
-            fec_inicio: row.fec_inicio,
-            fec_termino: row.fec_termino,
-            ord_trabajo: row.ord_trabajo,
-            n_factura: row.n_factura,
-            img_url: row.img_url,
-            cost_ser: row.cost_ser,
-            taller: row.taller,
-            estado_mantencion: row.estado_mantencion,
-            tipo_mantencion: row.tipo_mantencion,
-            tipo_mantencion_id: row.tipo_mantencion_id
-        }));        
-
-        // Responder con los resultados formateados
-        res.json(result);
-
-    } catch (error) {
-        console.error('Error: ', error);
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message,
-        });
+    if (taller) {
+      query += " AND t.razon_social = ?";
+      params.push(taller);
     }
+    if (estado_mantencion) {
+      query += " AND em.nombre = ?";
+      params.push(estado_mantencion);
+    }
+    if (ord_trabajo) {
+      query += " AND m.ord_trabajo = ?";
+      params.push(ord_trabajo);
+    }
+    if (compania) {
+      query += " AND c.nombre = ?";
+      params.push(compania);
+    }
+
+    // Si se proporciona "page", se aplica paginación
+    if (page) {
+      const currentPage = parseInt(page) || 1; // Página actual, por defecto 1
+      const currentPageSize = parseInt(pageSize) || 10; // Página tamaño, por defecto 10
+      const offset = (currentPage - 1) * currentPageSize; // Calcular el offset para la consulta
+
+      // Añadir LIMIT y OFFSET a la consulta
+      query += " LIMIT ? OFFSET ?";
+      params.push(currentPageSize, offset);
+    }
+
+    query += " ORDER BY m.id DESC";
+
+    // Ejecutar la consulta con los parámetros
+    const [rows] = await pool.query(query, params);
+
+    // Mapeo de resultados a la estructura deseada
+    const result = rows.map((row) => ({
+      id: row.id,
+      "bitacora.id": row["bitacora.id"],
+      "bitacora.compania": row["bitacora.compania"],
+      "bitacora.conductor": row["bitacora.conductor"],
+      "bitacora.direccion": row["bitacora.direccion"],
+      "bitacora.fh_salida": row["bitacora.fh_salida"],
+      "bitacora.fh_llegada": row["bitacora.fh_llegada"],
+      "bitacora.km_salida": row["bitacora.km_salida"],
+      "bitacora.km_llegada": row["bitacora.km_llegada"],
+      "bitacora.hmetro_salida": row["bitacora.hmetro_salida"],
+      "bitacora.hmetro_llegada": row["bitacora.hmetro_llegada"],
+      "bitacora.hbomba_salida": row["bitacora.hbomba_salida"],
+      "bitacora.hbomba_llegada": row["bitacora.hbomba_llegada"],
+      "bitacora.obs": row["bitacora.obs"],
+      patente: row.patente,
+      fec_inicio: row.fec_inicio,
+      fec_termino: row.fec_termino,
+      ord_trabajo: row.ord_trabajo,
+      n_factura: row.n_factura,
+      img_url: row.img_url,
+      cost_ser: row.cost_ser,
+      taller: row.taller,
+      estado_mantencion: row.estado_mantencion,
+      tipo_mantencion: row.tipo_mantencion,
+      tipo_mantencion_id: row.tipo_mantencion_id,
+    }));
+
+    // Responder con los resultados formateados
+    res.json(result);
+  } catch (error) {
+    console.error("Error: ", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
 };
 
 // TODO: actualizar
 export const getMantencionAllDetailsById = async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    try {
-        const [rows] = await pool.query(`
+  try {
+    const [rows] = await pool.query(
+      `
             SELECT
                 m.id,
                 b.id AS 'bitacora.id',
@@ -247,708 +246,565 @@ export const getMantencionAllDetailsById = async (req, res) => {
             INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
             WHERE m.isDeleted = 0 AND b.isDeleted = 0 AND m.id = ?
-        `, [id]);
+        `,
+      [id]
+    );
 
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "Mantención no encontrada" });
-        }
-
-        const result = rows.map(row => ({
-            id: row.id,
-            'bitacora.id': row['bitacora.id'],
-            'bitacora.compania': row['bitacora.compania'],
-            'bitacora.conductor': row['bitacora.conductor'],
-            'bitacora.direccion': row['bitacora.direccion'],
-            'bitacora.fh_salida': row['bitacora.fh_salida'],
-            'bitacora.fh_llegada': row['bitacora.fh_llegada'],
-            'bitacora.km_salida': row['bitacora.km_salida'],
-            'bitacora.km_llegada': row['bitacora.km_llegada'],
-            'bitacora.hmetro_salida': row['bitacora.hmetro_salida'],
-            'bitacora.hmetro_llegada': row['bitacora.hmetro_llegada'],
-            'bitacora.hbomba_salida': row['bitacora.hbomba_salida'],
-            'bitacora.hbomba_llegada': row['bitacora.hbomba_llegada'],
-            'bitacora.obs': row['bitacora.obs'],
-            patente: row.patente,
-            fec_inicio: row.fec_inicio,
-            fec_termino: row.fec_termino,
-            ord_trabajo: row.ord_trabajo,
-            n_factura: row.n_factura,
-            cost_ser: row.cost_ser,
-            aprobada: row.aprobada,
-            taller: row.taller,
-            img_url: row.img_url,
-            estado_mantencion: row.estado_mantencion,
-            tipo_mantencion: row.tipo_mantencion,
-            tipo_mantencion_id: row.tipo_mantencion_id
-        }));     
-
-        res.json(result);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message,
-        });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Mantención no encontrada" });
     }
+
+    const result = rows.map((row) => ({
+      id: row.id,
+      "bitacora.id": row["bitacora.id"],
+      "bitacora.compania": row["bitacora.compania"],
+      "bitacora.conductor": row["bitacora.conductor"],
+      "bitacora.direccion": row["bitacora.direccion"],
+      "bitacora.fh_salida": row["bitacora.fh_salida"],
+      "bitacora.fh_llegada": row["bitacora.fh_llegada"],
+      "bitacora.km_salida": row["bitacora.km_salida"],
+      "bitacora.km_llegada": row["bitacora.km_llegada"],
+      "bitacora.hmetro_salida": row["bitacora.hmetro_salida"],
+      "bitacora.hmetro_llegada": row["bitacora.hmetro_llegada"],
+      "bitacora.hbomba_salida": row["bitacora.hbomba_salida"],
+      "bitacora.hbomba_llegada": row["bitacora.hbomba_llegada"],
+      "bitacora.obs": row["bitacora.obs"],
+      patente: row.patente,
+      fec_inicio: row.fec_inicio,
+      fec_termino: row.fec_termino,
+      ord_trabajo: row.ord_trabajo,
+      n_factura: row.n_factura,
+      cost_ser: row.cost_ser,
+      aprobada: row.aprobada,
+      taller: row.taller,
+      img_url: row.img_url,
+      estado_mantencion: row.estado_mantencion,
+      tipo_mantencion: row.tipo_mantencion,
+      tipo_mantencion_id: row.tipo_mantencion_id,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
 };
 
-// TODO: Agregar logica de "createMantencion" aqui
-// Crear mantenciones con todo (bitacora incluida)
-export const createMantencionBitacora = async (req, res) => {
-    let {
-        "bitacora.compania_id": compania_id,
-        "bitacora.personal_id": personal_id,
-        "bitacora.direccion": direccion,
-        "bitacora.f_salida": f_salida,
-        "bitacora.h_salida": h_salida,
-        "bitacora.clave_id": clave_id,
-        "bitacora.km_salida": km_salida,
-        "bitacora.km_llegada": km_llegada,
-        "bitacora.hmetro_salida": hmetro_salida,
-        "bitacora.hmetro_llegada": hmetro_llegada,
-        "bitacora.hbomba_salida": hbomba_salida,
-        "bitacora.hbomba_llegada": hbomba_llegada,
-        "bitacora.obs": obs,
-        maquina_id,
-        taller_id,
-        estado_mantencion_id,
-        tipo_mantencion_id,
-        ord_trabajo,
-        n_factura,
-        cost_ser,
-        fec_inicio,
-        fec_termino
+// Crear una nueva mantención
+export const createMantencion = async (req, res) => {
+  console.log("\n=== Iniciando creación de mantención ===");
+
+  try {
+    const {
+      bitacora_id,
+      maquina_id,
+      taller_id,
+      tipo_mantencion_id,
+      fec_inicio,
+      fec_termino,
+      ord_trabajo,
+      n_factura,
+      cost_ser,
+      aprobada,
     } = req.body;
 
-    const errors = []; // Arreglo para almacenar errores
+    console.log("Datos recibidos:", {
+      bitacora_id,
+      maquina_id,
+      taller_id,
+      tipo_mantencion_id,
+      fec_inicio,
+      fec_termino,
+      ord_trabajo,
+      n_factura,
+      cost_ser,
+    });
 
-    try {
-        ord_trabajo = String(ord_trabajo).trim();
-        
-        // Concatenar fecha y hora para formatear como datetime
-        let fh_salida = null;
+    let errors = [];
+    const estado_mantencion_id = 1;
 
-        // Validar fechas y horas de salida
-        if (f_salida && h_salida) {
-            const error = validateDate(f_salida, h_salida);
-            if (!error) {
-                console.log(`${f_salida} ${h_salida}`);
-                errors.push(`Fecha y hora de salida inválida: ${error}`);
-            }
-            fh_salida = `${f_salida} ${h_salida}`;
-        }
+    // Convertir IDs a números
+    const bitacoraIdNumber = parseInt(bitacora_id);
+    const maquinaIdNumber = parseInt(maquina_id);
+    const tallerIdNumber = parseInt(taller_id);
+    const tipoMantencionIdNumber = parseInt(tipo_mantencion_id);
+    const estadoMantencionIdNumber = parseInt(estado_mantencion_id);
+    const costSerNumber = parseFloat(cost_ser);
 
-        // si es que viene null
-        if (f_salida === null || h_salida === null){
-            fh_salida = null;
-        }
+    // Validaciones de entrada
+    if (isNaN(bitacoraIdNumber))
+      errors.push("El ID de la bitácora es inválido");
+    if (isNaN(maquinaIdNumber))
+      errors.push("El ID de la máquina es inválido");
+    if (isNaN(tallerIdNumber)) 
+      errors.push("El ID del taller es inválido");
+    if (isNaN(tipoMantencionIdNumber))
+      errors.push("El ID del tipo de mantención es inválido");
+    if (typeof ord_trabajo !== "string")
+      errors.push("El número de orden de trabajo debe ser una cadena de texto");
+    if (n_factura && isNaN(parseInt(n_factura)))
+      errors.push("El número de factura es inválido");
+    if (cost_ser && isNaN(costSerNumber))
+      errors.push("El costo del servicio es inválido");
 
-        // Validación de datos de la bitácora
-        const companiaIdNumber = parseInt(compania_id);
-        const personalIdNumber = parseInt(personal_id);
-        const maquinaIdNumber = parseInt(maquina_id);
-        const claveIdNumber = parseInt(clave_id);
+    // Validar costo de servicio
+    const costSerValidation = validateFloat(cost_ser);
+    if (costSerValidation) errors.push(costSerValidation);
 
-        if (
-            isNaN(companiaIdNumber) ||
-            isNaN(personalIdNumber) ||
-            isNaN(maquinaIdNumber) ||
-            isNaN(claveIdNumber) ||
-            typeof direccion !== "string"
-        ) {
-            errors.push("Tipo de datos inválido en la bitácora");
-        }
+    // Validación de fechas y formateo
+    const validateDate = (dateStr) => {
+      const regex = /^\d{2}-\d{2}-\d{4}$/;
+      return regex.test(dateStr);
+    };
 
-        // Verificar disponibilidad de la máquina
-        const [maquinaDisponible] = await pool.query("SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
-        if (maquinaDisponible.length === 0 || maquinaDisponible[0].disponible !== 1) {
-            errors.push("La máquina no está disponible para mantenimiento");
-        }
-
-        // Verificar disponibilidad del personal
-        const [personalDisponible] = await pool.query("SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
-        if (personalDisponible.length === 0 || personalDisponible[0].disponible !== 1) {
-            errors.push("El personal no está disponible para la mantención");
-        }
-
-        // manejar la carga de archivos si existen
-        let img_url = null;
-
-        if (req.files) {
-            const imagen = req.files.imagen ? req.files.imagen[0] : null;
-
-            if (imagen) {
-                try {
-                    const imgData = await uploadFileToS3(imagen, "mantencion");
-                    if (imgData && imgData.Location) {
-                        img_url = imgData.Location;
-                    } else {
-                        errors.push("No se pudo obtener la URL de la imagen");
-                    }
-                } catch (error) {
-                    errors.push("Error al subir la imagen", error.message);
-                }
-            }
-        }
-
-        // Validación de existencia de llaves foráneas para la bitácora
-        const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [companiaIdNumber]);
-        if (companiaExists.length === 0) {
-            errors.push("Compañía no existe o está eliminada");
-        }
-
-        const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personalIdNumber]);
-        if (personalExists.length === 0) {
-            errors.push("Personal no existe o está eliminado");
-        }
-
-        const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquinaIdNumber]);
-        if (maquinaExists.length === 0) {
-            errors.push("Máquina no existe o está eliminada");
-        }
-
-        const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [claveIdNumber]);
-        if (claveExists.length === 0) {
-            errors.push("Clave no existe o está eliminada");
-        }
-
-        // Validar compañia de la bitácora con la del personal
-        const [companiaPersonal] = await pool.query("SELECT compania_id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0", [personalIdNumber, companiaIdNumber]);
-        if (companiaPersonal.length === 0) {
-            errors.push("Compania no coincide con la del personal");
-        }
-
-        // Validación de fecha y hora usando la función validateDate
-        if (f_salida && h_salida && !validateDate(f_salida, h_salida)) {
-            errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
-        }
-
-        // Validación de fec_inicio usando validateDate
-        let formattedFecInicio = null;
-        if (fec_inicio) {
-            if (!validateDate(fec_inicio)) {
-                errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
-            } else {
-                const dateParts = fec_inicio.split("-");
-                const [day, month, year] = dateParts.map(Number);
-                formattedFecInicio = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-            }
-        }
-
-        // Validación de fec_termino usando validateDate
-        let formattedFecTermino = null;
-        if (fec_termino) {
-            if (!validateDate(fec_termino)) {
-                errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
-            } else {
-                const dateParts = fec_termino.split("-");
-                const [day, month, year] = dateParts.map(Number);
-                formattedFecTermino = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-            }
-        }
-
-        // Validación de km_salida, km_llegada, hmetro_salida, etc.
-        const validateFields = [
-            { field: km_salida, name: "km_salida" },
-            { field: km_llegada, name: "km_llegada" },
-            { field: hmetro_salida, name: "hmetro_salida" },
-            { field: hmetro_llegada, name: "hmetro_llegada" },
-            { field: hbomba_salida, name: "hbomba_salida" },
-            { field: hbomba_llegada, name: "hbomba_llegada" }
-        ];
-
-        validateFields.forEach(({ field, name }) => {
-            if (field === undefined || field === null) {
-                errors.push(`${name} es obligatorio`);
-            } else {
-                const error = validateFloat(field);
-                if (error) {
-                    errors.push(`${name}: ${error}`);
-                }
-            }
-        });
-
-        // Validaciones para mantención
-        const [tallerExists] = await pool.query("SELECT 1 FROM taller WHERE id = ? AND isDeleted = 0", [taller_id]);
-        if (tallerExists.length === 0) {
-            errors.push("Taller no existe o está eliminado");
-        }
-
-        const [estadoExists] = await pool.query("SELECT 1 FROM estado_mantencion WHERE id = ? AND isDeleted = 0", [estado_mantencion_id]);
-        if (estadoExists.length === 0) {
-            errors.push("Estado de mantención no existe");
-        }
-
-        const [tipoMantencionExists] = await pool.query("SELECT 1 FROM tipo_mantencion WHERE id = ? AND isDeleted = 0", [tipo_mantencion_id]);
-        if (tipoMantencionExists.length === 0) {
-            errors.push("Tipo de mantención no existe");
-        }
-
-        // Si hay errores, devolverlos
-        if (errors.length > 0) {
-            return res.status(400).json({ errors });
-        }
-
-        // Inserción de la bitácora en la base de datos
-        const [bitacoraResult] = await pool.query(
-            `INSERT INTO bitacora (
-                compania_id, 
-                personal_id, 
-                maquina_id, 
-                direccion,
-                fh_salida, 
-                clave_id, 
-                km_salida, 
-                km_llegada,
-                hmetro_salida, 
-                hmetro_llegada, 
-                hbomba_salida, 
-                hbomba_llegada, 
-                obs, 
-                isDeleted
-            ) VALUES (
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                STR_TO_DATE(?, '%d-%m-%Y %H:%i'),
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                0
-            )`,
-            [
-                companiaIdNumber, 
-                personalIdNumber, 
-                maquinaIdNumber, 
-                direccion,
-                fh_salida, 
-                claveIdNumber, 
-                km_salida, 
-                km_llegada,
-                hmetro_salida, 
-                hmetro_llegada, 
-                hbomba_salida, 
-                hbomba_llegada, 
-                obs || null
-            ]
-        );
-
-        const bitacora_id = bitacoraResult.insertId;
-
-        // Actualizar estado de la máquina y personal a "no disponible"
-        await pool.query(
-            `UPDATE maquina SET disponible = 0 WHERE id = ?`,
-            [maquinaIdNumber]
-        );
-
-        await pool.query(
-            `UPDATE personal SET disponible = 0 WHERE id = ?`,
-            [personalIdNumber]
-        );
-
-        // Inserción en la tabla mantención
-        const [mantencionResult] = await pool.query(
-            `INSERT INTO mantencion (
-                bitacora_id, maquina_id, ord_trabajo, n_factura, img_url,
-                cost_ser, taller_id, estado_mantencion_id, tipo_mantencion_id, fec_inicio, fec_termino, isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-            [
-                bitacora_id, maquina_id, ord_trabajo, n_factura || null, img_url,
-                cost_ser || null, taller_id, estado_mantencion_id, tipo_mantencion_id,
-                formattedFecInicio, formattedFecTermino
-            ]
-        );
-
-        return res.status(201).json({ message: "Mantención creada exitosamente", mantencion_id: mantencionResult.insertId });
-    } catch (error) {
-        console.log(error.message);
-        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    if (fec_inicio && !validateDate(fec_inicio)) {
+      errors.push(
+        "El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy"
+      );
     }
-};
 
-// Crear nueva mantención (solo mantencion)
-export const createMantencion = async (req, res) => {
-    let {
-        bitacora_id,
-        maquina_id,
-        taller_id,
-        tipo_mantencion_id,
+    if (fec_termino && !validateDate(fec_termino)) {
+      errors.push(
+        "El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy"
+      );
+    }
+
+    if (errors.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "Errores en los datos de entrada", errors });
+    }
+
+    // Validar existencia de la bitácora y obtener información
+    console.log("\n=== Consultando información de bitácora ===");
+    const [bitacoraInfo] = await pool.query(
+      `SELECT b.id, b.personal_id, m.codigo, m.compania_id, c.nombre as compania_nombre
+             FROM bitacora b 
+             INNER JOIN maquina m ON b.maquina_id = m.id 
+             INNER JOIN compania c ON m.compania_id = c.id
+             WHERE b.id = ? AND b.isDeleted = 0`,
+      [bitacoraIdNumber]
+    );
+
+    if (bitacoraInfo.length === 0) {
+      console.error("Bitácora no encontrada:", bitacoraIdNumber);
+      return res
+        .status(400)
+        .json({ message: "Bitácora no existe o está eliminada" });
+    }
+
+    const { codigo, compania_id, compania_nombre, personal_id } = bitacoraInfo[0];
+    console.log("Información de bitácora:", {
+      codigo,
+      compania_id,
+      compania_nombre,
+    });
+
+    // Validar si ya existe una mantención o carga de combustible asociada
+    const [mantencionExistente] = await pool.query(
+      "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
+      [bitacoraIdNumber]
+    );
+
+    const [cargaExistente] = await pool.query(
+      "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
+      [bitacoraIdNumber]
+    );
+
+    if (mantencionExistente.length > 0) {
+      errors.push("Ya existe una mantención asociada a esta bitácora");
+    }
+
+    if (cargaExistente.length > 0) {
+      errors.push(
+        "Ya existe una carga de combustible asociada a esta bitácora"
+      );
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: "Errores de asociación", errors });
+    }
+
+    // Validar existencia de la máquina y personal, y verificar si están disponibles
+    const [maquinaDisponible] = await pool.query(
+      "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
+      [maquinaIdNumber]
+    );
+    if (
+      maquinaDisponible.length === 0 ||
+      maquinaDisponible[0].disponible !== 1
+    ) {
+      errors.push("La máquina no está disponible para mantenimiento");
+    }
+
+    const [personalDisponible] = await pool.query(
+      "SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0",
+      [personal_id]
+    );
+    if (
+      personalDisponible.length === 0 ||
+      personalDisponible[0].disponible !== 1
+    ) {
+      errors.push("El personal no está disponible para la mantención");
+    }
+
+    if (errors.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "Errores en disponibilidad", errors });
+    }
+
+    // Actualizar estados de disponibilidad
+    await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [
+      maquinaIdNumber,
+    ]);
+    await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [
+      personal_id,
+    ]);
+
+    // Manejar la carga de archivos si existen
+    let img_url = null;
+    if (req.files && req.files.imagen && req.files.imagen[0]) {
+      try {
+        const imgData = await uploadFileToS3(req.files.imagen[0], "mantencion");
+        if (imgData && imgData.Location) {
+          img_url = imgData.Location;
+        }
+      } catch (error) {
+        console.error("Error al subir imagen:", error);
+        return res.status(500).json({
+          message: "Error al subir la imagen",
+          error: error.message,
+        });
+      }
+    }
+
+    // Insertar la mantención
+    const [result] = await pool.query(
+      `INSERT INTO mantencion (
+              bitacora_id, 
+              maquina_id, 
+              taller_id, 
+              estado_mantencion_id, 
+              tipo_mantencion_id, 
+              fec_inicio, 
+              fec_termino, 
+              ord_trabajo, 
+              n_factura, 
+              cost_ser, 
+              isDeleted
+            ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 0)`,
+      [
+        bitacoraIdNumber,
+        maquinaIdNumber,
+        tallerIdNumber,
+        estadoMantencionIdNumber,
+        tipoMantencionIdNumber,
         fec_inicio,
         fec_termino,
         ord_trabajo,
-        n_factura,
-        cost_ser,
-    } = req.body;
-    let errors = [];
+        n_factura || null,
+        costSerNumber || null,
+      ]
+    );
 
-    try {
-        // Convert and validate the numeric values
-        const bitacoraIdNumber = parseInt(bitacora_id);
-        const maquinaIdNumber = parseInt(maquina_id);
-        const tallerIdNumber = parseInt(taller_id);
-        const tipoMantencionIdNumber = parseInt(tipo_mantencion_id);
-        const nFacturaNumber = n_factura ? parseInt(n_factura) : null;
-        const costSerNumber = cost_ser ? parseFloat(cost_ser) : null;
+    // Obtener usuarios para notificar (roles específicos)
+    const usuarios = await getNotificationUsers({
+      compania_id,
+      roles: ["TELECOM", "Teniente de Máquina", "Capitán"],
+    });
 
-        // Validación de valores numéricos
-        if (isNaN(bitacoraIdNumber)) errors.push("El ID de la bitácora es inválido");
-        if (isNaN(maquinaIdNumber)) errors.push("El ID de la máquina es inválido");
-        if (isNaN(tallerIdNumber)) errors.push("El ID del taller es inválido");
-        if (isNaN(tipoMantencionIdNumber)) errors.push("El ID del tipo de mantención es inválido");
-        if (typeof ord_trabajo !== 'string') errors.push('El número de orden de trabajo debe ser una cadena de texto');
-        if (nFacturaNumber && isNaN(nFacturaNumber)) errors.push("El número de factura es inválido");
-        
-        // Usamos la función validateFloat para validar cost_ser
-        const costSerError = validateFloat(cost_ser);
-        if (costSerError) errors.push(costSerError);
+    // Enviar notificaciones si hay usuarios
+    if (usuarios.length > 0) {
+      const contenido = `Nueva mantención registrada - ${codigo} - Orden de trabajo: ${ord_trabajo}`;
 
-        // Validación de fechas usando validateDate
-        if (fec_inicio && !validateDate(fec_inicio)) {
-            errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
-        }
-
-        if (fec_termino && !validateDate(fec_termino)) {
-            errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
-        }
-
-        if (errors.length > 0) {
-            return res.status(400).json({ message: "Errores en los datos de entrada", errors });
-        }
-
-        // Validar existencia de la bitácora y obtener maquina_id y personal_id
-        const [bitacoraData] = await pool.query(
-            "SELECT maquina_id, personal_id FROM bitacora WHERE id = ? AND isDeleted = 0",
-            [bitacoraIdNumber]
-        );
-
-        if (bitacoraData.length === 0) {
-            return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
-        }
-
-        const { maquina_id: maquinaIdFromBitacora, personal_id } = bitacoraData[0];
-
-        // Validar si ya existe una mantención asociada a esta bitácora
-        const [mantencionExistente] = await pool.query(
-            "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
-            [bitacoraIdNumber]
-        );
-
-        if (mantencionExistente.length > 0) {
-            errors.push("Ya existe una mantención asociada a esta bitácora");
-        }
-
-        if (errors.length > 0) {
-            return res.status(400).json({ message: "Errores de asociación", errors });
-        }
-
-        // Validar disponibilidad de la máquina
-        const [maquinaDisponible] = await pool.query(
-            "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
-            [maquinaIdFromBitacora]
-        );
-
-        if (maquinaDisponible.length === 0 || maquinaDisponible[0].disponible !== 1) {
-            errors.push("La máquina no está disponible para mantenimiento");
-        }
-
-        // Validar disponibilidad del personal
-        const [personalDisponible] = await pool.query(
-            "SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0",
-            [personal_id]
-        );
-
-        if (personalDisponible.length === 0 || personalDisponible[0].disponible !== 1) {
-            errors.push("El personal no está disponible para la mantención");
-        }
-
-        if (errors.length > 0) {
-            return res.status(400).json({ message: "Errores en disponibilidad", errors });
-        }
-
-        // Actualizar estados de disponibilidad
-        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdFromBitacora]);
-        await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personal_id]);
-
-        // Formatear las fechas de inicio y término
-        const formattedFecInicio = fec_inicio ? fec_inicio.split('-').reverse().join('-') : null;
-        const formattedFecTermino = fec_termino ? fec_termino.split('-').reverse().join('-') : null;
-
-        // Inserción en la base de datos
-        const [result] = await pool.query(
-            `INSERT INTO mantencion (
-                bitacora_id,
-                maquina_id,
-                taller_id,
-                estado_mantencion_id,
-                tipo_mantencion_id,
-                fec_inicio,
-                fec_termino,
-                ord_trabajo,
-                n_factura,
-                cost_ser,
-                isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-            [
-                bitacoraIdNumber,
-                maquinaIdFromBitacora,
-                tallerIdNumber,
-                1, // estado_mantencion_id siempre es 1 al crear una mantención
-                tipoMantencionIdNumber,
-                formattedFecInicio,
-                formattedFecTermino,
-                ord_trabajo,
-                nFacturaNumber || null,
-                costSerNumber || null,
-            ]
-        );
-
-        return res.status(201).json({
-            id: result.insertId,
-            bitacora_id: bitacoraIdNumber,
-            maquina_id: maquinaIdFromBitacora,
-            taller_id: tallerIdNumber,
-            estado_mantencion_id: 1,
-            tipo_mantencion_id: tipoMantencionIdNumber,
-            fec_inicio: formattedFecInicio,
-            fec_termino: formattedFecTermino,
-            ord_trabajo,
-            n_factura: nFacturaNumber,
-            cost_ser: costSerNumber,
-            message: "Mantención creada exitosamente",
-        });
-    } catch (error) {
-        console.error("Error en createMantencion:", error);
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message,
-        });
+      await createAndSendNotifications({
+        contenido,
+        tipo: "mantencion",
+        usuarios,
+        emailConfig: {
+          subject: "Nueva Mantención Registrada",
+          redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
+          buttonText: "Ver Detalles",
+        },
+      });
     }
+
+    res.json({
+      id: result.insertId,
+      bitacora_id: bitacoraIdNumber,
+      maquina_id: maquinaIdNumber,
+      taller_id: tallerIdNumber,
+      estado_mantencion_id: estadoMantencionIdNumber,
+      tipo_mantencion_id: tipoMantencionIdNumber,
+      fec_inicio,
+      fec_termino,
+      ord_trabajo,
+      n_factura,
+      cost_ser: costSerNumber,
+      img_url,
+      aprobada,
+      message: "Mantención creada exitosamente",
+    });
+  } catch (error) {
+    console.error("Error general en createMantencion:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
 };
-  
+
 // Eliminar mantencion (cambiar estado)
 export const deleteMantencion = async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    try {
-        const [result] = await pool.query("UPDATE mantencion SET isDeleted = 1 WHERE id = ?", [id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                message: "Mantención no encontrada" 
-            });
-        }
-        res.sendStatus(204);
-    } catch (error) {
-        return res.status(500).json({
-            message: error.message 
-        });
+  try {
+    const [result] = await pool.query(
+      "UPDATE mantencion SET isDeleted = 1 WHERE id = ?",
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Mantención no encontrada",
+      });
     }
+    res.sendStatus(204);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
 };
 
 export const updateMantencion = async (req, res) => {
-    const { id } = req.params;
-    const {
-        bitacora_id,
-        maquina_id,
-        ord_trabajo,
-        n_factura,
-        cost_ser,
-        taller_id,
-        estado_mantencion_id,
-        tipo_mantencion_id,
-        isDeleted,
-        fec_inicio, // Nueva columna
-        fec_termino
-    } = req.body;
+  const { id } = req.params;
+  const {
+    bitacora_id,
+    maquina_id,
+    ord_trabajo,
+    n_factura,
+    cost_ser,
+    taller_id,
+    estado_mantencion_id,
+    tipo_mantencion_id,
+    isDeleted,
+    fec_inicio, // Nueva columna
+    fec_termino,
+  } = req.body;
 
-    const errors = []; // Array para capturar los errores
+  const errors = []; // Array para capturar los errores
 
-    try {
-        // Verificar si la mantención existe (inicio)
-        const [existing] = await pool.query("SELECT 1 FROM mantencion WHERE id = ?", [id]);
-        if (existing.length === 0) {
-            return res.status(404).json({ message: "Mantención no encontrada" });
-        }
-
-        // Validación de existencia de llaves foráneas
-        const foreignKeyValidations = [
-            { field: 'bitacora_id', table: 'bitacora' },
-            { field: 'maquina_id', table: 'maquina' },
-            { field: 'taller_id', table: 'taller' },
-            { field: 'estado_mantencion_id', table: 'estado_mantencion' },
-            { field: 'tipo_mantencion_id', table: 'tipo_mantencion' }
-        ];
-
-        const updates = {};
-
-        // Validaciones para llaves foráneas
-        for (const { field, table } of foreignKeyValidations) {
-            if (req.body[field] !== undefined) {
-                const [result] = await pool.query(`SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`, [req.body[field]]);
-                if (result.length === 0) {
-                    errors.push(`${table.charAt(0).toUpperCase() + table.slice(1)} no existe o está eliminada`);
-                } else {
-                    updates[field] = req.body[field];
-                }
-            }
-        }
-
-        // Validaciones para los campos específicos
-        if (ord_trabajo !== undefined) {
-            if (typeof ord_trabajo !== "string") {
-                errors.push("Tipo de dato inválido para 'ord_trabajo'");
-            } else {
-                updates.ord_trabajo = ord_trabajo;
-            }
-        }
-
-        if (n_factura !== undefined) {
-            if (typeof n_factura !== "number") {
-                errors.push("Tipo de dato inválido para 'n_factura'");
-            } else {
-                updates.n_factura = n_factura;
-            }
-        }
-
-        if (cost_ser !== undefined) {
-            if (typeof cost_ser !== "number") {
-                errors.push("Tipo de dato inválido para 'cost_ser'");
-            } else {
-                updates.cost_ser = cost_ser;
-            }
-        }
-
-        // Validar y agregar fec_inicio
-        if (fec_inicio !== undefined) {
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            if (!fechaRegex.test(fec_inicio)) {
-                errors.push("El formato de la fecha de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa");
-            } else {
-                updates.fec_inicio = fec_inicio;
-            }
-        }
-
-        // Validar y agregar fec_termino
-        if (fec_termino !== undefined) {
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            if (!fechaRegex.test(fec_termino)) {
-                errors.push("El formato de la fecha de 'fec_termino' es inválido. Debe ser dd-mm-aaaa");
-            } else {
-                updates.fec_termino = fec_termino;
-            }
-        }
-
-        // Validar y agregar isDeleted
-        if (isDeleted !== undefined) {
-            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                errors.push("Tipo de dato inválido para 'isDeleted'");
-            } else {
-                updates.isDeleted = isDeleted;
-            }
-        }
-
-        
-
-        // manejar la carga de archivos si existen
-        let img_url = null;
-
-        // manejo de subida de imagen S3
-        if (req.files) {
-            const imagen = req.files.imagen ? req.files.imagen[0] : null;
-
-            if (imagen) {
-                try {
-                    const imgData = await uploadFileToS3(imagen, "mantencion");
-                    if (imgData && imgData.Location) {
-                        img_url = imgData.Location;
-                        updates.img_url = img_url;
-                    } else {
-                        errors.push("No se pudo obtener la URL de la imagen");
-                    }
-                } catch (error) {
-                    errors.push("Error al subir la imagen", error.message);
-                }
-            }
-        }
-
-        if (errors.length > 0) {
-            console.log(errors);
-            return res.status(400).json({ errors });
-        }
-
-        // Construir la cláusula SET para la actualización
-        const setClause = Object.keys(updates)
-            .map((key) => {
-                if (key === 'fec_inicio' || key === 'fec_termino') {
-                    return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
-                }
-                return `${key} = ?`;
-            })
-            .join(", ");
-        
-        if (!setClause) {
-            errors.push("No se proporcionaron campos para actualizar");
-            console.log(errors)
-            return res.status(400).json({ errors });
-        }
-
-        // Preparar los valores para la actualización
-        const values = Object.keys(updates).map(key => {
-            if (key === 'fec_inicio' || key === 'fec_termino') {
-                return req.body[key];
-            }
-            return updates[key];
-        }).concat(id);
-        
-        // Realizar la actualización
-        const [result] = await pool.query(`UPDATE mantencion SET ${setClause} WHERE id = ?`, values);
-
-        if (result.affectedRows === 0) {
-            // errors.push();
-            return res.status(404).json({ message: "Mantención no encontrada" });
-        }
-
-        // Obtener y devolver el registro actualizado
-        const [rows] = await pool.query("SELECT * FROM mantencion WHERE id = ?", [id]);
-        res.json(rows[0]);
-    } catch (error) {
-        console.error("Error al actualizar mantención: ", error);
-        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+  try {
+    // Verificar si la mantención existe (inicio)
+    const [existing] = await pool.query(
+      "SELECT 1 FROM mantencion WHERE id = ?",
+      [id]
+    );
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "Mantención no encontrada" });
     }
+
+    // Validación de existencia de llaves foráneas
+    const foreignKeyValidations = [
+      { field: "bitacora_id", table: "bitacora" },
+      { field: "maquina_id", table: "maquina" },
+      { field: "taller_id", table: "taller" },
+      { field: "estado_mantencion_id", table: "estado_mantencion" },
+      { field: "tipo_mantencion_id", table: "tipo_mantencion" },
+    ];
+
+    const updates = {};
+
+    // Validaciones para llaves foráneas
+    for (const { field, table } of foreignKeyValidations) {
+      if (req.body[field] !== undefined) {
+        const [result] = await pool.query(
+          `SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`,
+          [req.body[field]]
+        );
+        if (result.length === 0) {
+          errors.push(
+            `${
+              table.charAt(0).toUpperCase() + table.slice(1)
+            } no existe o está eliminada`
+          );
+        } else {
+          updates[field] = req.body[field];
+        }
+      }
+    }
+
+    // Validaciones para los campos específicos
+    if (ord_trabajo !== undefined) {
+      if (typeof ord_trabajo !== "string") {
+        errors.push("Tipo de dato inválido para 'ord_trabajo'");
+      } else {
+        updates.ord_trabajo = ord_trabajo;
+      }
+    }
+
+    if (n_factura !== undefined) {
+      if (typeof n_factura !== "number") {
+        errors.push("Tipo de dato inválido para 'n_factura'");
+      } else {
+        updates.n_factura = n_factura;
+      }
+    }
+
+    if (cost_ser !== undefined) {
+      if (typeof cost_ser !== "number") {
+        errors.push("Tipo de dato inválido para 'cost_ser'");
+      } else {
+        updates.cost_ser = cost_ser;
+      }
+    }
+
+    // Validar y agregar fec_inicio
+    if (fec_inicio !== undefined) {
+      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+      if (!fechaRegex.test(fec_inicio)) {
+        errors.push(
+          "El formato de la fecha de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa"
+        );
+      } else {
+        updates.fec_inicio = fec_inicio;
+      }
+    }
+
+    // Validar y agregar fec_termino
+    if (fec_termino !== undefined) {
+      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+      if (!fechaRegex.test(fec_termino)) {
+        errors.push(
+          "El formato de la fecha de 'fec_termino' es inválido. Debe ser dd-mm-aaaa"
+        );
+      } else {
+        updates.fec_termino = fec_termino;
+      }
+    }
+
+    // Validar y agregar isDeleted
+    if (isDeleted !== undefined) {
+      if (
+        typeof isDeleted !== "number" ||
+        (isDeleted !== 0 && isDeleted !== 1)
+      ) {
+        errors.push("Tipo de dato inválido para 'isDeleted'");
+      } else {
+        updates.isDeleted = isDeleted;
+      }
+    }
+
+    // manejar la carga de archivos si existen
+    let img_url = null;
+
+    // manejo de subida de imagen S3
+    if (req.files) {
+      const imagen = req.files.imagen ? req.files.imagen[0] : null;
+
+      if (imagen) {
+        try {
+          const imgData = await uploadFileToS3(imagen, "mantencion");
+          if (imgData && imgData.Location) {
+            img_url = imgData.Location;
+            updates.img_url = img_url;
+          } else {
+            errors.push("No se pudo obtener la URL de la imagen");
+          }
+        } catch (error) {
+          errors.push("Error al subir la imagen", error.message);
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      console.log(errors);
+      return res.status(400).json({ errors });
+    }
+
+    // Construir la cláusula SET para la actualización
+    const setClause = Object.keys(updates)
+      .map((key) => {
+        if (key === "fec_inicio" || key === "fec_termino") {
+          return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
+        }
+        return `${key} = ?`;
+      })
+      .join(", ");
+
+    if (!setClause) {
+      errors.push("No se proporcionaron campos para actualizar");
+      console.log(errors);
+      return res.status(400).json({ errors });
+    }
+
+    // Preparar los valores para la actualización
+    const values = Object.keys(updates)
+      .map((key) => {
+        if (key === "fec_inicio" || key === "fec_termino") {
+          return req.body[key];
+        }
+        return updates[key];
+      })
+      .concat(id);
+
+    // Realizar la actualización
+    const [result] = await pool.query(
+      `UPDATE mantencion SET ${setClause} WHERE id = ?`,
+      values
+    );
+
+    if (result.affectedRows === 0) {
+      // errors.push();
+      return res.status(404).json({ message: "Mantención no encontrada" });
+    }
+
+    // Obtener y devolver el registro actualizado
+    const [rows] = await pool.query("SELECT * FROM mantencion WHERE id = ?", [
+      id,
+    ]);
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Error al actualizar mantención: ", error);
+    return res
+      .status(500)
+      .json({ message: "Error interno del servidor", error: error.message });
+  }
 };
 
 // Nueva función para actualizar el estado de una mantención
 export const updateMaintenanceStatus = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { estado_mantencion_id } = req.body;
-  
-      // Verificar que el estado existe
-      const [estados] = await pool.query(
-        'SELECT id FROM estado_mantencion WHERE id = ? AND isDeleted = 0',
-        [estado_mantencion_id]
-      );
-  
-      if (estados.length === 0) {
-        return res.status(400).json({ message: 'El estado de mantención no existe' });
-      }
-  
-      // Actualizar el estado
-      await pool.query(
-        'UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0',
-        [estado_mantencion_id, id]
-      );
-  
-      res.json({ message: 'Estado de mantención actualizado correctamente' });
-    } catch (error) {
-        console.log(error.message)
-      res.status(500).json({ message: error.message });
+  try {
+    const { id } = req.params;
+    const { estado_mantencion_id } = req.body;
+
+    // Verificar que el estado existe
+    const [estados] = await pool.query(
+      "SELECT id FROM estado_mantencion WHERE id = ? AND isDeleted = 0",
+      [estado_mantencion_id]
+    );
+
+    if (estados.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "El estado de mantención no existe" });
     }
+
+    // Actualizar el estado
+    await pool.query(
+      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      [estado_mantencion_id, id]
+    );
+
+    res.json({ message: "Estado de mantención actualizado correctamente" });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ message: error.message });
   }
+};
 
 export const downloadExcel = async (req, res) => {
   try {
@@ -1094,30 +950,35 @@ export const toggleAprobacionMantencion = async (req, res) => {
 
     // Determinar el nuevo estado (toggle)
     const nuevoEstado = mantencion[0].aprobada === 1 ? 0 : 1;
-    
+
     // Actualizar el estado
     const [result] = await pool.query(
       `UPDATE mantencion 
        SET aprobada = ?,
            aprobada_por = ?,
-           fecha_aprobacion = ${nuevoEstado === 1 ? 'NOW()' : 'NULL'}
+           fecha_aprobacion = ${nuevoEstado === 1 ? "NOW()" : "NULL"}
        WHERE id = ?`,
       [nuevoEstado, nuevoEstado === 1 ? usuario_id : null, id]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "No se pudo actualizar la mantención" });
+      return res
+        .status(404)
+        .json({ message: "No se pudo actualizar la mantención" });
     }
 
-    res.json({ 
-      message: nuevoEstado === 1 ? "Mantención aprobada exitosamente" : "Mantención rechazada exitosamente",
-      aprobada: nuevoEstado
+    res.json({
+      message:
+        nuevoEstado === 1
+          ? "Mantención aprobada exitosamente"
+          : "Mantención rechazada exitosamente",
+      aprobada: nuevoEstado,
     });
   } catch (error) {
     console.error("Error al aprobar/rechazar mantención:", error);
-    return res.status(500).json({ 
-      message: "Error interno del servidor", 
-      error: error.message 
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
     });
   }
 };

@@ -27,7 +27,9 @@
     "mysql2": "^3.10.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "socket.io": "^4.8.1",
+    "websocket": "^1.0.35"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.26.0",

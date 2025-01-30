@@ -3,7 +3,6 @@ import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
   createMantencion,
-  createMantencionBitacora,
   deleteMantencion,
   downloadExcel,
   getMantencionAllDetailsById,
@@ -50,7 +49,7 @@ router.get(base_route, checkPermission('getMantencion'), getMantencionesAllDetai
 
 router.get(`${base_route}/:id`, checkPermission('getMantencion'), getMantencionAllDetailsById);
 
-router.post(base_route, checkPermission('createMantencion'), createMantencionBitacora);
+/* router.post(base_route, checkPermission('createMantencion'), createMantencionBitacora); */
 router.post(`${base_route}/old`, checkPermission('createMantencion'), createMantencion);
 router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMantencion);
 router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);

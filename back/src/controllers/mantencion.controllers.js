@@ -4,6 +4,8 @@ import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { validateFloat } from "../utils/validations.js";
 
+// TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
+
 export const getMantencionesAllDetails = async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -361,10 +363,8 @@ export const createMantencion = async (req, res) => {
       [bitacoraIdNumber]
     );
 
-    if (mantencionExistente.length || cargaExistente.length) {
-      return res.status(400).json({ message: "Ya existe un servicio asociado a esta bitácora" });
-    }
-
+    if (mantencionExistente.length || cargaExistente.length) return res.status(400).json({ message: "Ya existe un servicio asociado a esta bitácora" });
+    
     // Manejar la carga de imagen si existe
     let img_url = null;
     if (req.files?.imagen?.[0]) {

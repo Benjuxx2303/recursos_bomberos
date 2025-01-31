@@ -165,9 +165,19 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
         const alertaId = alertaResult.insertId;
         console.log('Alerta creada con ID:', alertaId);
 
+        // Crear un Set para rastrear usuarios ya notificados
+        const notifiedUsers = new Set();
+
         // Procesar cada usuario
         const notificationPromises = usuarios.map(async (usuario) => {
             try {
+                // Evitar duplicados
+                if (notifiedUsers.has(usuario.id)) {
+                    console.log(`Usuario ${usuario.username} ya fue notificado, omitiendo...`);
+                    return;
+                }
+
+                notifiedUsers.add(usuario.id);
                 console.log(`\n=== Procesando notificaciones para usuario: ${usuario.username} ===`);
                 
                 // Crear relación usuario-alerta
@@ -190,7 +200,12 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
                             usuario.correo,
                             emailConfig.subject,
                             contenido,
-                            htmlContent
+                            htmlContent,
+                            [{
+                                filename: 'icono-osorno.png',
+                                path: './icono-osorno.png',
+                                cid: 'logo'
+                            }]
                         );
                     } catch (emailError) {
                         console.error(`Error al enviar correo a ${usuario.correo}:`, emailError.message);

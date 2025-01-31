@@ -1,6 +1,9 @@
 import { pool } from "../db.js";
-import { validateDate, validateFloat, validateStartEndDate, isPastDate } from "../utils/validations.js";
+import { validateDate, validateFloat, validateStartEndDate, } from "../utils/validations.js";
 import { checkIfDeletedById, checkIfDeletedByField, checkIfExists } from '../utils/queries.js';
+import { isBefore } from "date-fns";
+
+let todayDate = new Date();
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -255,6 +258,7 @@ export const createBitacora = async (req, res) => {
 
     const errors = []; // Array para capturar errores
 
+    // console.log(`fh_salida: ${f_salida} ${h_salida}`)
     try {
         direccion = String(direccion || "").trim();
 
@@ -299,7 +303,7 @@ export const createBitacora = async (req, res) => {
         if (direccion.length > 100) errors.push("La dirección no puede tener más de 100 caracteres.");
 
         // validar si la fecha de salida es pasada, si es así, se valida que la máquina y el personal estén disponibles
-        if(!isPastDate(fh_salida)){
+        if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
             // Validación de disponibilidad de la máquina 
             const [maquinaDisponible] = await pool.query(
                 "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
@@ -377,16 +381,16 @@ export const createBitacora = async (req, res) => {
         );
 
         // Si la fecha de salida no es pasada, se marca la máquina y personal como no disponibles
-        if(!isPastDate(fh_salida)){
+        if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
             await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNumber]);
             await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNumber]);
         }
 
         res.status(201).json({
             id: rows.insertId,
-            companiaIdNumber,
-            personalIdNumber,
-            maquinaIdNumber,
+            compania_id: companiaIdNumber,
+            personal_id: personalIdNumber,
+            maquina_id: maquinaIdNumber,
             direccion,
             fh_salida,
             claveIdNumber,
@@ -396,10 +400,10 @@ export const createBitacora = async (req, res) => {
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obsValue,
+            obs: obsValue,
         });
     } catch (error) {
-        console.error(error);
+        console.log(error.message);
         return res.status(500).json({ message: "Error en la creación de la bitácora", error: error.message });
     }
 };

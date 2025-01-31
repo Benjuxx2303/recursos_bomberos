@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../app"; // Asegúrate de importar tu aplicación Express
+import { app } from "../app";
 import { pool } from "../db.js";
 import { TOKEN_TEST } from "../config.js";
 import bcrypt from 'bcrypt';

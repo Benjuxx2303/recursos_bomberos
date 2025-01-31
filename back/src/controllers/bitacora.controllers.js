@@ -1,6 +1,9 @@
 import { pool } from "../db.js";
-import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
+import { validateDate, validateFloat, validateStartEndDate, } from "../utils/validations.js";
 import { checkIfDeletedById, checkIfDeletedByField, checkIfExists } from '../utils/queries.js';
+import { isBefore } from "date-fns";
+
+let todayDate = new Date();
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -255,6 +258,7 @@ export const createBitacora = async (req, res) => {
 
     const errors = []; // Array para capturar errores
 
+    // console.log(`fh_salida: ${f_salida} ${h_salida}`)
     try {
         direccion = String(direccion || "").trim();
 
@@ -267,19 +271,6 @@ export const createBitacora = async (req, res) => {
             if (error === false) errors.push("Fecha y hora de salida inválida.");
             else fh_salida = `${f_salida} ${h_salida}`;
         }
-
-        // Se eliminó todo lo relacionado con fh_llegada, f_llegada y h_llegada
-        // if (f_llegada && h_llegada) {
-        //     const error = validateDate(f_llegada, h_llegada);
-        //     if (error) errors.push("Fecha y hora de llegada inválida.");
-        //     else fh_llegada = `${f_llegada} ${h_llegada}`;
-        // }
-
-        // if (fh_salida && fh_llegada) {
-        //     if (!validateStartEndDate(fh_salida, fh_llegada)) {
-        //         errors.push("Fecha y hora de salida no pueden ser posteriores a la llegada.");
-        //     }
-        // }
 
         const companiaIdNumber = parseInt(compania_id);
         const personalIdNumber = parseInt(personal_id);
@@ -311,25 +302,26 @@ export const createBitacora = async (req, res) => {
 
         if (direccion.length > 100) errors.push("La dirección no puede tener más de 100 caracteres.");
 
-        // Validación de disponibilidad de la máquina
-        const [maquinaDisponible] = await pool.query(
-            "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
-            [maquinaIdNumber]
-        );
+        // validar si la fecha de salida es pasada, si es así, se valida que la máquina y el personal estén disponibles
+        if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
+            // Validación de disponibilidad de la máquina 
+            const [maquinaDisponible] = await pool.query(
+                "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
+                [maquinaIdNumber]
+            );
+    
+            if (!maquinaDisponible || maquinaDisponible.length === 0 || maquinaDisponible[0]?.disponible !== 1) errors.push("La máquina no está disponible.");
+    
+            // Validación de disponibilidad del personal
+            const [personalDisponible] = await pool.query(
+                "SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0",
+                [personalIdNumber]
+            );
 
-        if (!maquinaDisponible || maquinaDisponible.length === 0 || maquinaDisponible[0]?.disponible !== 1) errors.push("La máquina no está disponible.");
+            // console.log(personalDisponible)
+            if (!personalDisponible || personalDisponible.length === 0 || personalDisponible[0]?.disponible !== 1) errors.push("El personal no está disponible.");
+        }
 
-        // Validación de disponibilidad del personal
-        const [personalDisponible] = await pool.query(
-            "SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0",
-            [personalIdNumber]
-        );
-
-        // console.log(personalDisponible)
-
-        if (!personalDisponible || personalDisponible.length === 0 || personalDisponible[0]?.disponible !== 1) errors.push("El personal no está disponible.");
-
-        
         if (errors.length > 0) {
             // console.log({errores_post: errors})
             return res.status(400).json({ errors });
@@ -388,27 +380,17 @@ export const createBitacora = async (req, res) => {
           ]
         );
 
-        // Verificar si ya existe una bitácora asociada
-        // const [bitacoraMantencion] = await pool.query(
-        //     "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
-        //     [rows.insertId]
-        // );
-
-        // const [bitacoraCargaCombustible] = await pool.query(
-        //     "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
-        //     [rows.insertId]
-        // );
-
-        // if (bitacoraMantencion.length > 0 || bitacoraCargaCombustible.length > 0) errors.push("Ya existe una bitácora asociada a una mantención o carga de combustible.");
-        
-        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNumber]);
-        await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNumber]);
+        // Si la fecha de salida ya pasó o es hoy (no es futura), se marca la máquina y el personal como no disponibles
+        if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
+            await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNumber]);
+            await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNumber]);
+        }
 
         res.status(201).json({
             id: rows.insertId,
-            companiaIdNumber,
-            personalIdNumber,
-            maquinaIdNumber,
+            compania_id: companiaIdNumber,
+            personal_id: personalIdNumber,
+            maquina_id: maquinaIdNumber,
             direccion,
             fh_salida,
             claveIdNumber,
@@ -418,10 +400,10 @@ export const createBitacora = async (req, res) => {
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obsValue,
+            obs: obsValue,
         });
     } catch (error) {
-        console.error(error);
+        console.log(error.message);
         return res.status(500).json({ message: "Error en la creación de la bitácora", error: error.message });
     }
 };

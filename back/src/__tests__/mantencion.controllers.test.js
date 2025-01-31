@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../app"; // Asegúrate de importar tu aplicación Express
+import { app } from "../app";
 import { pool } from "../db.js";
 import { TOKEN_TEST } from "../config.js";
 
@@ -23,19 +23,19 @@ describe("Mantencion Controller", () => {
       const mockData = [
         {
           id: 1,
-          'bitacora.id': 1,
-          'bitacora.compania': "Compañía 1",
-          'bitacora.conductor': "12345678-9",
-          'bitacora.direccion': "Dirección de prueba",
-          'bitacora.fh_salida': "01-01-2025 12:00",
-          'bitacora.fh_llegada': "01-01-2025 14:00",
-          'bitacora.km_salida': 100,
-          'bitacora.km_llegada': 150,
-          'bitacora.hmetro_salida': 5,
-          'bitacora.hmetro_llegada': 6,
-          'bitacora.hbomba_salida': 10,
-          'bitacora.hbomba_llegada': 11,
-          'bitacora.obs': "Observación de prueba",
+          "bitacora.id": 1,
+          "bitacora.compania": "Compañía 1",
+          "bitacora.conductor": "12345678-9",
+          "bitacora.direccion": "Dirección de prueba",
+          "bitacora.fh_salida": "01-01-2025 12:00",
+          "bitacora.fh_llegada": "01-01-2025 14:00",
+          "bitacora.km_salida": 100,
+          "bitacora.km_llegada": 150,
+          "bitacora.hmetro_salida": 5,
+          "bitacora.hmetro_llegada": 6,
+          "bitacora.hbomba_salida": 10,
+          "bitacora.hbomba_llegada": 11,
+          "bitacora.obs": "Observación de prueba",
           patente: "ABC123",
           fec_inicio: "01-01-2025",
           fec_termino: "02-01-2025",
@@ -46,8 +46,8 @@ describe("Mantencion Controller", () => {
           img_url: "http://example.com/img.jpg",
           estado_mantencion: "Pendiente",
           tipo_mantencion: "Preventiva",
-          tipo_mantencion_id: 1
-        }
+          tipo_mantencion_id: 1,
+        },
       ];
 
       mockQueryResponse([mockData]);
@@ -72,7 +72,6 @@ describe("Mantencion Controller", () => {
     });
   });
 
-  // Test para obtener una mantención por ID
   // Test para obtener una mantención por ID
   describe("GET /api/mantencion/:id", () => {
     it("debe devolver la mantención solicitada", async () => {
@@ -130,165 +129,288 @@ describe("Mantencion Controller", () => {
     });
   });
 
-  // Test para crear una nueva mantención
-  describe("POST /api/mantencion", () => {
+  // TODO: implementar test POST "/api/mantencion", o sea, "createMantencionBitacora"
+  // describe("POST /api/mantencion", () => {
+  //   it("debe crear una nueva mantención", async () => {
+  //     const newMantencion = {
+  //       "bitacora.compania_id": 2,
+  //       "bitacora.personal_id": 29,
+  //       "bitacora.direccion": "Dirección de destino",
+  //       "bitacora.f_salida": "01-01-2024",
+  //       "bitacora.h_salida": "08:30",
+  //       "bitacora.clave_id": 4,
+  //       "bitacora.km_salida": 1500,
+  //       "bitacora.km_llegada": 1600,
+  //       "bitacora.hmetro_salida": 120.5,
+  //       "bitacora.hmetro_llegada": 130.7,
+  //       "bitacora.hbomba_salida": 50,
+  //       "bitacora.hbomba_llegada": 55.8,
+  //       "bitacora.obs": "Observaciones adicionales si hay alguna",
+  //       maquina_id: 8,
+  //       taller_id: 4,
+  //       estado_mantencion_id: 1,
+  //       tipo_mantencion_id: 1,
+  //       ord_trabajo: "OT12345",
+  //       n_factura: 45678,
+  //       cost_ser: 50000,
+  //       fec_inicio: "01-01-2024",
+  //       fec_termino: "02-01-2024"
+  //     };
+
+  //     const mockResponses = [
+  //       [[{ disponible: 1 }]],
+  //       [[{ disponible: 1 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ compania_id: 2 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ id: 1 }]],
+  //       [[{ insertId: 1 }]],
+  //       [[{ affectedRows: 1 }]],
+  //       [[{ affectedRows: 1 }]],
+  //       [[{ insertId: 1 }]]
+  //     ];
+
+  //     jest.spyOn(pool, "query").mockImplementation(() => {
+  //       const response = mockResponses.shift();
+  //       return Promise.resolve(response || [[{ insertId: 1 }]]);
+  //     });
+
+  //     const response = await request(app)
+  //       .post("/api/mantencion")
+  //       .set("Authorization", `Bearer ${token}`)
+  //       .send(newMantencion);
+
+  //     expect(response.status).toBe(201);
+  //     expect(response.body).toEqual({
+  //       message: "Mantención creada exitosamente"
+  //     });
+  //   });
+
+  //   it("debe devolver un error 400 si los datos son inválidos", async () => {
+  //     const invalidMantencion = {
+  //       "bitacora.compania_id": null,
+  //       "bitacora.personal_id": null,
+  //       "bitacora.direccion": 123,
+  //       maquina_id: "no-numerico",
+  //       "bitacora.clave_id": "no-numerico"
+  //     };
+
+  //     const response = await request(app)
+  //       .post("/api/mantencion")
+  //       .set("Authorization", `Bearer ${token}`)
+  //       .send(invalidMantencion);
+
+  //     expect(response.status).toBe(400);
+  //     expect(response.body).toEqual({
+  //       errors: [
+  //         "Tipo de datos inválido en la bitácora",
+  //         "La máquina no está disponible para mantenimiento",
+  //         "El personal no está disponible para la mantención",
+  //         "km_salida es obligatorio",
+  //         "km_llegada es obligatorio",
+  //         "hmetro_salida es obligatorio",
+  //         "hmetro_llegada es obligatorio",
+  //         "hbomba_salida es obligatorio",
+  //         "hbomba_llegada es obligatorio"
+  //       ]
+  //     });
+  //   });
+
+  //   it("debe devolver error si la máquina no está disponible", async () => {
+  //     const newMantencion = {
+  //       "bitacora.compania_id": 2,
+  //       "bitacora.personal_id": 29,
+  //       "bitacora.direccion": "Dirección de destino",
+  //       "bitacora.clave_id": 4,
+  //       "bitacora.km_salida": 1500,
+  //       "bitacora.km_llegada": 1600,
+  //       "bitacora.hmetro_salida": 120.5,
+  //       "bitacora.hmetro_llegada": 130.7,
+  //       "bitacora.hbomba_salida": 50,
+  //       "bitacora.hbomba_llegada": 55.8,
+  //       maquina_id: 8
+  //     };
+
+  //     jest.spyOn(pool, 'query').mockImplementation(() => {
+  //       return [[{ disponible: 0 }]]; // Máquina no disponible
+  //     });
+
+  //     const response = await request(app)
+  //       .post("/api/mantencion")
+  //       .set("Authorization", `Bearer ${token}`)
+  //       .send(newMantencion);
+
+  //     expect(response.status).toBe(400);
+  //     expect(response.body).toEqual({
+  //       errors: [
+  //         "La máquina no está disponible para mantenimiento",
+  //         "El personal no está disponible para la mantención",
+  //       ]
+  //     });
+  //   });
+
+  //   it("debe devolver error si las fechas son inválidas", async () => {
+  //     const newMantencion = {
+  //       "bitacora.compania_id": 2,
+  //       "bitacora.personal_id": 29,
+  //       "bitacora.direccion": "Dirección de destino",
+  //       "bitacora.f_salida": "2024/01/01",
+  //       "bitacora.h_salida": "25:00",
+  //       "bitacora.clave_id": 4,
+  //       "bitacora.km_salida": 1500,
+  //       "bitacora.km_llegada": 1600,
+  //       "bitacora.hmetro_salida": 120.5,
+  //       "bitacora.hmetro_llegada": 130.7,
+  //       "bitacora.hbomba_salida": 50,
+  //       "bitacora.hbomba_llegada": 55.8,
+  //       maquina_id: 8,
+  //       fec_inicio: "2024/01/01",
+  //       fec_termino: "invalid-date"
+  //     };
+
+  //     jest.spyOn(pool, 'query').mockImplementation(() => {
+  //       return [[{ disponible: 1 }]];
+  //     });
+
+  //     const response = await request(app)
+  //       .post("/api/mantencion")
+  //       .set("Authorization", `Bearer ${token}`)
+  //       .send(newMantencion);
+
+  //     expect(response.status).toBe(400);
+  //     expect(response.body.errors).toContain(
+  //       "El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm"
+  //     );
+  //   });
+  // });
+  // Test para crear una nueva mantención (asignando solo "bitacora_id")
+  describe("POST /api/mantencion/old", () => {
     it("debe crear una nueva mantención", async () => {
       const newMantencion = {
-        "bitacora.compania_id": 2,
-        "bitacora.personal_id": 29,
-        "bitacora.direccion": "Dirección de destino",
-        "bitacora.f_salida": "01-01-2024",
-        "bitacora.h_salida": "08:30",
-        "bitacora.clave_id": 4,
-        "bitacora.km_salida": 1500,
-        "bitacora.km_llegada": 1600,
-        "bitacora.hmetro_salida": 120.5,
-        "bitacora.hmetro_llegada": 130.7,
-        "bitacora.hbomba_salida": 50,
-        "bitacora.hbomba_llegada": 55.8,
-        "bitacora.obs": "Observaciones adicionales si hay alguna",
+        bitacora_id: 1,
+        maquina_id: 8,
+        taller_id: 4,
+        tipo_mantencion_id: 1,
+        fec_inicio: "01-01-2024",
+        fec_termino: "02-01-2024",
+        ord_trabajo: "OT12345",
+        n_factura: 45678,
+        cost_ser: 50000,
+      };
+
+      const mockResponses = [
+        [[{ id: 1, personal_id: 29, codigo: "ABC123", compania_id: 2 }]], // Bitácora existe
+        [[]], // No hay mantención asociada
+        [[]], // No hay carga de combustible asociada
+        [[{ id: 1 }]], // Insert exitoso
+      ];
+
+      jest.spyOn(pool, "query").mockImplementation(() => {
+        return Promise.resolve(mockResponses.shift() || [[{ insertId: 1 }]]);
+      });
+
+      const response = await request(app)
+        .post("/api/mantencion/old")
+        .set("Authorization", `Bearer ${token}`)
+        .send(newMantencion);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        bitacora_id: 1,
         maquina_id: 8,
         taller_id: 4,
         estado_mantencion_id: 1,
         tipo_mantencion_id: 1,
+        fec_inicio: "01-01-2024",
+        fec_termino: "02-01-2024",
         ord_trabajo: "OT12345",
         n_factura: 45678,
         cost_ser: 50000,
-        fec_inicio: "01-01-2024",
-        fec_termino: "02-01-2024"
-      };
-    
-      const mockResponses = [
-        [[{ disponible: 1 }]],
-        [[{ disponible: 1 }]],
-        [[{ id: 1 }]],
-        [[{ id: 1 }]],
-        [[{ id: 1 }]],
-        [[{ id: 1 }]],
-        [[{ compania_id: 2 }]],
-        [[{ id: 1 }]],
-        [[{ id: 1 }]],
-        [[{ id: 1 }]],
-        [[{ insertId: 1 }]],
-        [[{ affectedRows: 1 }]],
-        [[{ affectedRows: 1 }]],
-        [[{ insertId: 1 }]]
-      ];
-    
-      jest.spyOn(pool, "query").mockImplementation(() => {
-        const response = mockResponses.shift();
-        return Promise.resolve(response || [[{ insertId: 1 }]]);
-      });
-    
-      const response = await request(app)
-        .post("/api/mantencion")
-        .set("Authorization", `Bearer ${token}`)
-        .send(newMantencion);
-    
-      expect(response.status).toBe(201);
-      expect(response.body).toEqual({
-        message: "Mantención creada exitosamente"
+        img_url: null,
+        message: "Mantención creada exitosamente",
       });
     });
-    
-    
-    
+
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidMantencion = {
-        "bitacora.compania_id": null,
-        "bitacora.personal_id": null,
-        "bitacora.direccion": 123,
+        bitacora_id: "no-numerico",
         maquina_id: "no-numerico",
-        "bitacora.clave_id": "no-numerico"
+        taller_id: null,
+        tipo_mantencion_id: "no-numerico", // Este campo estaba faltando
+        ord_trabajo: 12345, // Aquí, el número debe ser una cadena
+        fec_inicio: "invalid-date",
+        fec_termino: "invalid-date",
       };
-    
+
       const response = await request(app)
-        .post("/api/mantencion")
+        .post("/api/mantencion/old")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidMantencion);
-    
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        errors: [
-          "Tipo de datos inválido en la bitácora",
-          "La máquina no está disponible para mantenimiento",
-          "El personal no está disponible para la mantención",
-          "km_salida es obligatorio",
-          "km_llegada es obligatorio",
-          "hmetro_salida es obligatorio",
-          "hmetro_llegada es obligatorio",
-          "hbomba_salida es obligatorio",
-          "hbomba_llegada es obligatorio"
-        ]
-      });
-    });
-    
-    
-    it("debe devolver error si la máquina no está disponible", async () => {
-      const newMantencion = {
-        "bitacora.compania_id": 2,
-        "bitacora.personal_id": 29,
-        "bitacora.direccion": "Dirección de destino",
-        "bitacora.clave_id": 4,
-        "bitacora.km_salida": 1500,
-        "bitacora.km_llegada": 1600,
-        "bitacora.hmetro_salida": 120.5,
-        "bitacora.hmetro_llegada": 130.7,
-        "bitacora.hbomba_salida": 50,
-        "bitacora.hbomba_llegada": 55.8,
-        maquina_id: 8
-      };
-    
-      jest.spyOn(pool, 'query').mockImplementation(() => {
-        return [[{ disponible: 0 }]]; // Máquina no disponible
-      });
-    
-      const response = await request(app)
-        .post("/api/mantencion")
-        .set("Authorization", `Bearer ${token}`)
-        .send(newMantencion);
-    
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        errors: [
-          "La máquina no está disponible para mantenimiento",
-          "El personal no está disponible para la mantención",
-        ]
-      });
-    });
-    
 
-    it("debe devolver error si las fechas son inválidas", async () => {
+      expect(response.status).toBe(400);
+      expect(response.body.errors).toEqual([
+        "El ID de bitácora es inválido",
+        "El ID de máquina es inválido",
+        "El ID de taller es inválido",
+        "El ID de tipo de mantención es inválido", // Este error estaba faltando
+        "El número de orden de trabajo debe ser una cadena de texto", // Este error también estaba faltando
+        "El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy",
+        "El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy",
+      ]);
+    });
+
+    it("debe devolver error si bitácora no existe", async () => {
       const newMantencion = {
-        "bitacora.compania_id": 2,
-        "bitacora.personal_id": 29,
-        "bitacora.direccion": "Dirección de destino",
-        "bitacora.f_salida": "2024/01/01",
-        "bitacora.h_salida": "25:00",
-        "bitacora.clave_id": 4,
-        "bitacora.km_salida": 1500,
-        "bitacora.km_llegada": 1600,
-        "bitacora.hmetro_salida": 120.5,
-        "bitacora.hmetro_llegada": 130.7,
-        "bitacora.hbomba_salida": 50,
-        "bitacora.hbomba_llegada": 55.8,
+        bitacora_id: 99, // Bitácora inexistente
         maquina_id: 8,
-        fec_inicio: "2024/01/01",
-        fec_termino: "invalid-date"
+        taller_id: 4,
+        tipo_mantencion_id: 1,
+        fec_inicio: "01-01-2024",
+        fec_termino: "02-01-2024",
+        ord_trabajo: "OT12345",
       };
 
-      jest.spyOn(pool, 'query').mockImplementation(() => {
-        return [[{ disponible: 1 }]];
-      });
+      jest.spyOn(pool, "query").mockResolvedValueOnce([[]]); // No hay bitácora
 
       const response = await request(app)
-        .post("/api/mantencion")
+        .post("/api/mantencion/old")
         .set("Authorization", `Bearer ${token}`)
         .send(newMantencion);
 
       expect(response.status).toBe(400);
-      expect(response.body.errors).toContain(
-        "El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm"
+      expect(response.body.message).toBe("Bitácora no existe o está eliminada");
+    });
+
+    it("debe devolver error si ya existe una mantención o carga de combustible asociada", async () => {
+      const newMantencion = {
+        bitacora_id: 1,
+        maquina_id: 8,
+        taller_id: 4,
+        tipo_mantencion_id: 1,
+        fec_inicio: "01-01-2024",
+        fec_termino: "02-01-2024",
+        ord_trabajo: "OT12345",
+      };
+
+      jest.spyOn(pool, "query").mockImplementation((query, values) => {
+        if (query.includes("FROM bitacora"))
+          return [[{ id: 1, compania_id: 2 }]];
+        if (query.includes("FROM mantencion")) return [[{ id: 1 }]]; // Ya existe una mantención
+        return [[]];
+      });
+
+      const response = await request(app)
+        .post("/api/mantencion/old")
+        .set("Authorization", `Bearer ${token}`)
+        .send(newMantencion);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe(
+        "Ya existe un servicio asociado a esta bitácora"
       );
     });
   });

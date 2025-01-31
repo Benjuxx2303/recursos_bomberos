@@ -188,167 +188,98 @@ export const getCargaCombustibleByID = async (req, res) => {
 
 // Crear una nueva carga de combustible
 export const createCargaCombustible = async (req, res) => {
-    console.log('\n=== Iniciando creación de carga de combustible ===');
-    const { bitacora_id, litros, valor_mon } = req.body;
-    let errors = [];
-
     try {
-        console.log('Datos recibidos:', { bitacora_id, litros, valor_mon });
-
-        // Validación de los valores numéricos con las funciones genéricas
-        const bitacoraIdNumber = parseInt(bitacora_id);
-        const litrosNumber = parseFloat(litros);
-        const valorMonNumber = parseFloat(valor_mon);
-
-        // Validar el bitacora_id (debe ser un número entero)
-        if (isNaN(bitacoraIdNumber)) {
-            console.error('Error de validación: ID de bitácora inválido');
-            return res.status(400).json({ 
-                message: 'Tipo de datos inválido',
-                details: 'El ID de la bitácora debe ser un número válido'
-            });
+      const { bitacora_id, litros, valor_mon } = req.body;
+      let errors = [];
+  
+      // Validaciones de entrada
+      const validateId = (id, fieldName) => isNaN(parseInt(id)) && errors.push(`El ID de ${fieldName} es inválido`);
+      validateId(bitacora_id, 'bitácora');
+  
+      if (validateFloat(litros)) errors.push(validateFloat(litros));
+      if (validateFloat(valor_mon)) errors.push(validateFloat(valor_mon));
+  
+      if (errors.length > 0) {
+        return res.status(400).json({ message: "Errores en los datos de entrada", errors });
+      }
+  
+      const bitacoraIdNumber = parseInt(bitacora_id);
+      const litrosNumber = parseFloat(litros);
+      const valorMonNumber = parseFloat(valor_mon);
+  
+      // Validar existencia de la bitácora
+      const [bitacoraInfo] = await pool.query(
+        `SELECT b.id, m.codigo, m.compania_id
+         FROM bitacora b 
+         INNER JOIN maquina m ON b.maquina_id = m.id 
+         WHERE b.id = ? AND b.isDeleted = 0`, 
+        [bitacoraIdNumber]
+      );
+  
+      if (!bitacoraInfo.length) {
+        return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
+      }
+  
+      const { codigo, compania_id } = bitacoraInfo[0];
+  
+      // Verificar si ya existe un servicio asociado
+      const [cargaExistente] = await pool.query(
+        "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
+        [bitacoraIdNumber]
+      );
+  
+      const [mantencionExistente] = await pool.query(
+        "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
+        [bitacoraIdNumber]
+      );
+  
+      if (cargaExistente.length || mantencionExistente.length) return res.status(400).json({ message: "Ya existe un servicio asociado a esta bitácora" });
+  
+      // Manejar la carga de imagen si existe
+      let img_url = null;
+      if (req.files?.imagen?.[0]) {
+        try {
+          const imgData = await uploadFileToS3(req.files.imagen[0], "carga_combustible");
+          if (imgData?.Location) img_url = imgData.Location;
+        } catch (error) {
+          return res.status(500).json({ message: "Error al subir la imagen", error: error.message });
         }
-
-        // Validar litros y valor monetario usando las funciones genéricas
-        const litrosValidation = validateFloat(litros);
-        if (litrosValidation) errors.push(litrosValidation);
-
-        const valorMonValidation = validateFloat(valor_mon);
-        if (valorMonValidation) errors.push(valorMonValidation);
-
-        if (errors.length > 0) {
-            console.error('Errores de validación:', errors);
-            return res.status(400).json({ message: "Errores de validación", errors });
-        }
-
-        // Validar existencia de la bitácora y obtener información de la máquina y compañía
-        console.log('\n=== Consultando información de bitácora ===');
-        const [bitacoraInfo] = await pool.query(
-            `SELECT b.id, b.personal_id, m.codigo, m.compania_id, c.nombre as compania_nombre, m.id as maquina_id
-             FROM bitacora b 
-             INNER JOIN maquina m ON b.maquina_id = m.id 
-             INNER JOIN compania c ON m.compania_id = c.id
-             WHERE b.id = ? AND b.isDeleted = 0`, 
-            [bitacoraIdNumber]
-        );
-        
-        if (bitacoraInfo.length === 0) {
-            console.error('Bitácora no encontrada:', bitacoraIdNumber);
-            return res.status(400).json({ message: 'Bitácora no existe o está eliminada' });
-        }
-
-        const { codigo, compania_id, compania_nombre, maquina_id, personal_id } = bitacoraInfo[0];
-        console.log('Información de bitácora:', { codigo, compania_id, compania_nombre });
-
-        // Validar si ya existe una carga de combustible o mantención asociada a esta bitácora
-        const [cargaExistente] = await pool.query(
-            "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
-            [bitacoraIdNumber]
-        );
-
-        const [mantencionExistente] = await pool.query(
-            "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
-            [bitacoraIdNumber]
-        );
-
-        if (cargaExistente.length > 0) {
-            errors.push("Ya existe una carga de combustible asociada a esta bitácora");
-        }
-
-        if (mantencionExistente.length > 0) {
-            errors.push("Ya existe una mantención asociada a esta bitácora");
-        }
-
-        if (errors.length > 0) {
-            return res.status(400).json({ message: "Errores de asociación", errors });
-        }
-
-        // Validar disponibilidad de la máquina y el personal
-        const [maquinaDisponible] = await pool.query(
-            "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
-            [maquina_id]
-        );
-
-        const [personalDisponible] = await pool.query(
-            "SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0",
-            [personal_id]
-        );
-
-        if (maquinaDisponible.length === 0 || maquinaDisponible[0].disponible !== 1) {
-            errors.push("La máquina no está disponible para la carga de combustible");
-        }
-
-        if (personalDisponible.length === 0 || personalDisponible[0].disponible !== 1) {
-            errors.push("El personal no está disponible para la carga de combustible");
-        }
-
-        if (errors.length > 0) {
-            return res.status(400).json({ message: "Errores en disponibilidad", errors });
-        }
-
-        // Actualizar estados de disponibilidad
-        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquina_id]);
-        await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personal_id]);
-
-        // Manejar la carga de archivos si existen
-        let img_url = null;
-        if (req.files && req.files.imagen && req.files.imagen[0]) {
-            try {
-                const imgData = await uploadFileToS3(req.files.imagen[0], "carga_combustible");
-                if (imgData && imgData.Location) {
-                    img_url = imgData.Location;
-                }
-            } catch (error) {
-                console.error('Error al subir imagen:', error);
-                return res.status(500).json({ 
-                    message: "Error al subir la imagen", 
-                    error: error.message 
-                });
-            }
-        }
-
-        // Obtener usuarios para notificar (solo rol TELECOM)
-        const usuarios = await getNotificationUsers({ rol: 'TELECOM' });
-        
-        // Insertar la carga de combustible
-        const [result] = await pool.query(
-            'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)',
-            [bitacoraIdNumber, litrosNumber, valorMonNumber, img_url]
-        );
-
-        // Enviar notificaciones
-        if (usuarios.length > 0) {
-            const contenido = `Nueva carga de combustible registrada - ${codigo} - ${litrosNumber} litros - $${valorMonNumber}`;
-            
-            await createAndSendNotifications({
-                contenido,
-                tipo: 'combustible',
-                usuarios,
-                emailConfig: {
-                    subject: 'Nueva Carga de Combustible',
-                    redirectUrl: `${process.env.FRONTEND_URL}/combustible/${result.insertId}`,
-                    buttonText: 'Ver Detalles'
-                }
-            });
-        }
-
-        res.json({
-            id: result.insertId,
-            bitacora_id: bitacoraIdNumber,
-            litros: litrosNumber,
-            valor_mon: valorMonNumber,
-            img_url,
-            message: "Carga de combustible creada exitosamente"
+      }
+  
+      // Insertar carga de combustible
+      const [result] = await pool.query(
+        'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)',
+        [bitacoraIdNumber, litrosNumber, valorMonNumber, img_url]
+      );
+  
+      // Enviar notificación
+      const usuarios = await getNotificationUsers({ rol: 'TELECOM' });
+      if (usuarios.length > 0) {
+        const contenido = `Nueva carga de combustible registrada - ${codigo} - ${litrosNumber} litros - $${valorMonNumber}`;
+        await createAndSendNotifications({
+          contenido, tipo: 'combustible', usuarios,
+          emailConfig: {
+            subject: 'Nueva Carga de Combustible',
+            redirectUrl: `${process.env.FRONTEND_URL}/combustible/${result.insertId}`,
+            buttonText: 'Ver Detalles'
+          }
         });
-
+      }
+  
+      return res.json({
+        id: result.insertId,
+        bitacora_id: bitacoraIdNumber,
+        litros: litrosNumber,
+        valor_mon: valorMonNumber,
+        img_url,
+        message: "Carga de combustible creada exitosamente"
+      });
+  
     } catch (error) {
-        console.error('Error general en createCargaCombustible:', error);
-        return res.status(500).json({ 
-            message: "Error interno del servidor", 
-            error: error.message 
-        });
+      console.error('Error general en createCargaCombustible:', error);
+      return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
-};
+};  
 
 // TODO: Agregar logica de "createCargaCombustible" aqui
 export const createCargaCombustibleBitacora = async (req, res) => {

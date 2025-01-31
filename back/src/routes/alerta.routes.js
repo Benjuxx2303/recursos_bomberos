@@ -4,6 +4,7 @@ import {
     deleteOldAlerts,
     getAlertasByUsuario,
     markAlertAsRead,
+    markAllAlertsAsRead,
     sendMantencionAlerts,
     sendProximaMantencionAlerts,
     sendRevisionTecnicaAlerts,
@@ -50,6 +51,7 @@ cron.schedule('0 1 * * *', async () => {
 
 // Rutas para gestionar alertas
 router.get(`${base_route}/usuario/:usuario_id`, getAlertasByUsuario);
+router.put(`${base_route}/usuario/:usuario_id/read`, markAllAlertsAsRead);
 router.put(`${base_route}/:alerta_id/read`, markAlertAsRead);
 
 // Rutas para enviar alertas manualmente

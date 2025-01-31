@@ -32,13 +32,14 @@ export const getAlertasByUsuario = async (req, res) => {
                 a.contenido,
                 DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
                 a.tipo,
-                a.isRead
+                COALESCE(ua.isRead, 0) as isRead
             FROM alerta a
-            WHERE a.usuario_id = ?
+            LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
+            WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible'))
             AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         `;
 
-        const params = [usuario_id];
+        const params = [usuario_id, usuario_id];
 
         // Agregar alertas específicas según el rol
         if (rol === 'TELECOM' || rol === 'Teniente de Máquina' || rol === 'Capitán') {
@@ -49,50 +50,25 @@ export const getAlertasByUsuario = async (req, res) => {
                     CONCAT('Mantención programada para ', DATE_FORMAT(m.fec_inicio, '%d-%m-%Y'), ' - ', m.descripcion) as contenido,
                     DATE_FORMAT(NOW(), '%d-%m-%Y %H:%i') as createdAt,
                     'mantencion' as tipo,
-                    0 AS isRead
+                    COALESCE(ua.isRead, 0) as isRead
                 FROM mantencion m
                 INNER JOIN bitacora b ON m.bitacora_id = b.id
                 INNER JOIN maquina maq ON b.maquina_id = maq.id
+                LEFT JOIN usuario_alerta ua ON m.id = ua.alerta_id AND ua.usuario_id = ?
                 WHERE maq.compania_id = ?
                 AND m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
                 AND m.isDeleted = 0
             `;
-            params.push(compania_id);
+            params.push(usuario_id, compania_id);
         }
 
-        // Alertas de carga de combustible para roles específicos
-        if (rol === 'TELECOM' || rol === 'Capitán') {
-            query += `
-                UNION
-                SELECT 
-                    c.id,
-                    CONCAT('Nueva carga de combustible registrada - ', 
-                           m.codigo, ' - ', 
-                           c.litros, ' litros - $', 
-                           c.valor_mon) as contenido,
-                    DATE_FORMAT(c.createdAt, '%d-%m-%Y %H:%i') as createdAt,
-                    'combustible' as tipo,
-                    0 AS isRead
-                FROM carga_combustible c
-                INNER JOIN bitacora b ON c.bitacora_id = b.id
-                INNER JOIN maquina m ON b.maquina_id = m.id
-                WHERE m.compania_id = ?
-                AND c.createdAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            `;
-            params.push(compania_id);
-        }
-
-        query += ` ORDER BY createdAt DESC LIMIT 50`;
+        query += ` ORDER BY createdAt DESC`;
 
         const [rows] = await pool.query(query, params);
-
-        if (rows.length === 0) {
-            return res.status(200).json([]);
-        }
-
+        console.log('Notificaciones obtenidas:', rows);
         res.status(200).json(rows);
     } catch (error) {
-        console.error(error);
+        console.error('Error en getAlertasByUsuario:', error);
         res.status(500).json({ 
             message: "Error interno del servidor", 
             error: error.message 
@@ -445,6 +421,46 @@ export const deleteOldAlerts = async () => {
         console.log('Alertas antiguas eliminadas correctamente');
     } catch (error) {
         console.error('Error al eliminar alertas antiguas:', error);
+    }
+};
+
+export const markAllAlertsAsRead = async (req, res) => {
+    const { usuario_id } = req.params;
+    
+    try {
+        console.log('Marcando todas las alertas como leídas para usuario:', usuario_id);
+        
+        // Primero, obtener todas las alertas no leídas del usuario
+        const [alertas] = await pool.query(`
+            SELECT DISTINCT a.id
+            FROM alerta a
+            LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
+            WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible'))
+            AND (ua.isRead = 0 OR ua.isRead IS NULL)
+            AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        `, [usuario_id, usuario_id]);
+
+        console.log('Alertas a marcar como leídas:', alertas);
+
+        // Marcar cada alerta como leída
+        for (const alerta of alertas) {
+            await pool.query(`
+                INSERT INTO usuario_alerta (usuario_id, alerta_id, isRead)
+                VALUES (?, ?, 1)
+                ON DUPLICATE KEY UPDATE isRead = 1
+            `, [usuario_id, alerta.id]);
+        }
+
+        res.status(200).json({ 
+            message: "Todas las alertas marcadas como leídas",
+            count: alertas.length
+        });
+    } catch (error) {
+        console.error('Error en markAllAlertsAsRead:', error);
+        res.status(500).json({ 
+            message: "Error al marcar las alertas como leídas", 
+            error: error.message 
+        });
     }
 };
 

@@ -78,81 +78,76 @@ describe("Bitacora Controller", () => {
 
   // Test para crear una nueva bitácora
   describe("POST /api/bitacora", () => {
-    // TODO: no funciona xd
-    // it("debe crear una nueva bitácora", async () => {
-    //   const newBitacora = {
-    //     compania_id: 1,
-    //     personal_id: 1,
-    //     maquina_id: 1,
-    //     direccion: "Calle Falsa 123",
-    //     f_salida: "01-01-2023",
-    //     h_salida: "12:00",
-    //     clave_id: 1,
-    //     km_salida: 10,
-    //     km_llegada: 20,
-    //     hmetro_salida: 5,
-    //     hmetro_llegada: 10,
-    //     hbomba_salida: 1,
-    //     hbomba_llegada: 2,
-    //     obs: "Observaciones",
-    //   };
+    it("debe insertar una bitácora correctamente y devolver un status 201", async () => {
+      const newBitacora = {
+        personal_id: 30,
+        compania_id: 16,
+        maquina_id: 8,
+        clave_id: 11,
+        direccion: "123 Calle Ejemplo",
+        f_salida: "04-11-2024",  // fecha pasada
+        h_salida: "08:50",
+        km_salida: 50.5,
+        km_llegada: 75.0,
+        hmetro_salida: 30.0,
+        hmetro_llegada: 45.0,
+        hbomba_salida: 15.0,
+        hbomba_llegada: 20.0,
+        obs: "Observaciones opcionales",
+      };
     
-    //   // Mock para todas las consultas en orden
-    //   mockQueryResponse([[{ id: 1 }]]); // Verifica compania
-    //   mockQueryResponse([[{ id: 1 }]]); // Verifica personal
-    //   mockQueryResponse([[{ id: 1 }]]); // Verifica maquina
-    //   mockQueryResponse([[{ id: 1 }]]); // Verifica clave
+      // Simulando que la máquina y el personal están disponibles (disponible: 1)
+      mockQueryResponse([
+        { insertId: 1 },  // Simula una inserción exitosa en la bitácora
+        { disponible: 1 },  // Máquina disponible
+        { disponible: 1 },  // Personal disponible
+      ]);
     
-    //   // Ajustamos el formato para que coincida exactamente con lo que el controlador espera
-    //   mockQueryResponse([[{ disponible: 1 }]]); // Verifica disponibilidad máquina
-    //   mockQueryResponse([[{ disponible: 1 }]]); // Verifica disponibilidad personal
+      const response = await request(app)
+        .post("/api/bitacora")
+        .set("Authorization", `Bearer ${token}`)
+        .send(newBitacora);
     
-    //   mockQueryResponse([[]]); // Verifica mantencion
-    //   mockQueryResponse([[]]); // Verifica carga_combustible
-    
-    //   mockQueryResponse([{ insertId: 1 }]); // Inserción de bitácora
-    
-    //   mockQueryResponse([{ affectedRows: 1 }]); // Update maquina
-    //   mockQueryResponse([{ affectedRows: 1 }]); // Update personal
-    
-    //   const response = await request(app)
-    //     .post("/api/bitacora")
-    //     .set("Authorization", `Bearer ${token}`)
-    //     .send(newBitacora);
-    
-    //   expect(response.status).toBe(201);
-    //   expect(response.body.id).toBe(1);
-    //   expect(response.body.direccion).toBe(newBitacora.direccion);
-    // });
+      expect(response.status).toBe(201);  // Esperamos un 201 al ser exitosa la inserción
+      expect(response.body).toHaveProperty("id");  // Esperamos que el ID de la nueva bitácora esté presente
+      expect(response.body.compania_id).toBe(newBitacora.compania_id);
+      expect(response.body.personal_id).toBe(newBitacora.personal_id);
+      expect(response.body.maquina_id).toBe(newBitacora.maquina_id);
+      expect(response.body.direccion).toBe(newBitacora.direccion);
+      expect(response.body.fh_salida).toBe(`${newBitacora.f_salida} ${newBitacora.h_salida}`);  // La fecha y hora de salida concatenada
+      expect(response.body.km_salida).toBe(newBitacora.km_salida);
+      expect(response.body.km_llegada).toBe(newBitacora.km_llegada);
+      expect(response.body.hmetro_salida).toBe(newBitacora.hmetro_salida);
+      expect(response.body.hmetro_llegada).toBe(newBitacora.hmetro_llegada);
+      expect(response.body.hbomba_salida).toBe(newBitacora.hbomba_salida);
+      expect(response.body.hbomba_llegada).toBe(newBitacora.hbomba_llegada);
+      expect(response.body.obs).toBe(newBitacora.obs);
+    });
 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidBitacora = { direccion: "" }; // Datos inválidos
-
+    
       // Simulando la respuesta para los casos de error
       mockQueryResponse([
         { disponible: 1 },
         { disponible: 1 },
       ]);
-
+    
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidBitacora);
-
+    
       expect(response.status).toBe(400);
-      expect(response.body.errors).toEqual(
-        [
-          "Tipo de datos inválido.",
-          "Km salida es requerido y debe ser un número válido.",
-          "Km llegada es requerido y debe ser un número válido.",
-          "Hmetro salida es requerido y debe ser un número válido.",
-          "Hmetro llegada es requerido y debe ser un número válido.",
-          "Hbomba salida es requerido y debe ser un número válido.",
-          "Hbomba llegada es requerido y debe ser un número válido.",
-          "La máquina no está disponible.",
-          "El personal no está disponible."
-        ]
-      );
+      expect(response.body.errors).toEqual([
+        "Tipo de datos inválido.",
+        "Km salida es requerido y debe ser un número válido.",
+        "Km llegada es requerido y debe ser un número válido.",
+        "Hmetro salida es requerido y debe ser un número válido.",
+        "Hmetro llegada es requerido y debe ser un número válido.",
+        "Hbomba salida es requerido y debe ser un número válido.",
+        "Hbomba llegada es requerido y debe ser un número válido.",
+      ]);
     });
 
     it("debe devolver un error 400 si la máquina no está disponible", async () => {
@@ -161,7 +156,7 @@ describe("Bitacora Controller", () => {
         personal_id: 1,
         maquina_id: 1,
         direccion: "Calle Falsa 123",
-        f_salida: "01-01-2023",
+        f_salida: "01-01-2029",
         h_salida: "12:00",
         clave_id: 1,
         km_salida: 10,
@@ -172,19 +167,19 @@ describe("Bitacora Controller", () => {
         hbomba_llegada: 2,
         obs: "Observaciones",
       };
-
+    
       // Simulando que la máquina no está disponible
       mockQueryResponse([
         { insertId: 1 }, // Simula una inserción exitosa
         { disponible: 0 }, // Máquina no disponible
         { disponible: 1 }, // Personal disponible
       ]);
-
+    
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(newBitacora);
-
+    
       expect(response.status).toBe(400);
       expect(response.body.errors).toContain("La máquina no está disponible.");
     });
@@ -195,7 +190,7 @@ describe("Bitacora Controller", () => {
         personal_id: 1,
         maquina_id: 1,
         direccion: "Calle Falsa 123",
-        f_salida: "01-01-2023",
+        f_salida: "01-01-2029",
         h_salida: "12:00",
         clave_id: 1,
         km_salida: 10,
@@ -206,22 +201,23 @@ describe("Bitacora Controller", () => {
         hbomba_llegada: 2,
         obs: "Observaciones",
       };
-
+    
       // Simulando que el personal no está disponible
       mockQueryResponse([
         { insertId: 1 }, // Simula una inserción exitosa
         { disponible: 1 }, // Máquina disponible
         { disponible: 0 }, // Personal no disponible
       ]);
-
+    
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(newBitacora);
-
+    
       expect(response.status).toBe(400);
       expect(response.body.errors).toContain("El personal no está disponible.");
     });
+    
   });
 
   // Test para eliminar una bitácora

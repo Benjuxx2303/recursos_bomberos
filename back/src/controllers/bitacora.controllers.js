@@ -380,7 +380,7 @@ export const createBitacora = async (req, res) => {
           ]
         );
 
-        // Si la fecha de salida no es pasada, se marca la máquina y personal como no disponibles
+        // Si la fecha de salida ya pasó o es hoy (no es futura), se marca la máquina y el personal como no disponibles
         if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
             await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNumber]);
             await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNumber]);

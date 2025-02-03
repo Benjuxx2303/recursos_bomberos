@@ -191,13 +191,17 @@ export const loginUser = async (req, res) => {
     let errors = [];  // Inicializamos un array para almacenar los errores.
 
     try {
-        // Validar largo del username
-        if (username.length < 4 || username.length > 25) {
-            errors.push("El nombre de usuario debe tener entre 4 y 25 caracteres");
+        // Validar largo del username o correo
+        if (username.length < 4 || username.length > 50) {
+            errors.push("El nombre de usuario o correo debe tener entre 4 y 50 caracteres");
         }
 
-        // Validar existencia del usuario
-        const [rows] = await pool.query("SELECT * FROM usuario WHERE username = ? AND isDeleted = 0", [username]);
+        // Validar existencia del usuario por username o correo
+        const [rows] = await pool.query(
+            "SELECT * FROM usuario WHERE (username = ? OR correo = ?) AND isDeleted = 0", 
+            [username, username]
+        );
+        
         if (rows.length === 0) {
             errors.push('Usuario no encontrado');
         }
@@ -272,6 +276,7 @@ export const loginUser = async (req, res) => {
         const token = jwt.sign({
             userId: user.id,
             username: user.username,
+            correo: user.correo,
             nombre: nombreCompleto,
             rol_personal: rol,
             compania: company,
@@ -286,6 +291,7 @@ export const loginUser = async (req, res) => {
             user: {
                 id: user.id,
                 username: user.username,
+                correo:user.correo,
                 nombre: nombreCompleto,
                 rol: rol,
                 compania: company,

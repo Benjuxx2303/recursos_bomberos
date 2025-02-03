@@ -2,14 +2,15 @@ import { Router } from "express";
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-  createMantencion,
-  deleteMantencion,
-  downloadExcel,
-  getMantencionAllDetailsById,
-  getMantencionesAllDetailsSearch,
-  toggleAprobacionMantencion,
-  updateMaintenanceStatus,
-  updateMantencion
+    createMantencion,
+    createMantencionPeriodica,
+    deleteMantencion,
+    downloadExcel,
+    getMantencionAllDetailsById,
+    getMantencionesAllDetailsSearch,
+    toggleAprobacionMantencion,
+    updateMaintenanceStatus,
+    updateMantencion
 } from "../controllers/mantencion.controllers.js";
 import { getMantencionCostosByAnio, getReporteGeneral, getReporteMantencionesEstadoCosto } from "../controllers/stats_mantencion.js";
 
@@ -58,6 +59,9 @@ router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFie
 router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion'), toggleAprobacionMantencion);
 
 router.patch(`${base_route}/:id/status`, checkPermission('updateMantencion'), updateMaintenanceStatus);
+
+// Nueva ruta para crear mantenciones periódicas
+router.post(`${base_route}/periodica`, checkPermission('createMantencion'), createMantencionPeriodica);
 
 // ---- reportes
 router.get(`/reportes${base_route}/costos`, checkPermission('getMantencion'), getMantencionCostosByAnio)

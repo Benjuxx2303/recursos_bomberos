@@ -2,7 +2,6 @@ import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
-import { validateFloat } from "../utils/validations.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -848,6 +847,151 @@ export const toggleAprobacionMantencion = async (req, res) => {
     return res.status(500).json({
       message: "Error interno del servidor",
       error: error.message,
+    });
+  }
+};
+
+// Función para crear mantenciones periódicas
+export const createMantencionPeriodica = async (req, res) => {
+  try {
+    const {
+      maquina_id,
+      taller_id,
+      tipo_mantencion_id,
+      fechas,
+      dias_habiles,
+      intervalo_dias,
+      ord_trabajo_base,
+      cost_ser_estimado
+    } = req.body;
+
+    // Validaciones básicas
+    if (!maquina_id || !taller_id || !tipo_mantencion_id || !fechas || !fechas.length) {
+      return res.status(400).json({
+        message: "Faltan campos requeridos",
+        required: ["maquina_id", "taller_id", "tipo_mantencion_id", "fechas"]
+      });
+    }
+
+    // Validar que la máquina existe
+    const [maquinaExists] = await pool.query(
+      "SELECT id, compania_id FROM maquina WHERE id = ? AND isDeleted = 0",
+      [maquina_id]
+    );
+
+    if (!maquinaExists.length) {
+      return res.status(400).json({ message: "La máquina no existe o está eliminada" });
+    }
+
+    const compania_id = maquinaExists[0].compania_id;
+
+    // Obtener el ID del estado "Programada"
+    const [estadoProgramada] = await pool.query(
+      "SELECT id FROM estado_mantencion WHERE nombre = 'Programada' AND isDeleted = 0"
+    );
+
+    if (!estadoProgramada.length) {
+      return res.status(400).json({ message: "No se encontró el estado 'Programada'" });
+    }
+
+    const estado_mantencion_id = estadoProgramada[0].id;
+
+    // Crear las mantenciones programadas
+    const mantencionesProgramadas = [];
+    let errorEnCreacion = false;
+
+    for (const fecha of fechas) {
+      try {
+        // Crear bitácora para cada mantención
+        const [bitacoraResult] = await pool.query(
+          `INSERT INTO bitacora (
+            compania_id, maquina_id, isDeleted
+          ) VALUES (?, ?, 0)`,
+          [compania_id, maquina_id]
+        );
+
+        const bitacora_id = bitacoraResult.insertId;
+
+        // Crear la mantención programada
+        const [mantencionResult] = await pool.query(
+          `INSERT INTO mantencion (
+            bitacora_id, maquina_id, taller_id, 
+            estado_mantencion_id, tipo_mantencion_id,
+            fec_inicio, ord_trabajo, cost_ser, isDeleted
+          ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, 0)`,
+          [
+            bitacora_id,
+            maquina_id,
+            taller_id,
+            estado_mantencion_id,
+            tipo_mantencion_id,
+            fecha,
+            ord_trabajo_base ? `${ord_trabajo_base}-${fecha}` : null,
+            cost_ser_estimado || null
+          ]
+        );
+
+        mantencionesProgramadas.push({
+          id: mantencionResult.insertId,
+          fecha,
+          bitacora_id,
+          ord_trabajo: ord_trabajo_base ? `${ord_trabajo_base}-${fecha}` : null
+        });
+
+      } catch (error) {
+        console.error(`Error al crear mantención para fecha ${fecha}:`, error);
+        errorEnCreacion = true;
+        break;
+      }
+    }
+
+    // Si hubo error, hacer rollback manual eliminando las mantenciones creadas
+    if (errorEnCreacion) {
+      for (const mantencion of mantencionesProgramadas) {
+        try {
+          await pool.query("UPDATE mantencion SET isDeleted = 1 WHERE id = ?", [mantencion.id]);
+          await pool.query("UPDATE bitacora SET isDeleted = 1 WHERE id = ?", [mantencion.bitacora_id]);
+        } catch (error) {
+          console.error("Error en rollback:", error);
+        }
+      }
+      return res.status(500).json({
+        message: "Error al crear algunas mantenciones periódicas",
+        mantenciones_creadas: mantencionesProgramadas.length,
+        total_solicitadas: fechas.length
+      });
+    }
+
+    // Enviar notificación
+    const usuarios = await getNotificationUsers({
+      compania_id,
+      roles: ["TELECOM", "Teniente de Máquina", "Capitán"]
+    });
+
+    if (usuarios.length > 0) {
+      const contenido = `Se han programado ${mantencionesProgramadas.length} mantenciones periódicas`;
+      await createAndSendNotifications({
+        contenido,
+        tipo: "mantencion",
+        usuarios,
+        emailConfig: {
+          subject: "Nuevas Mantenciones Periódicas Programadas",
+          redirectUrl: `${process.env.FRONTEND_URL}/mantenciones`,
+          buttonText: "Ver Mantenciones",
+        },
+      });
+    }
+
+    return res.status(201).json({
+      message: "Mantenciones periódicas creadas exitosamente",
+      mantenciones: mantencionesProgramadas
+    });
+
+  } catch (error) {
+    console.error("Error en createMantencionPeriodica:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message
     });
   }
 };

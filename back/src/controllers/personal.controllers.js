@@ -73,7 +73,10 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                    DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
                    TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
-                   GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
+                   GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids,
+                   (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                    FROM bitacora
+                    WHERE bitacora.personal_id = p.id) AS total_horas_conduccion
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
@@ -169,7 +172,10 @@ export const getPersonalbyID = async (req, res) => {
                    DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
                    TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
-                   GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids
+                   GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids,
+                   (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                    FROM bitacora
+                    WHERE bitacora.personal_id = p.id) AS total_horas_conduccion
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id

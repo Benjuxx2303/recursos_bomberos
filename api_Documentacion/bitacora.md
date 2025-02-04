@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Bitácora con Filtros
-- **Endpoint:** `GET /bitacora/search`
+- **Endpoint:** `GET /api/bitacora/search`
 - **Método:** GET
 - **Descripción:** Obtiene registros de bitácora con filtros opcionales.
 - **Query Params:**
@@ -42,7 +42,7 @@
 ```
 
 ### 2. Obtener Bitácora con Paginación
-- **Endpoint:** `GET /bitacora`
+- **Endpoint:** `GET /api/bitacora`
 - **Método:** GET
 - **Descripción:** Obtiene registros de bitácora con paginación.
 - **Query Params:**
@@ -76,7 +76,7 @@
 ```
 
 ### 3. Obtener Bitácora por ID
-- **Endpoint:** `GET /bitacora/:id`
+- **Endpoint:** `GET /api/bitacora/:id`
 - **Método:** GET
 - **Descripción:** Obtiene un registro de bitácora por su ID.
 
@@ -103,7 +103,7 @@
 ```
 
 ### 4. Crear una Nueva Bitácora
-- **Endpoint:** `POST /bitacora`
+- **Endpoint:** `POST /api/bitacora`
 - **Método:** POST
 - **Descripción:** Crea un nuevo registro de bitácora.
 - **JSON Body:**
@@ -147,7 +147,7 @@
 ```
 
 ### 5. Obtener Última Bitácora
-- **Endpoint:** `GET /bitacora/last`
+- **Endpoint:** `GET /api/bitacora/last`
 - **Método:** GET
 - **Descripción:** Obtiene el último registro de bitácora.
 
@@ -162,7 +162,7 @@
 ```
 
 ### 6. Eliminar una Bitácora
-- **Endpoint:** `DELETE /bitacora/:id`
+- **Endpoint:** `DELETE /api/bitacora/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una bitácora como eliminada.
 
@@ -174,7 +174,7 @@
 ```
 
 ### 7. Actualizar una Bitácora
-- **Endpoint:** `PATCH /bitacora/:id`
+- **Endpoint:** `PATCH /api/bitacora/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un registro de bitácora.
 - **JSON Body:**
@@ -222,7 +222,7 @@
 ```
 
 ### 8. Finalizar Servicio
-- **Endpoint:** `PATCH /bitacora/:id/end`
+- **Endpoint:** `PATCH /api/bitacora/:id/end`
 - **Método:** PATCH
 - **Descripción:** Finaliza un servicio en la bitácora.
 - **JSON Body:**

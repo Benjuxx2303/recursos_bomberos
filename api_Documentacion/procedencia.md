@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todas las Procedencias con Paginación
-- **Endpoint:** `GET /procedencia`
+- **Endpoint:** `GET /api/procedencia`
 - **Método:** GET
 - **Descripción:** Devuelve todas las procedencias con paginación.
 - **Query Params:**
@@ -21,7 +21,7 @@
 ```
 
 ### 2. Obtener Procedencia por ID
-- **Endpoint:** `GET /procedencia/:id`
+- **Endpoint:** `GET /api/procedencia/:id`
 - **Método:** GET
 - **Descripción:** Devuelve una procedencia específica por ID.
 
@@ -34,7 +34,7 @@
 ```
 
 ### 3. Crear una Nueva Procedencia
-- **Endpoint:** `POST /procedencia`
+- **Endpoint:** `POST /api/procedencia`
 - **Método:** POST
 - **Descripción:** Crea una nueva procedencia.
 - **JSON Body:**
@@ -53,7 +53,7 @@
 ```
 
 ### 4. Actualizar una Procedencia
-- **Endpoint:** `PATCH /procedencia/:id`
+- **Endpoint:** `PATCH /api/procedencia/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una procedencia existente.
 - **JSON Body:**
@@ -72,7 +72,7 @@
 ```
 
 ### 5. Eliminar una Procedencia
-- **Endpoint:** `DELETE /procedencia/:id`
+- **Endpoint:** `DELETE /api/procedencia/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una procedencia como eliminada.
 

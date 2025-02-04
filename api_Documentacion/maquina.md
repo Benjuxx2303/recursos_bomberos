@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Máquinas con Paginación
-- **Endpoint:** `GET /maquina`
+- **Endpoint:** `GET /api/maquina`
 - **Método:** GET
 - **Descripción:** Obtiene todas las máquinas con paginación.
 - **Query Params:**
@@ -46,7 +46,7 @@
 ```
 
 ### 2. Obtener Detalles de la Máquina por ID
-- **Endpoint:** `GET /maquina/:id`
+- **Endpoint:** `GET /api/maquina/:id`
 - **Método:** GET
 - **Descripción:** Obtiene los detalles de una máquina específica por ID.
 
@@ -80,7 +80,7 @@
 ```
 
 ### 3. Crear una Nueva Máquina
-- **Endpoint:** `POST /maquina`
+- **Endpoint:** `POST /api/maquina`
 - **Método:** POST
 - **Descripción:** Crea una nueva máquina.
 - **JSON Body:**
@@ -121,7 +121,7 @@
 ```
 
 ### 4. Eliminar una Máquina
-- **Endpoint:** `DELETE /maquina/:id`
+- **Endpoint:** `DELETE /api/maquina/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una máquina como eliminada.
 
@@ -133,7 +133,7 @@
 ```
 
 ### 5. Actualizar una Máquina
-- **Endpoint:** `PATCH /maquina/:id`
+- **Endpoint:** `PATCH /api/maquina/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una máquina existente.
 - **JSON Body:**
@@ -174,7 +174,7 @@
 ```
 
 ### 6. Asignar Conductores a una Máquina
-- **Endpoint:** `POST /maquina/asignar-conductores`
+- **Endpoint:** `POST /api/maquina/asignar-conductores`
 - **Método:** POST
 - **Descripción:** Asigna uno o más conductores a una máquina.
 - **JSON Body:**
@@ -197,7 +197,7 @@
 ```
 
 ### 7. Activar Máquina por Patente
-- **Endpoint:** `PATCH /maquina/activar/:patente`
+- **Endpoint:** `PATCH /api/maquina/activar/:patente`
 - **Método:** PATCH
 - **Descripción:** Activa una máquina usando su patente.
 

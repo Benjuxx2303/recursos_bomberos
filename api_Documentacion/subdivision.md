@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todas las Subdivisiones con Paginación
-- **Endpoint:** `GET /subdivision`
+- **Endpoint:** `GET /api/subdivision`
 - **Método:** GET
 - **Descripción:** Devuelve todas las subdivisiones activas con detalles de la división.
 - **Query Params:**
@@ -23,7 +23,7 @@
 ```
 
 ### 2. Obtener Subdivisión por ID
-- **Endpoint:** `GET /subdivision/:id`
+- **Endpoint:** `GET /api/subdivision/:id`
 - **Método:** GET
 - **Descripción:** Devuelve una subdivisión específica por ID.
 
@@ -38,7 +38,7 @@
 ```
 
 ### 3. Crear una Nueva Subdivisión
-- **Endpoint:** `POST /subdivision`
+- **Endpoint:** `POST /api/subdivision`
 - **Método:** POST
 - **Descripción:** Crea una nueva subdivisión.
 - **JSON Body:**
@@ -59,7 +59,7 @@
 ```
 
 ### 4. Actualizar una Subdivisión
-- **Endpoint:** `PATCH /subdivision/:id`
+- **Endpoint:** `PATCH /api/subdivision/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una subdivisión existente.
 - **JSON Body:**
@@ -81,7 +81,7 @@
 ```
 
 ### 5. Eliminar una Subdivisión
-- **Endpoint:** `DELETE /subdivision/:id`
+- **Endpoint:** `DELETE /api/subdivision/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una subdivisión como eliminada.
 

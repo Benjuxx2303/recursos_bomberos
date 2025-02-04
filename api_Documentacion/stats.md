@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Datos de Mantenimiento
-- **Endpoint:** `GET /stats/maintenance`
+- **Endpoint:** `GET /api/stats/maintenance`
 - **Método:** GET
 - **Descripción:** Devuelve datos de mantenimiento filtrados por fecha, compañía y máquina.
 - **Query Params:**
@@ -26,7 +26,7 @@
 ```
 
 ### 2. Obtener Datos de Servicio
-- **Endpoint:** `GET /stats/service`
+- **Endpoint:** `GET /api/stats/service`
 - **Método:** GET
 - **Descripción:** Devuelve datos de servicio filtrados por fecha, compañía y máquina.
 - **Query Params:**
@@ -48,7 +48,7 @@
 ```
 
 ### 3. Obtener Datos de Servicio con Claves
-- **Endpoint:** `GET /stats/service`
+- **Endpoint:** `GET /api/stats/service`
 - **Método:** GET
 - **Descripción:** Devuelve datos de servicio con claves filtrados por fecha, compañía y máquina.
 - **Query Params:**
@@ -71,7 +71,7 @@
 ```
 
 ### 4. Obtener Datos de Combustible
-- **Endpoint:** `GET /stats/fuel`
+- **Endpoint:** `GET /api/stats/fuel`
 - **Método:** GET
 - **Descripción:** Devuelve datos de consumo de combustible filtrados por fecha, compañía y máquina.
 - **Query Params:**
@@ -98,7 +98,7 @@
 ```
 
 ### 5. Obtener Datos de Compañía
-- **Endpoint:** `GET /stats/company`
+- **Endpoint:** `GET /api/stats/company`
 - **Método:** GET
 - **Descripción:** Devuelve datos de las compañías filtrados por fecha.
 - **Query Params:**
@@ -121,7 +121,7 @@
 ```
 
 ### 6. Obtener Datos de Conductores
-- **Endpoint:** `GET /stats/driver`
+- **Endpoint:** `GET /api/stats/driver`
 - **Método:** GET
 - **Descripción:** Devuelve datos de los conductores filtrados por fecha, compañía y máquina.
 - **Query Params:**
@@ -147,7 +147,7 @@
 ```
 
 ### 7. Obtener Datos Resumen
-- **Endpoint:** `GET /stats/summary`
+- **Endpoint:** `GET /api/stats/summary`
 - **Método:** GET
 - **Descripción:** Devuelve un resumen de datos relacionados con mantenimiento, servicios, combustible, compañías y conductores.
 

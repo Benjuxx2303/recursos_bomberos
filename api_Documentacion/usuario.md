@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Usuarios con Detalles y Paginación
-- **Endpoint:** `GET /usuario`
+- **Endpoint:** `GET /api/usuario`
 - **Método:** GET
 - **Descripción:** Devuelve todos los usuarios activos con detalles y paginación.
 - **Query Params:**
@@ -24,7 +24,7 @@
 ```
 
 ### 2. Obtener Usuario por ID
-- **Endpoint:** `GET /usuario/:id`
+- **Endpoint:** `GET /api/usuario/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un usuario específico por ID.
 
@@ -38,7 +38,7 @@
 ```
 
 ### 3. Eliminar Usuario (Cambiar Estado)
-- **Endpoint:** `DELETE /usuario/:id`
+- **Endpoint:** `DELETE /api/usuario/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un usuario como eliminado.
 
@@ -50,7 +50,7 @@
 ```
 
 ### 4. Actualizar Usuario
-- **Endpoint:** `PATCH /usuario/:id`
+- **Endpoint:** `PATCH /api/usuario/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un usuario existente.
 - **JSON Body:**
@@ -73,7 +73,7 @@
 ```
 
 ### 5. Registrar Nuevo Usuario
-- **Endpoint:** `POST /usuario/register`
+- **Endpoint:** `POST /api/usuario/register`
 - **Método:** POST
 - **Descripción:** Registra un nuevo usuario.
 - **JSON Body:**
@@ -95,7 +95,7 @@
 ```
 
 ### 6. Iniciar Sesión
-- **Endpoint:** `POST /usuario/login`
+- **Endpoint:** `POST /api/usuario/login`
 - **Método:** POST
 - **Descripción:** Inicia sesión de un usuario.
 - **JSON Body:**
@@ -125,7 +125,7 @@
 ```
 
 ### 7. Recuperar Contraseña
-- **Endpoint:** `POST /usuario/recover-password`
+- **Endpoint:** `POST /api/usuario/recover-password`
 - **Método:** POST
 - **Descripción:** Envía un correo con instrucciones para recuperar la contraseña.
 - **JSON Body:**
@@ -143,7 +143,7 @@
 ```
 
 ### 8. Verificar Token de Restablecimiento
-- **Endpoint:** `POST /usuario/verify-reset-token`
+- **Endpoint:** `POST /api/usuario/verify-reset-token`
 - **Método:** POST
 - **Descripción:** Verifica el token de restablecimiento de contraseña.
 - **JSON Body:**
@@ -161,7 +161,7 @@
 ```
 
 ### 9. Resetear Contraseña
-- **Endpoint:** `POST /usuario/reset-password`
+- **Endpoint:** `POST /api/usuario/reset-password`
 - **Método:** POST
 - **Descripción:** Restablece la contraseña de un usuario.
 - **JSON Body:**
@@ -180,7 +180,7 @@
 ```
 
 ### 10. Verificar Correo
-- **Endpoint:** `GET /usuario/verify-email/:token`
+- **Endpoint:** `GET /api/usuario/verify-email/:token`
 - **Método:** GET
 - **Descripción:** Verifica el correo de un usuario utilizando un token.
   

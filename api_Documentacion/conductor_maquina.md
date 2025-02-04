@@ -4,7 +4,7 @@
 ## Endpoints
 
 ### 1. Obtener Conductores de Máquina con Paginación
-- **Endpoint:** `GET /conductor_maquina`
+- **Endpoint:** `GET /api/conductor_maquina`
 - **Método:** GET
 - **Descripción:** Obtiene todos los registros de conductor máquina con paginación.
 - **Query Params:**
@@ -25,7 +25,7 @@
 ```
 
 ### 2. Obtener Conductor de Máquina por ID
-- **Endpoint:** `GET /conductor_maquina/:id`
+- **Endpoint:** `GET /api/conductor_maquina/:id`
 - **Método:** GET
 - **Descripción:** Obtiene un registro específico de conductor máquina por ID.
 
@@ -40,7 +40,7 @@
 ```
 
 ### 3. Crear un Nuevo Conductor de Máquina
-- **Endpoint:** `POST /conductor_maquina`
+- **Endpoint:** `POST /api/conductor_maquina`
 - **Método:** POST
 - **Descripción:** Crea un nuevo registro de conductor máquina.
 - **JSON Body:**
@@ -61,7 +61,7 @@
 ```
 
 ### 4. Dar de Baja un Conductor de Máquina
-- **Endpoint:** `DELETE /conductor_maquina/:id`
+- **Endpoint:** `DELETE /api/conductor_maquina/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un registro de conductor máquina como eliminado.
 
@@ -73,7 +73,7 @@
 ```
 
 ### 5. Actualizar un Conductor de Máquina
-- **Endpoint:** `PATCH /conductor_maquina/:id`
+- **Endpoint:** `PATCH /api/conductor_maquina/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un registro de conductor máquina existente.
 - **JSON Body:**

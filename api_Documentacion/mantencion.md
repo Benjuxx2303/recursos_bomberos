@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Descargar Excel de Mantenciones
-- **Endpoint:** `GET /mantencion/excel`
+- **Endpoint:** `GET /api/mantencion/excel`
 - **Método:** GET
 - **Descripción:** Descarga un archivo Excel con los detalles de las mantenciones.
 - **Query Params:**
@@ -21,7 +21,7 @@
 ```
 
 ### 2. Obtener Mantenciones con Filtros
-- **Endpoint:** `GET /mantencion`
+- **Endpoint:** `GET /api/mantencion`
 - **Método:** GET
 - **Descripción:** Obtiene todas las mantenciones con parámetros de búsqueda y paginación.
 - **Query Params:**
@@ -68,7 +68,7 @@
 ```
 
 ### 3. Obtener Detalles de Mantención por ID
-- **Endpoint:** `GET /mantencion/:id`
+- **Endpoint:** `GET /api/mantencion/:id`
 - **Método:** GET
 - **Descripción:** Obtiene todos los detalles de una mantención específica por ID.
 
@@ -105,7 +105,7 @@
 ```
 
 ### 4. Crear una Nueva Mantención
-- **Endpoint:** `POST /mantencion/old`
+- **Endpoint:** `POST /api/mantencion/old`
 - **Método:** POST
 - **Descripción:** Crea una nueva mantención.
 - **JSON Body:**
@@ -144,7 +144,7 @@
 ```
 
 ### 5. Eliminar una Mantención
-- **Endpoint:** `DELETE /mantencion/:id`
+- **Endpoint:** `DELETE /api/mantencion/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una mantención como eliminada.
 
@@ -156,7 +156,7 @@
 ```
 
 ### 6. Actualizar una Mantención
-- **Endpoint:** `PATCH /mantencion/:id`
+- **Endpoint:** `PATCH /api/mantencion/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una mantención existente.
 - **JSON Body:**
@@ -195,7 +195,7 @@
 ```
 
 ### 7. Aprobar/Rechazar Mantención
-- **Endpoint:** `PATCH /mantencion/:id/aprobacion`
+- **Endpoint:** `PATCH /api/mantencion/:id/aprobacion`
 - **Método:** PATCH
 - **Descripción:** Cambia el estado de aprobación de una mantención.
 - **JSON Body:**
@@ -214,7 +214,7 @@
 ```
 
 ### 8. Actualizar el Estado de una Mantención
-- **Endpoint:** `PATCH /mantencion/:id/status`
+- **Endpoint:** `PATCH /api/mantencion/:id/status`
 - **Método:** PATCH
 - **Descripción:** Actualiza el estado de una mantención.
 - **JSON Body:**
@@ -232,7 +232,7 @@
 ```
 
 ### 9. Crear Mantenciones Periódicas
-- **Endpoint:** `POST /mantencion/periodica`
+- **Endpoint:** `POST /api/mantencion/periodica`
 - **Método:** POST
 - **Descripción:** Crea mantenciones periódicas basadas en fechas.
 - **JSON Body:**

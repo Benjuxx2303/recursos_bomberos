@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Tipos de Máquina con Paginación
-- **Endpoint:** `GET /tipo_maquina`
+- **Endpoint:** `GET /api/tipo_maquina`
 - **Método:** GET
 - **Descripción:** Devuelve todos los tipos de máquina activos con paginación.
 - **Query Params:**
@@ -21,7 +21,7 @@
 ```
 
 ### 2. Obtener Tipo de Máquina por ID
-- **Endpoint:** `GET /tipo_maquina/:id`
+- **Endpoint:** `GET /api/tipo_maquina/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un tipo de máquina específico por ID.
 
@@ -34,7 +34,7 @@
 ```
 
 ### 3. Crear un Nuevo Tipo de Máquina
-- **Endpoint:** `POST /tipo_maquina`
+- **Endpoint:** `POST /api/tipo_maquina`
 - **Método:** POST
 - **Descripción:** Crea un nuevo tipo de máquina.
 - **JSON Body:**
@@ -54,7 +54,7 @@
 ```
 
 ### 4. Actualizar un Tipo de Máquina
-- **Endpoint:** `PATCH /tipo_maquina/:id`
+- **Endpoint:** `PATCH /api/tipo_maquina/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un tipo de máquina existente.
 - **JSON Body:**
@@ -74,7 +74,7 @@
 ```
 
 ### 5. Eliminar un Tipo de Máquina
-- **Endpoint:** `DELETE /tipo_maquina/:id`
+- **Endpoint:** `DELETE /api/tipo_maquina/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un tipo de máquina como eliminado.
 

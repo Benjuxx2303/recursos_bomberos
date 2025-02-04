@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Detalles de Mantención con Paginación
-- **Endpoint:** `GET /detalle_mantencion`
+- **Endpoint:** `GET /api/detalle_mantencion`
 - **Método:** GET
 - **Descripción:** Obtiene todos los detalles de mantención con paginación.
 - **Query Params:**
@@ -24,7 +24,7 @@
 ```
 
 ### 2. Obtener Detalle de Mantención por ID
-- **Endpoint:** `GET /detalle_mantencion/:id`
+- **Endpoint:** `GET /api/detalle_mantencion/:id`
 - **Método:** GET
 - **Descripción:** Obtiene un detalle de mantención específico por ID.
 
@@ -40,7 +40,7 @@
 ```
 
 ### 3. Obtener Detalles de Mantención por ID de Mantención
-- **Endpoint:** `GET /detalle_mantencion/mantencion/:mantencion_id`
+- **Endpoint:** `GET /api/detalle_mantencion/mantencion/:mantencion_id`
 - **Método:** GET
 - **Descripción:** Obtiene todos los detalles de mantención asociados a una mantención específica por ID.
 
@@ -59,7 +59,7 @@
 ```
 
 ### 4. Crear un Nuevo Detalle de Mantención
-- **Endpoint:** `POST /detalle_mantencion`
+- **Endpoint:** `POST /api/detalle_mantencion`
 - **Método:** POST
 - **Descripción:** Crea un nuevo detalle de mantención.
 - **JSON Body:**
@@ -82,7 +82,7 @@
 ```
 
 ### 5. Eliminar Detalle de Mantención
-- **Endpoint:** `DELETE /detalle_mantencion/:id`
+- **Endpoint:** `DELETE /api/detalle_mantencion/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un detalle de mantención como eliminado.
 
@@ -94,7 +94,7 @@
 ```
 
 ### 6. Actualizar Detalle de Mantención
-- **Endpoint:** `PATCH /detalle_mantencion/:id`
+- **Endpoint:** `PATCH /api/detalle_mantencion/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un detalle de mantención existente.
 - **JSON Body:**

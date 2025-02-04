@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Compañías con Paginación
-- **Endpoint:** `GET /compania`
+- **Endpoint:** `GET /api/compania`
 - **Método:** GET
 - **Descripción:** Obtiene todas las compañías con paginación.
 - **Query Params:**
@@ -24,7 +24,7 @@
 ```
 
 ### 2. Obtener Compañía por ID
-- **Endpoint:** `GET /compania/:id`
+- **Endpoint:** `GET /api/compania/:id`
 - **Método:** GET
 - **Descripción:** Obtiene una compañía específica por ID.
 
@@ -40,7 +40,7 @@
 ```
 
 ### 3. Crear Nueva Compañía
-- **Endpoint:** `POST /compania`
+- **Endpoint:** `POST /api/compania`
 - **Método:** POST
 - **Descripción:** Crea una nueva compañía.
 - **JSON Body:**
@@ -63,7 +63,7 @@
 ```
 
 ### 4. Dar de Baja una Compañía
-- **Endpoint:** `DELETE /compania/:id`
+- **Endpoint:** `DELETE /api/compania/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una compañía como eliminada.
 
@@ -75,7 +75,7 @@
 ```
 
 ### 5. Actualizar una Compañía
-- **Endpoint:** `PATCH /compania/:id`
+- **Endpoint:** `PATCH /api/compania/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una compañía existente.
 - **JSON Body:**

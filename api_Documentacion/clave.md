@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Claves con Paginación
-- **Endpoint:** `GET /clave`
+- **Endpoint:** `GET /api/clave`
 - **Método:** GET
 - **Descripción:** Obtiene todas las claves con paginación.
 - **Query Params:**
@@ -23,7 +23,7 @@
 ```
 
 ### 2. Obtener Clave por ID
-- **Endpoint:** `GET /clave/:id`
+- **Endpoint:** `GET /api/clave/:id`
 - **Método:** GET
 - **Descripción:** Obtiene una clave específica por ID.
 
@@ -38,7 +38,7 @@
 ```
 
 ### 3. Crear Nueva Clave
-- **Endpoint:** `POST /clave`
+- **Endpoint:** `POST /api/clave`
 - **Método:** POST
 - **Descripción:** Crea una nueva clave.
 - **JSON Body:**
@@ -61,7 +61,7 @@
 ```
 
 ### 4. Dar de Baja una Clave
-- **Endpoint:** `DELETE /clave/:id`
+- **Endpoint:** `DELETE /api/clave/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una clave como eliminada.
 
@@ -73,7 +73,7 @@
 ```
 
 ### 5. Actualizar una Clave
-- **Endpoint:** `PATCH /clave/:id`
+- **Endpoint:** `PATCH /api/clave/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una clave existente.
 - **JSON Body:**

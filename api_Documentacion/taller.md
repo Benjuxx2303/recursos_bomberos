@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Talleres con Paginación
-- **Endpoint:** `GET /taller`
+- **Endpoint:** `GET /api/taller`
 - **Método:** GET
 - **Descripción:** Devuelve todos los talleres activos con paginación.
 - **Query Params:**
@@ -28,7 +28,7 @@
 ```
 
 ### 2. Obtener Taller por ID
-- **Endpoint:** `GET /taller/:id`
+- **Endpoint:** `GET /api/taller/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un taller específico por ID.
 
@@ -48,7 +48,7 @@
 ```
 
 ### 3. Crear un Nuevo Taller
-- **Endpoint:** `POST /taller`
+- **Endpoint:** `POST /api/taller`
 - **Método:** POST
 - **Descripción:** Crea un nuevo taller.
 - **JSON Body:**
@@ -81,7 +81,7 @@
 ```
 
 ### 4. Actualizar un Taller
-- **Endpoint:** `PATCH /taller/:id`
+- **Endpoint:** `PATCH /api/taller/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un taller existente.
 - **JSON Body:**
@@ -110,7 +110,7 @@
 ```
 
 ### 5. Eliminar un Taller
-- **Endpoint:** `DELETE /taller/:id`
+- **Endpoint:** `DELETE /api/taller/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un taller como eliminado.
 

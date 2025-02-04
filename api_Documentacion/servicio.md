@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Servicios con Paginación
-- **Endpoint:** `GET /servicio`
+- **Endpoint:** `GET /api/servicio`
 - **Método:** GET
 - **Descripción:** Devuelve todos los servicios con paginación.
 - **Query Params:**
@@ -23,7 +23,7 @@
 ```
 
 ### 2. Obtener Servicio por ID
-- **Endpoint:** `GET /servicio/:id`
+- **Endpoint:** `GET /api/servicio/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un servicio específico por ID.
 
@@ -38,7 +38,7 @@
 ```
 
 ### 3. Crear un Nuevo Servicio
-- **Endpoint:** `POST /servicio`
+- **Endpoint:** `POST /api/servicio`
 - **Método:** POST
 - **Descripción:** Crea un nuevo servicio.
 - **JSON Body:**
@@ -59,7 +59,7 @@
 ```
 
 ### 4. Actualizar un Servicio
-- **Endpoint:** `PATCH /servicio/:id`
+- **Endpoint:** `PATCH /api/servicio/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un servicio existente.
 - **JSON Body:**
@@ -80,7 +80,7 @@
 ```
 
 ### 5. Eliminar un Servicio
-- **Endpoint:** `DELETE /servicio/:id`
+- **Endpoint:** `DELETE /api/servicio/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un servicio como eliminado.
 

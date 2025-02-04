@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Estados de Mantención con Paginación
-- **Endpoint:** `GET /estado_mantencion`
+- **Endpoint:** `GET /api/estado_mantencion`
 - **Método:** GET
 - **Descripción:** Obtiene todos los estados de mantención con paginación.
 - **Query Params:**
@@ -23,7 +23,7 @@
 ```
 
 ### 2. Obtener Estado de Mantención por ID
-- **Endpoint:** `GET /estado_mantencion/:id`
+- **Endpoint:** `GET /api/estado_mantencion/:id`
 - **Método:** GET
 - **Descripción:** Obtiene un estado de mantención específico por ID.
 
@@ -38,7 +38,7 @@
 ```
 
 ### 3. Crear Estado de Mantención
-- **Endpoint:** `POST /estado_mantencion`
+- **Endpoint:** `POST /api/estado_mantencion`
 - **Método:** POST
 - **Descripción:** Crea un nuevo estado de mantención.
 - **JSON Body:**
@@ -59,7 +59,7 @@
 ```
 
 ### 4. Eliminar Estado de Mantención
-- **Endpoint:** `DELETE /estado_mantencion/:id`
+- **Endpoint:** `DELETE /api/estado_mantencion/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un estado de mantención como eliminado.
 
@@ -71,7 +71,7 @@
 ```
 
 ### 5. Actualizar Estado de Mantención
-- **Endpoint:** `PATCH /estado_mantencion/:id`
+- **Endpoint:** `PATCH /api/estado_mantencion/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un estado de mantención existente.
 - **JSON Body:**

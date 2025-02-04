@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Alertas por Usuario
-- **Endpoint:** `GET /alerta/usuario/:usuario_id`
+- **Endpoint:** `GET /api/alerta/usuario/:usuario_id`
 - **Método:** GET
 - **Descripción:** Obtiene las alertas del usuario especificado por `usuario_id`.
 
@@ -23,7 +23,7 @@
 ---
 
 ### 2. Marcar Todas las Alertas como Leídas
-- **Endpoint:** `PUT /alerta/usuario/:usuario_id/read`
+- **Endpoint:** `PUT /api/alerta/usuario/:usuario_id/read`
 - **Método:** PUT
 - **Descripción:** Marca todas las alertas del usuario especificado como leídas.
 
@@ -45,7 +45,7 @@
 ---
 
 ### 3. Marcar Alerta como Leída
-- **Endpoint:** `PUT /alerta/:alerta_id/read`
+- **Endpoint:** `PUT /api/alerta/:alerta_id/read`
 - **Método:** PUT
 - **Descripción:** Marca una alerta específica como leída.
 
@@ -66,7 +66,7 @@
 ---
 
 ### 4. Enviar Alertas de Vencimiento
-- **Endpoint:** `GET /alerta/vencimientos`
+- **Endpoint:** `GET /api/alerta/vencimientos`
 - **Método:** GET
 - **Descripción:** Envía alertas de vencimiento a los usuarios.
 
@@ -80,7 +80,7 @@
 ---
 
 ### 5. Enviar Alertas de Revisión Técnica
-- **Endpoint:** `GET /alerta/revision-tecnica`
+- **Endpoint:** `GET /api/alerta/revision-tecnica`
 - **Método:** GET
 - **Descripción:** Envía alertas sobre vencimientos de revisión técnica a los conductores asignados.
 
@@ -94,7 +94,7 @@
 ---
 
 ### 6. Enviar Alertas de Mantención
-- **Endpoint:** `GET /alerta/mantencion`
+- **Endpoint:** `GET /api/alerta/mantencion`
 - **Método:** GET
 - **Descripción:** Envía alertas sobre mantenciones pendientes.
 
@@ -108,7 +108,7 @@
 ---
 
 ### 7. Enviar Alertas de Próximas Mantenciones
-- **Endpoint:** `GET /alerta/proximas-mantenciones`
+- **Endpoint:** `GET /api/alerta/proximas-mantenciones`
 - **Método:** GET
 - **Descripción:** Envía alertas sobre próximas mantenciones.
 
@@ -122,7 +122,7 @@
 ---
 
 ### 8. Eliminar Alertas Antiguas
-- **Endpoint:** `DELETE /alerta/limpiar`
+- **Endpoint:** `DELETE /api/alerta/limpiar`
 - **Método:** (No definido en las rutas, pero es parte de la lógica)
 - **Descripción:** Elimina alertas que tienen más de 30 días.
 

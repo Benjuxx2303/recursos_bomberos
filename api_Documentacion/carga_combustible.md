@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Cargas de Combustible con Paginación
-- **Endpoint:** `GET /carga_combustible`
+- **Endpoint:** `GET /api/carga_combustible`
 - **Método:** GET
 - **Descripción:** Obtiene todas las cargas de combustible con paginación.
 - **Query Params:**
@@ -34,7 +34,7 @@
 ```
 
 ### 2. Obtener Carga de Combustible por ID
-- **Endpoint:** `GET /carga_combustible/:id`
+- **Endpoint:** `GET /api/carga_combustible/:id`
 - **Método:** GET
 - **Descripción:** Obtiene una carga de combustible específica por ID.
 
@@ -62,7 +62,7 @@
 ```
 
 ### 3. Crear una Nueva Carga de Combustible
-- **Endpoint:** `POST /carga_combustible/simple`
+- **Endpoint:** `POST /api/carga_combustible/simple`
 - **Método:** POST
 - **Descripción:** Crea una nueva carga de combustible.
 - **JSON Body:**
@@ -87,7 +87,7 @@
 ```
 
 ### 4. Crear una Carga de Combustible con Bitácora
-- **Endpoint:** `POST /carga_combustible`
+- **Endpoint:** `POST /api/carga_combustible`
 - **Método:** POST
 - **Descripción:** Crea una nueva carga de combustible junto con una bitácora.
 - **JSON Body:**
@@ -126,7 +126,7 @@
 ```
 
 ### 5. Dar de Baja una Carga de Combustible
-- **Endpoint:** `DELETE /carga_combustible/:id`
+- **Endpoint:** `DELETE /api/carga_combustible/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una carga de combustible como eliminada.
 
@@ -138,7 +138,7 @@
 ```
 
 ### 6. Actualizar una Carga de Combustible Existente
-- **Endpoint:** `PATCH /carga_combustible/:id`
+- **Endpoint:** `PATCH /api/carga_combustible/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una carga de combustible existente.
 - **JSON Body:**

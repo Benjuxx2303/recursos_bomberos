@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todas las Marcas con Paginación
-- **Endpoint:** `GET /marca`
+- **Endpoint:** `GET /api/marca`
 - **Método:** GET
 - **Descripción:** Obtiene todas las marcas con paginación.
 - **Query Params:**
@@ -21,7 +21,7 @@
 ```
 
 ### 2. Obtener Marca por ID
-- **Endpoint:** `GET /marca/:id`
+- **Endpoint:** `GET /api/marca/:id`
 - **Método:** GET
 - **Descripción:** Obtiene una marca específica por ID.
 
@@ -34,7 +34,7 @@
 ```
 
 ### 3. Crear una Nueva Marca
-- **Endpoint:** `POST /marca`
+- **Endpoint:** `POST /api/marca`
 - **Método:** POST
 - **Descripción:** Crea una nueva marca.
 - **JSON Body:**
@@ -53,7 +53,7 @@
 ```
 
 ### 4. Actualizar una Marca
-- **Endpoint:** `PATCH /marca/:id`
+- **Endpoint:** `PATCH /api/marca/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una marca existente.
 - **JSON Body:**
@@ -72,7 +72,7 @@
 ```
 
 ### 5. Eliminar una Marca
-- **Endpoint:** `DELETE /marca/:id`
+- **Endpoint:** `DELETE /api/marca/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una marca como eliminada.
 

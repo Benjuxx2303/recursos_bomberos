@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Modelos
-- **Endpoint:** `GET /modelo`
+- **Endpoint:** `GET /api/modelo`
 - **Método:** GET
 - **Descripción:** Devuelve todos los modelos sin paginación.
 
@@ -25,7 +25,7 @@
 ```
 
 ### 2. Obtener Modelos con Paginación
-- **Endpoint:** `GET /modelo/page`
+- **Endpoint:** `GET /api/modelo/page`
 - **Método:** GET
 - **Descripción:** Devuelve modelos con paginación.
 - **Query Params:**
@@ -60,7 +60,7 @@
 ```
 
 ### 3. Obtener Modelo por ID
-- **Endpoint:** `GET /modelo/:id`
+- **Endpoint:** `GET /api/modelo/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un modelo específico por ID.
 
@@ -78,7 +78,7 @@
 ```
 
 ### 4. Crear un Nuevo Modelo
-- **Endpoint:** `POST /modelo`
+- **Endpoint:** `POST /api/modelo`
 - **Método:** POST
 - **Descripción:** Crea un nuevo modelo.
 - **JSON Body:**
@@ -104,7 +104,7 @@
 ```
 
 ### 5. Actualizar un Modelo
-- **Endpoint:** `PATCH /modelo/:id`
+- **Endpoint:** `PATCH /api/modelo/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un modelo existente.
 - **JSON Body:**
@@ -129,7 +129,7 @@
 ```
 
 ### 6. Eliminar un Modelo
-- **Endpoint:** `DELETE /modelo/:id`
+- **Endpoint:** `DELETE /api/modelo/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un modelo como eliminado.
 

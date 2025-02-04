@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Tipos de Mantención con Paginación
-- **Endpoint:** `GET /tipo_mantencion`
+- **Endpoint:** `GET /api/tipo_mantencion`
 - **Método:** GET
 - **Descripción:** Devuelve todos los tipos de mantención activos con paginación.
 - **Query Params:**
@@ -21,7 +21,7 @@
 ```
 
 ### 2. Obtener Tipo de Mantención por ID
-- **Endpoint:** `GET /tipo_mantencion/:id`
+- **Endpoint:** `GET /api/tipo_mantencion/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un tipo de mantención específico por ID.
 
@@ -34,7 +34,7 @@
 ```
 
 ### 3. Crear un Nuevo Tipo de Mantención
-- **Endpoint:** `POST /tipo_mantencion`
+- **Endpoint:** `POST /api/tipo_mantencion`
 - **Método:** POST
 - **Descripción:** Crea un nuevo tipo de mantención.
 - **JSON Body:**
@@ -53,7 +53,7 @@
 ```
 
 ### 4. Actualizar un Tipo de Mantención
-- **Endpoint:** `PATCH /tipo_mantencion/:id`
+- **Endpoint:** `PATCH /api/tipo_mantencion/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un tipo de mantención existente.
 - **JSON Body:**
@@ -73,7 +73,7 @@
 ```
 
 ### 5. Eliminar un Tipo de Mantención
-- **Endpoint:** `DELETE /tipo_mantencion/:id`
+- **Endpoint:** `DELETE /api/tipo_mantencion/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un tipo de mantención como eliminado.
 

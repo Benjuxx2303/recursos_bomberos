@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Personal con Detalles
-- **Endpoint:** `GET /personal`
+- **Endpoint:** `GET /api/personal`
 - **Método:** GET
 - **Descripción:** Devuelve todos los registros de personal con detalles y paginación.
 - **Query Params:**
@@ -42,7 +42,7 @@
 ```
 
 ### 2. Obtener Personal por ID
-- **Endpoint:** `GET /personal/:id`
+- **Endpoint:** `GET /api/personal/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un registro de personal específico por ID.
 
@@ -70,7 +70,7 @@
 ```
 
 ### 3. Crear un Nuevo Personal
-- **Endpoint:** `POST /personal`
+- **Endpoint:** `POST /api/personal`
 - **Método:** POST
 - **Descripción:** Crea un nuevo registro de personal.
 - **JSON Body:**
@@ -108,7 +108,7 @@
 ```
 
 ### 4. Actualizar un Registro de Personal
-- **Endpoint:** `PATCH /personal/:id`
+- **Endpoint:** `PATCH /api/personal/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un registro de personal existente.
 - **JSON Body:**
@@ -142,7 +142,7 @@
 ```
 
 ### 5. Dar de Baja un Personal
-- **Endpoint:** `DELETE /personal/:id`
+- **Endpoint:** `DELETE /api/personal/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un registro de personal como eliminado.
 
@@ -154,7 +154,7 @@
 ```
 
 ### 6. Activar Personal
-- **Endpoint:** `PATCH /personal/activate`
+- **Endpoint:** `PATCH /api/personal/activate`
 - **Método:** PATCH
 - **Descripción:** Activa un registro de personal por ID o RUT.
 - **Query Params:**
@@ -169,7 +169,7 @@
 ```
 
 ### 7. Desactivar Personal
-- **Endpoint:** `PATCH /personal/deactivate`
+- **Endpoint:** `PATCH /api/personal/deactivate`
 - **Método:** PATCH
 - **Descripción:** Desactiva un registro de personal por ID o RUT.
 - **Query Params:**
@@ -184,7 +184,7 @@
 ```
 
 ### 8. Actualizar Última Fecha de Servicio
-- **Endpoint:** `GET /personal/update-last-service-date`
+- **Endpoint:** `GET /api/personal/update-last-service-date`
 - **Método:** GET
 - **Descripción:** Actualiza la última fecha de servicio para todos los registros de personal.
 

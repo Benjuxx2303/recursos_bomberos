@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Roles de Personal con Paginación
-- **Endpoint:** `GET /rol_personal`
+- **Endpoint:** `GET /api/rol_personal`
 - **Método:** GET
 - **Descripción:** Devuelve todos los roles de personal con paginación.
 - **Query Params:**
@@ -22,7 +22,7 @@
 ```
 
 ### 2. Obtener Rol de Personal por ID
-- **Endpoint:** `GET /rol_personal/:id`
+- **Endpoint:** `GET /api/rol_personal/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un rol de personal específico por ID.
 
@@ -36,7 +36,7 @@
 ```
 
 ### 3. Crear un Nuevo Rol de Personal
-- **Endpoint:** `POST /rol_personal`
+- **Endpoint:** `POST /api/rol_personal`
 - **Método:** POST
 - **Descripción:** Crea un nuevo rol de personal.
 - **JSON Body:**
@@ -57,7 +57,7 @@
 ```
 
 ### 4. Actualizar un Rol de Personal
-- **Endpoint:** `PATCH /rol_personal/:id`
+- **Endpoint:** `PATCH /api/rol_personal/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un rol de personal existente.
 - **JSON Body:**
@@ -78,7 +78,7 @@
 ```
 
 ### 5. Eliminar un Rol de Personal
-- **Endpoint:** `DELETE /rol_personal/:id`
+- **Endpoint:** `DELETE /api/rol_personal/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un rol de personal como eliminado.
 

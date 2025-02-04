@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Divisiones con Paginación
-- **Endpoint:** `GET /division`
+- **Endpoint:** `GET /api/division`
 - **Método:** GET
 - **Descripción:** Obtiene todas las divisiones con paginación.
 - **Query Params:**
@@ -22,7 +22,7 @@
 ```
 
 ### 2. Obtener División por ID
-- **Endpoint:** `GET /division/:id`
+- **Endpoint:** `GET /api/division/:id`
 - **Método:** GET
 - **Descripción:** Obtiene una división específica por ID.
 
@@ -36,7 +36,7 @@
 ```
 
 ### 3. Crear una Nueva División
-- **Endpoint:** `POST /division`
+- **Endpoint:** `POST /api/division`
 - **Método:** POST
 - **Descripción:** Crea una nueva división.
 - **JSON Body:**
@@ -55,7 +55,7 @@
 ```
 
 ### 4. Eliminar una División
-- **Endpoint:** `DELETE /division/:id`
+- **Endpoint:** `DELETE /api/division/:id`
 - **Método:** DELETE
 - **Descripción:** Marca una división como eliminada.
 
@@ -67,7 +67,7 @@
 ```
 
 ### 5. Actualizar una División
-- **Endpoint:** `PATCH /division/:id`
+- **Endpoint:** `PATCH /api/division/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza una división existente.
 - **JSON Body:**

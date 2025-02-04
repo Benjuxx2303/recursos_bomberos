@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Calendario de Mantenciones
-- **Endpoint:** `GET /stats-mantenciones/calendar-maintenances`
+- **Endpoint:** `GET /api/stats-mantenciones/calendar-maintenances`
 - **Método:** GET
 - **Descripción:** Devuelve el calendario de mantenciones.
 
@@ -20,7 +20,7 @@
 ```
 
 ### 2. Obtener Estadísticas Mensuales de Mantenciones
-- **Endpoint:** `GET /stats-mantenciones/monthly-stats`
+- **Endpoint:** `GET /api/stats-mantenciones/monthly-stats`
 - **Método:** GET
 - **Descripción:** Devuelve estadísticas mensuales de mantenciones.
 
@@ -39,7 +39,7 @@
 ```
 
 ### 3. Obtener KPIs de Mantenciones
-- **Endpoint:** `GET /stats-mantenciones/kpis`
+- **Endpoint:** `GET /api/stats-mantenciones/kpis`
 - **Método:** GET
 - **Descripción:** Devuelve indicadores clave de rendimiento (KPIs) relacionados con las mantenciones.
 
@@ -55,7 +55,7 @@
 ```
 
 ### 4. Obtener Mantenciones por Compañía
-- **Endpoint:** `GET /stats-mantenciones/by-company`
+- **Endpoint:** `GET /api/stats-mantenciones/by-company`
 - **Método:** GET
 - **Descripción:** Devuelve datos de mantenciones filtrados por compañía.
 
@@ -73,7 +73,7 @@
 ```
 
 ### 5. Obtener Historial de Mantenciones
-- **Endpoint:** `GET /stats-mantenciones/maintenance-history`
+- **Endpoint:** `GET /api/stats-mantenciones/maintenance-history`
 - **Método:** GET
 - **Descripción:** Devuelve el historial de mantenciones.
 
@@ -92,7 +92,7 @@
 ```
 
 ### 6. Obtener Costos de Mantenciones por Año
-- **Endpoint:** `GET /stats-mantenciones/costos`
+- **Endpoint:** `GET /api/stats-mantenciones/costos`
 - **Método:** GET
 - **Descripción:** Devuelve los costos de mantenciones filtrados por año.
 - **Query Params:**
@@ -113,7 +113,7 @@
 ```
 
 ### 7. Obtener Reporte de Mantenciones por Estado y Costo
-- **Endpoint:** `GET /stats-mantenciones/reporte`
+- **Endpoint:** `GET /api/stats-mantenciones/reporte`
 - **Método:** GET
 - **Descripción:** Devuelve un reporte de mantenciones filtrado por fechas y compañía.
 - **Query Params:**
@@ -143,7 +143,7 @@
 ```
 
 ### 8. Obtener Resumen General de Mantenciones
-- **Endpoint:** `GET /stats-mantenciones/resumen`
+- **Endpoint:** `GET /api/stats-mantenciones/resumen`
 - **Método:** GET
 - **Descripción:** Devuelve un resumen general de las mantenciones.
 

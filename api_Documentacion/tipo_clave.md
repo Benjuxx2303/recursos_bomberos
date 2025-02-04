@@ -3,7 +3,7 @@
 ## Endpoints
 
 ### 1. Obtener Todos los Tipos de Clave con Paginación
-- **Endpoint:** `GET /tipo_clave`
+- **Endpoint:** `GET /api/tipo_clave`
 - **Método:** GET
 - **Descripción:** Devuelve todos los tipos de clave activos con paginación.
 - **Query Params:**
@@ -21,7 +21,7 @@
 ```
 
 ### 2. Obtener Tipo de Clave por ID
-- **Endpoint:** `GET /tipo_clave/:id`
+- **Endpoint:** `GET /api/tipo_clave/:id`
 - **Método:** GET
 - **Descripción:** Devuelve un tipo de clave específico por ID.
 
@@ -34,7 +34,7 @@
 ```
 
 ### 3. Crear un Nuevo Tipo de Clave
-- **Endpoint:** `POST /tipo_clave`
+- **Endpoint:** `POST /api/tipo_clave`
 - **Método:** POST
 - **Descripción:** Crea un nuevo tipo de clave.
 - **JSON Body:**
@@ -53,7 +53,7 @@
 ```
 
 ### 4. Actualizar un Tipo de Clave
-- **Endpoint:** `PATCH /tipo_clave/:id`
+- **Endpoint:** `PATCH /api/tipo_clave/:id`
 - **Método:** PATCH
 - **Descripción:** Actualiza un tipo de clave existente.
 - **JSON Body:**
@@ -73,7 +73,7 @@
 ```
 
 ### 5. Eliminar un Tipo de Clave
-- **Endpoint:** `DELETE /tipo_clave/:id`
+- **Endpoint:** `DELETE /api/tipo_clave/:id`
 - **Método:** DELETE
 - **Descripción:** Marca un tipo de clave como eliminado.
 

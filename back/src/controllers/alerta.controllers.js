@@ -79,6 +79,7 @@ export const getAlertasByUsuario = async (req, res) => {
  */
 export const sendVencimientoAlerts = async (req, res) => {
     try {
+        // Consulta SQL para obtener los registros de personal con licencias próximas a vencer o vencidas recientemente
         const [rows] = await pool.query(`
             SELECT 
                 p.id AS personal_id,
@@ -91,11 +92,11 @@ export const sendVencimientoAlerts = async (req, res) => {
             INNER JOIN usuario u ON p.id = u.personal_id
             WHERE p.isDeleted = 0 
               AND u.isDeleted = 0 
-              AND p.ven_licencia BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+              AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
         `);
 
         if (rows.length === 0) {
-            return res.status(200).json({ message: "No hay permisos próximos a vencer." });
+            return res.status(200).json({ message: "No hay permisos próximos a vencer o vencidos recientemente." });
         }
 
         // Enviar correos y guardar alertas
@@ -103,22 +104,39 @@ export const sendVencimientoAlerts = async (req, res) => {
             const { nombre, apellido, ven_licencia, correo, usuario_id } = personal;
             const fechaFormateada = new Date(ven_licencia).toLocaleDateString("es-ES");
 
-            // Crear contenido de la alerta
-            const contenido = `Hola ${nombre} ${apellido}, te recordamos que tu licencia vence el ${fechaFormateada}. Por favor, asegúrate de renovarlo a tiempo.`;
+            // **Nueva funcionalidad: Calcular la diferencia en días entre la fecha actual y la fecha de vencimiento**
+            const fechaVencimiento = new Date(ven_licencia);
+            const fechaActual = new Date();
+            const diferenciaDias = Math.floor((fechaVencimiento - fechaActual) / (1000 * 60 * 60 * 24));
 
-            // Usar saveAndEmitAlert en lugar de inserción directa
+            let contenido = '';
+
+            // **Ajustar el mensaje según los días restantes o días de retraso**
+            if (diferenciaDias > 0) {
+                // Mensaje para licencias que vencen en los próximos días
+                contenido = `Hola ${nombre} ${apellido}, te recordamos que tu licencia vence en ${diferenciaDias} días (${fechaFormateada}). Por favor, asegúrate de renovarlo a tiempo.`;
+            } else if (diferenciaDias === 0) {
+                // Mensaje para el último día antes de la expiración de la licencia
+                contenido = `Hola ${nombre} ${apellido}, hoy es el último día para renovar tu licencia (${fechaFormateada}). Por favor, renueva tu licencia lo antes posible.`;
+            } else {
+                // Mensaje para licencias vencidas, calculando los días de retraso
+                const diasRetraso = Math.abs(diferenciaDias);
+                contenido = `Hola ${nombre} ${apellido}, tu licencia está vencida hace ${diasRetraso} días (${fechaFormateada}). Por favor, renueva tu licencia lo antes posible para evitar inconvenientes.`;
+            }
+
+            // Usar la función saveAndEmitAlert para guardar y emitir la alerta
             await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
 
-            // Enviar el correo
+            // Enviar el correo con el contenido ajustado según los días de vencimiento o retraso
             const htmlContent = generateEmailTemplate(
-                "Recordatorio: Próximo Vencimiento de Permiso",
-                "Renovar Permiso",
-                "https://example.com/renovar-permiso"
+                "Recordatorio: Vencimiento de Licencia",
+                "Renovar Licencia",
+                "https://example.com/renovar-licencia"
             );
 
             await sendEmail(
                 correo,
-                "Recordatorio: Próximo Vencimiento de Permiso",
+                "Recordatorio: Vencimiento de Licencia",
                 contenido,
                 htmlContent
             );

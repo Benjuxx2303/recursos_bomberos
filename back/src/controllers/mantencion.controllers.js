@@ -307,6 +307,7 @@ export const createMantencion = async (req, res) => {
       n_factura,
       cost_ser,
       aprobada,
+      aprobada_por, // **Nuevo campo opcional**
     } = req.body;
 
     let errors = [];
@@ -327,6 +328,26 @@ export const createMantencion = async (req, res) => {
     const isValidDate = dateStr => /^\d{2}-\d{2}-\d{4}$/.test(dateStr);
     if (fec_inicio && !isValidDate(fec_inicio)) errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
     if (fec_termino && !isValidDate(fec_termino)) errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+
+    // **Validación del campo aprobada_por** (si está presente)
+    let aprobada_por_nombre = null;
+    if (aprobada_por) {
+      if (isNaN(parseInt(aprobada_por))) errors.push("El ID de la persona que aprobó es inválido");
+      
+      const aprobadaPorId = parseInt(aprobada_por);
+
+      // Validar si el ID de aprobada_por existe y tiene un rol superior
+      const [aprobadaPorInfo] = await pool.query(
+        `SELECT p.id, p.rol_personal_id, CONCAT(p.nombre, ' ' ,p.apellido) AS nombre FROM personal p WHERE p.id = ? AND p.rol_personal_id IN (SELECT r.id FROM rol_personal r WHERE r.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán'))`,
+        [aprobadaPorId]
+      );
+
+      if (!aprobadaPorInfo.length) errors.push("La persona que aprobó no es válida o no tiene un rol superior");
+
+      if (aprobadaPorInfo.length) {
+        aprobada_por_nombre = aprobadaPorInfo[0].nombre;
+      }
+    }
 
     if (errors.length > 0) return res.status(400).json({ message: "Errores en los datos de entrada", errors });
 
@@ -378,14 +399,51 @@ export const createMantencion = async (req, res) => {
     // Insertar mantención
     const [result] = await pool.query(
       `INSERT INTO mantencion (
-          bitacora_id, maquina_id, taller_id, estado_mantencion_id, tipo_mantencion_id, 
-          fec_inicio, fec_termino, ord_trabajo, n_factura, cost_ser, isDeleted
-        ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 0)`,
+          bitacora_id, 
+          maquina_id, 
+          taller_id, 
+          estado_mantencion_id, 
+          tipo_mantencion_id, 
+          fec_inicio, 
+          fec_termino, 
+          ord_trabajo, 
+          n_factura, 
+          cost_ser, 
+          isDeleted
+        ) VALUES (
+         ?, 
+         ?, 
+         ?, 
+         ?, 
+         ?, 
+         STR_TO_DATE(?, '%d-%m-%Y'), 
+         STR_TO_DATE(?, '%d-%m-%Y'), 
+         ?, 
+         ?, 
+         ?, 
+         0)`,
       [
-        bitacoraIdNumber, maquinaIdNumber, tallerIdNumber, estado_mantencion_id, tipoMantencionIdNumber,
-        fec_inicio, fec_termino, ord_trabajo, n_factura || null, costSerNumber || null
+        bitacoraIdNumber, 
+        maquinaIdNumber, 
+        tallerIdNumber, 
+        estado_mantencion_id, 
+        tipoMantencionIdNumber,
+        fec_inicio, 
+        fec_termino, 
+        ord_trabajo, 
+        n_factura || null, 
+        costSerNumber || null
       ]
     );
+
+    // **Si "aprobada_por" es válido, se actualiza la mantención con fecha de aprobación y aprobado=1**
+    if (aprobada_por && !errors.length) {
+      const fecha_aprobacion = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      await pool.query(
+        "UPDATE mantencion SET aprobada = 1, fecha_aprobacion = ? WHERE id = ?",
+        [fecha_aprobacion, result.insertId]
+      );
+    }
 
     // Enviar notificación
     const usuarios = await getNotificationUsers({
@@ -393,7 +451,18 @@ export const createMantencion = async (req, res) => {
     });
 
     if (usuarios.length > 0) {
-      const contenido = `Nueva mantención registrada - ${codigo} - Orden de trabajo: ${ord_trabajo}`;
+      let contenido = `Nueva mantención registrada - ${codigo} - Orden de trabajo: ${ord_trabajo}\n`;
+
+      // **Si se incluyó "cost_ser", se agrega a la notificación**
+      if (costSerNumber){
+        contenido += `Costo del servicio: $${costSerNumber}\n`;
+      }
+
+      // **Si se incluyó "aprobada_por", se agrega a la notificación**
+      if (aprobada_por_nombre) {
+        contenido += ` - Aprobada por: ${aprobada_por_nombre}\n`;
+      }
+
       await createAndSendNotifications({
         contenido, tipo: "mantencion", usuarios,
         emailConfig: {

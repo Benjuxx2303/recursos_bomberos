@@ -2,6 +2,7 @@ import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
+import { checkIfDeletedById } from "../utils/queries.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -324,6 +325,12 @@ export const createMantencion = async (req, res) => {
     if (n_factura && isNaN(parseInt(n_factura))) errors.push("El número de factura es inválido");
     if (cost_ser && isNaN(parseFloat(cost_ser))) errors.push("El costo del servicio es inválido");
 
+    // validar foreign keys
+    await checkIfDeletedById('bitacora', bitacora_id, errors);
+    await checkIfDeletedById('maquina', maquina_id, errors);
+    await checkIfDeletedById('taller', taller_id, errors);
+    await checkIfDeletedById('tipo_mantencion', tipo_mantencion_id, errors);
+
     // Validación de fechas
     const isValidDate = dateStr => /^\d{2}-\d{2}-\d{4}$/.test(dateStr);
     if (fec_inicio && !isValidDate(fec_inicio)) errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
@@ -438,10 +445,9 @@ export const createMantencion = async (req, res) => {
 
     // **Si "aprobada_por" es válido, se actualiza la mantención con fecha de aprobación y aprobado=1**
     if (aprobada_por && !errors.length) {
-      const fecha_aprobacion = new Date().toISOString().slice(0, 19).replace('T', ' ');
       await pool.query(
-        "UPDATE mantencion SET aprobada = 1, fecha_aprobacion = ? WHERE id = ?",
-        [fecha_aprobacion, result.insertId]
+        `UPDATE mantencion SET aprobada = 1, fecha_aprobacion = current_timestamp(), aprobada_por = ? WHERE id = ?`,
+        [aprobada_por, result.insertId]
       );
     }
 

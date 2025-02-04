@@ -1,4 +1,4 @@
-# Mantención
+*-*# Mantención
 
 ## Endpoints
 
@@ -120,7 +120,8 @@
     "ord_trabajo": "OT-12345",
     "n_factura": "123456",
     "cost_ser": 1000,
-    "aprobada": 1
+    "aprobada": 1,
+    "aprobada_por": 1
 }
 ```
 

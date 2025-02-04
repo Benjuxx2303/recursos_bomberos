@@ -2,8 +2,6 @@
 // Enviar notificación por correo
 // ==================================================
 try {
-    // Paso 1: Preparar el contenido del correo
-    console.log('Enviando notificación por correo...');
     
     // Generar el contenido HTML del correo usando una plantilla
     const htmlContent = generateEmailTemplate(
@@ -28,13 +26,8 @@ try {
             contenido,                 // Contenido en texto plano
             htmlContent                // Contenido en HTML
         );
-        console.log('Correo enviado exitosamente a:', userEmail[0].correo);
     } else {
-        // Si el usuario no tiene correo registrado, mostrar un mensaje
-        console.log('Usuario no tiene correo registrado');
+
     }
 } catch (emailError) {
-    // Paso 4: Manejo de errores
-    console.error('Error al enviar correo:', emailError);
-    // Nota: No se lanza el error para no interrumpir el flujo principal
 }

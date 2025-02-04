@@ -184,7 +184,6 @@ export const updateRolPermiso = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM rol_permisos WHERE id = ?", [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        console.log(error);
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message

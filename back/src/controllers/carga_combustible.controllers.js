@@ -314,9 +314,7 @@ export const createCargaCombustibleBitacora = async (req, res) => {
         // Validar fechas y horas de salida y llegada
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
-            // console.log(`Validando fh_salida: ${error}`);
             if (!error) {
-                console.log(`${f_salida} ${h_salida}`);
                 errors.push(`Fecha y hora de salida inválida: ${error}`);
             }
             fh_salida = `${f_salida} ${h_salida}`;
@@ -324,7 +322,6 @@ export const createCargaCombustibleBitacora = async (req, res) => {
 
         if (f_llegada && h_llegada) {
             const error = validateDate(f_llegada, h_llegada);
-            // console.log(`Validando fh_llegada: ${error}`);
             if (!error) {
                 errors.push(`Fecha y hora de llegada inválida: ${error}`);
             }

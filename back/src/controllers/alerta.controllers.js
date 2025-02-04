@@ -65,10 +65,8 @@ export const getAlertasByUsuario = async (req, res) => {
         query += ` ORDER BY createdAt DESC`;
 
         const [rows] = await pool.query(query, params);
-        console.log('Notificaciones obtenidas:', rows);
         res.status(200).json(rows);
     } catch (error) {
-        console.error('Error en getAlertasByUsuario:', error);
         res.status(500).json({ 
             message: "Error interno del servidor", 
             error: error.message 
@@ -128,7 +126,6 @@ export const sendVencimientoAlerts = async (req, res) => {
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
-        console.error("Error enviando alertas: ", error);
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
@@ -214,7 +211,6 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
-        console.error("Error enviando alertas: ", error);
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 }
@@ -311,7 +307,6 @@ export const sendMantencionAlerts = async (req, res) => {
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
-        console.error('Error enviando alertas de mantenciones pendientes: ', error);
         return res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
@@ -385,7 +380,6 @@ export const sendProximaMantencionAlerts = async (req, res) => {
         if (!res) return;
         res.status(200).json({ message: "Alertas de mantenciones enviadas correctamente" });
     } catch (error) {
-        console.error('Error enviando alertas de mantenciones:', error);
         if (!res) return;
         res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
@@ -404,7 +398,6 @@ export const markAlertAsRead = async (req, res) => {
         
         res.status(200).json({ message: "Alerta marcada como leída" });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ 
             message: "Error al marcar la alerta como leída", 
             error: error.message 
@@ -418,7 +411,6 @@ export const deleteOldAlerts = async () => {
         await pool.query(
             'DELETE FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)'
         );
-        console.log('Alertas antiguas eliminadas correctamente');
     } catch (error) {
         console.error('Error al eliminar alertas antiguas:', error);
     }
@@ -428,7 +420,6 @@ export const markAllAlertsAsRead = async (req, res) => {
     const { usuario_id } = req.params;
     
     try {
-        console.log('Marcando todas las alertas como leídas para usuario:', usuario_id);
         
         // Primero, obtener todas las alertas no leídas del usuario
         const [alertas] = await pool.query(`
@@ -439,8 +430,6 @@ export const markAllAlertsAsRead = async (req, res) => {
             AND (ua.isRead = 0 OR ua.isRead IS NULL)
             AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         `, [usuario_id, usuario_id]);
-
-        console.log('Alertas a marcar como leídas:', alertas);
 
         // Marcar cada alerta como leída
         for (const alerta of alertas) {

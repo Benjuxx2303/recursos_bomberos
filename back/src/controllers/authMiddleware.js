@@ -39,7 +39,6 @@ export const checkPermission = (requiredPermission) => {
         const token = req.headers.authorization?.split(' ')[1];
 
         if (!token) {
-            console.log('sin token wuajaja')
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 

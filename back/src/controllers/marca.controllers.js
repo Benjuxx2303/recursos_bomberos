@@ -98,7 +98,6 @@ export const createMarca = async (req, res) => {
 
         // Si hay errores, devolverlos
         if (errors.length > 0) {
-            console.log(errors);
             return res.status(400).json({ errors });
         }
 
@@ -187,7 +186,6 @@ export const updateMarca = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM marca WHERE id = ?", [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        console.log(error);
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message

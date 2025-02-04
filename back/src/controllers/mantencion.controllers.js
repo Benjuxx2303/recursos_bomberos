@@ -589,7 +589,6 @@ export const updateMantencion = async (req, res) => {
     }
 
     if (errors.length > 0) {
-      console.log(errors);
       return res.status(400).json({ errors });
     }
 
@@ -605,7 +604,6 @@ export const updateMantencion = async (req, res) => {
 
     if (!setClause) {
       errors.push("No se proporcionaron campos para actualizar");
-      console.log(errors);
       return res.status(400).json({ errors });
     }
 
@@ -669,7 +667,6 @@ export const updateMaintenanceStatus = async (req, res) => {
 
     res.json({ message: "Estado de mantención actualizado correctamente" });
   } catch (error) {
-    console.log(error.message);
     res.status(500).json({ message: error.message });
   }
 };

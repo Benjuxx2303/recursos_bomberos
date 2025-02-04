@@ -151,9 +151,9 @@ export const saveAndEmitAlert = async (userId, contenido, tipo = 'general') => {
  * });
  */
 export const createAndSendNotifications = async ({ contenido, tipo, usuarios, emailConfig }) => {
-    console.log('\n=== Iniciando proceso de notificaciones ===');
-    console.log('Tipo:', tipo);
-    console.log('Usuarios a notificar:', usuarios.length);
+    // console.log('\n=== Iniciando proceso de notificaciones ===');
+    // console.log('Tipo:', tipo);
+    // console.log('Usuarios a notificar:', usuarios.length);
 
     try {
         // Crear una única alerta
@@ -163,7 +163,7 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
         );
         
         const alertaId = alertaResult.insertId;
-        console.log('Alerta creada con ID:', alertaId);
+        // console.log('Alerta creada con ID:', alertaId);
 
         // Crear un Set para rastrear usuarios ya notificados
         const notifiedUsers = new Set();
@@ -173,12 +173,12 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
             try {
                 // Evitar duplicados
                 if (notifiedUsers.has(usuario.id)) {
-                    console.log(`Usuario ${usuario.username} ya fue notificado, omitiendo...`);
+                    // console.log(`Usuario ${usuario.username} ya fue notificado, omitiendo...`);
                     return;
                 }
 
                 notifiedUsers.add(usuario.id);
-                console.log(`\n=== Procesando notificaciones para usuario: ${usuario.username} ===`);
+                // console.log(`\n=== Procesando notificaciones para usuario: ${usuario.username} ===`);
                 
                 // Crear relación usuario-alerta
                 await pool.query(
@@ -233,7 +233,7 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
 
         // Esperar a que todas las notificaciones se procesen
         await Promise.allSettled(notificationPromises);
-        console.log('=== Proceso de notificaciones completado ===');
+        // console.log('=== Proceso de notificaciones completado ===');
 
         return alertaId;
     } catch (error) {

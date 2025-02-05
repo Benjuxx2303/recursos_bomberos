@@ -104,7 +104,6 @@ export const getBitacora = async (req, res) => {
     }
 };
 
-// Paginado
 // Paginado con filtros adicionales
 export const getBitacoraPage = async (req, res) => {
     try {
@@ -244,22 +243,31 @@ export const createBitacora = async (req, res) => {
         direccion,
         f_salida,
         h_salida,
-        // f_llegada,
-        // h_llegada,
         clave_id,
         km_salida,
-        km_llegada, //ver que se va a hacer con lo de llegada
+        km_llegada,
         hmetro_salida,
-        hmetro_llegada, // =
+        hmetro_llegada,
         hbomba_salida,
-        hbomba_llegada, // =
+        hbomba_llegada,
         obs,
     } = req.body;
 
     const errors = []; // Array para capturar errores
 
     try {
-        direccion = String(direccion || "").trim();
+        // Validación de los campos que no se han pasado en el cuerpo (asignación de null si no están presentes)
+        direccion = direccion ? String(direccion).trim() : null;
+        personal_id = personal_id !== undefined ? parseInt(personal_id) : null; // ** Cambio aquí: Verificar y asignar null a `personal_id` si no se especifica
+        f_salida = f_salida ? f_salida : null;
+        h_salida = h_salida ? h_salida : null;
+        km_salida = km_salida !== undefined ? parseFloat(km_salida) : null;
+        km_llegada = km_llegada !== undefined ? parseFloat(km_llegada) : null;
+        hmetro_salida = hmetro_salida !== undefined ? parseFloat(hmetro_salida) : null;
+        hmetro_llegada = hmetro_llegada !== undefined ? parseFloat(hmetro_llegada) : null;
+        hbomba_salida = hbomba_salida !== undefined ? parseFloat(hbomba_salida) : null;
+        hbomba_llegada = hbomba_llegada !== undefined ? parseFloat(hbomba_llegada) : null;
+        obs = obs || null;
 
         let fh_salida = null;
 
@@ -269,122 +277,106 @@ export const createBitacora = async (req, res) => {
             else fh_salida = `${f_salida} ${h_salida}`;
         }
 
+        // Validación de tipo de datos
         const companiaIdNumber = parseInt(compania_id);
-        const personalIdNumber = parseInt(personal_id);
         const maquinaIdNumber = parseInt(maquina_id);
         const claveIdNumber = parseInt(clave_id);
 
-        if (
-            isNaN(companiaIdNumber) ||
-            isNaN(personalIdNumber) ||
-            isNaN(maquinaIdNumber) ||
-            isNaN(claveIdNumber) ||
-            typeof direccion !== "string"
-        ) {
+        if (isNaN(companiaIdNumber) || isNaN(maquinaIdNumber) || isNaN(claveIdNumber)) {
             errors.push("Tipo de datos inválido.");
         }
 
+        // Validaciones de claves foráneas
         await checkIfDeletedById(pool, companiaIdNumber, "compania", errors);
-        await checkIfDeletedById(pool, personalIdNumber, "personal", errors);
+        if (personal_id !== null) { // ** Cambio aquí: Solo validamos si `personal_id` está presente en el cuerpo
+            await checkIfDeletedById(pool, personal_id, "personal", errors); // Verificar si el personal está eliminado
+        }
         await checkIfDeletedById(pool, maquinaIdNumber, "maquina", errors);
         await checkIfDeletedById(pool, claveIdNumber, "clave", errors);
 
-        // Validaciones de valores numéricos
-        if (km_salida === undefined || isNaN(parseFloat(km_salida)))  errors.push("Km salida es requerido y debe ser un número válido.");
-        if (km_llegada === undefined || isNaN(parseFloat(km_llegada))) errors.push("Km llegada es requerido y debe ser un número válido.");
-        if (hmetro_salida === undefined || isNaN(parseFloat(hmetro_salida))) errors.push("Hmetro salida es requerido y debe ser un número válido.");
-        if (hmetro_llegada === undefined || isNaN(parseFloat(hmetro_llegada))) errors.push("Hmetro llegada es requerido y debe ser un número válido.");
-        if (hbomba_salida === undefined || isNaN(parseFloat(hbomba_salida))) errors.push("Hbomba salida es requerido y debe ser un número válido.");
-        if (hbomba_llegada === undefined || isNaN(parseFloat(hbomba_llegada))) errors.push("Hbomba llegada es requerido y debe ser un número válido.");
+        // Validaciones numéricas
+        if (km_salida !== null && isNaN(km_salida)) errors.push("Km salida es requerido y debe ser un número válido.");
+        if (km_llegada !== null && isNaN(km_llegada)) errors.push("Km llegada es requerido y debe ser un número válido.");
+        if (hmetro_salida !== null && isNaN(hmetro_salida)) errors.push("Hmetro salida es requerido y debe ser un número válido.");
+        if (hmetro_llegada !== null && isNaN(hmetro_llegada)) errors.push("Hmetro llegada es requerido y debe ser un número válido.");
+        if (hbomba_salida !== null && isNaN(hbomba_salida)) errors.push("Hbomba salida es requerido y debe ser un número válido.");
+        if (hbomba_llegada !== null && isNaN(hbomba_llegada)) errors.push("Hbomba llegada es requerido y debe ser un número válido.");
 
-        if (direccion.length > 100) errors.push("La dirección no puede tener más de 100 caracteres.");
+        if (direccion && direccion.length > 100) errors.push("La dirección no puede tener más de 100 caracteres.");
 
-        // validar si la fecha de salida es pasada, si es así, se valida que la máquina y el personal estén disponibles
-        if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
-            // Validación de disponibilidad de la máquina 
+        // TODO: Revisar validacion
+        // Validación si la fecha de salida es posterior a "fh_salida", si es así, se valida disponibilidad de la máquina y personal
+        if (fh_salida && !isBefore(new Date(fh_salida), todayDate)) {
             const [maquinaDisponible] = await pool.query(
                 "SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0",
                 [maquinaIdNumber]
             );
-    
-            if (!maquinaDisponible || maquinaDisponible.length === 0 || maquinaDisponible[0]?.disponible !== 1) errors.push("La máquina no está disponible.");
-    
-            // Validación de disponibilidad del personal
+            if (!maquinaDisponible || maquinaDisponible.length === 0 || maquinaDisponible[0]?.disponible !== 1) {
+                errors.push("La máquina no está disponible.");
+            }
+
             const [personalDisponible] = await pool.query(
                 "SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0",
-                [personalIdNumber]
+                [personal_id]
             );
-
-            if (!personalDisponible || personalDisponible.length === 0 || personalDisponible[0]?.disponible !== 1) errors.push("El personal no está disponible.");
+            if (personal_id !== null && (!personalDisponible || personalDisponible.length === 0 || personalDisponible[0]?.disponible !== 1)) {
+                errors.push("El personal no está disponible.");
+            }
         }
 
-        if (errors.length > 0) {
-            return res.status(400).json({ errors });
-        }
-        
-        const obsValue = obs || null;
-        
+        // Si hay errores, devolver la respuesta con los errores
+        if (errors.length > 0) return res.status(400).json({ errors });
+
+        // Insertar los datos en la base de datos
         const [rows] = await pool.query(
-          `INSERT INTO bitacora (
-            compania_id, 
-            personal_id, 
-            maquina_id, 
-            direccion, 
-            fh_salida, 
-            clave_id, 
-            km_salida, 
-            km_llegada, 
-            hmetro_salida, 
-            hmetro_llegada, 
-            hbomba_salida, 
-            hbomba_llegada, 
-            obs, 
-            isDeleted
-            ) 
-            VALUES (
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                STR_TO_DATE(?, '%d-%m-%Y %H:%i'), 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?, 
-                ?
-            ) `,
-          [
-            companiaIdNumber,
-            personalIdNumber,
-            maquinaIdNumber,
-            direccion,
-            fh_salida,
-            claveIdNumber,
-            km_salida,
-            km_llegada,
-            hmetro_salida,
-            hmetro_llegada,
-            hbomba_salida,
-            hbomba_llegada,
-            obsValue,
-            0,
-          ]
+            `INSERT INTO bitacora (
+                compania_id, 
+                personal_id, 
+                maquina_id, 
+                direccion, 
+                fh_salida, 
+                clave_id, 
+                km_salida, 
+                km_llegada, 
+                hmetro_salida, 
+                hmetro_llegada, 
+                hbomba_salida, 
+                hbomba_llegada, 
+                obs, 
+                isDeleted
+            ) VALUES (?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y %H:%i'), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                companiaIdNumber,
+                personal_id,
+                maquinaIdNumber,
+                direccion,
+                fh_salida,
+                claveIdNumber,
+                km_salida,
+                km_llegada,
+                hmetro_salida,
+                hmetro_llegada,
+                hbomba_salida,
+                hbomba_llegada,
+                obs,
+                0, // isDeleted en 0
+            ]
         );
 
-        // Si la fecha de salida ya pasó o es hoy (no es futura), se marca la máquina y el personal como no disponibles
-        if(fh_salida !== undefined && !isBefore(new Date(fh_salida), todayDate)){
+        // TODO: Revisar validacion
+        // Si la fecha de salida es posterior a "fh_salida", deshabilitar la máquina y el personal
+        if (fh_salida && !isBefore(new Date(fh_salida), todayDate)) {
             await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNumber]);
-            await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNumber]);
+            if (personal_id) {
+                await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personal_id]);
+            }
         }
 
+        // Responder con la bitácora creada
         res.status(201).json({
             id: rows.insertId,
             compania_id: companiaIdNumber,
-            personal_id: personalIdNumber,
+            personal_id: personal_id,
             maquina_id: maquinaIdNumber,
             direccion,
             fh_salida,
@@ -395,7 +387,7 @@ export const createBitacora = async (req, res) => {
             hmetro_llegada,
             hbomba_salida,
             hbomba_llegada,
-            obs: obsValue,
+            obs,
         });
     } catch (error) {
         return res.status(500).json({ message: "Error en la creación de la bitácora", error: error.message });

@@ -929,19 +929,19 @@ export const createMantencionPeriodica = async (req, res) => {
     const {
       maquina_id,
       taller_id,
-      tipo_mantencion_id,
+      personal_responsable_id,
       fechas,
       dias_habiles,
       intervalo_dias,
-      ord_trabajo_base,
+      descripcion,
       cost_ser_estimado
     } = req.body;
 
     // Validaciones básicas
-    if (!maquina_id || !taller_id || !tipo_mantencion_id || !fechas || !fechas.length) {
+    if (!maquina_id || !taller_id || !personal_responsable_id || !fechas || !fechas.length || !descripcion) {
       return res.status(400).json({
         message: "Faltan campos requeridos",
-        required: ["maquina_id", "taller_id", "tipo_mantencion_id", "fechas"]
+        required: ["maquina_id", "taller_id", "personal_responsable_id", "fechas", "descripcion"]
       });
     }
 
@@ -957,6 +957,16 @@ export const createMantencionPeriodica = async (req, res) => {
 
     const compania_id = maquinaExists[0].compania_id;
 
+    // Validar que el responsable existe y pertenece a la compañía
+    const [responsableExists] = await pool.query(
+      "SELECT id FROM personal WHERE id = ? AND compania_id = ? AND isDeleted = 0",
+      [personal_responsable_id, compania_id]
+    );
+
+    if (!responsableExists.length) {
+      return res.status(400).json({ message: "El responsable no existe o no pertenece a la compañía" });
+    }
+
     // Obtener el ID del estado "Programada"
     const [estadoProgramada] = await pool.query(
       "SELECT id FROM estado_mantencion WHERE nombre = 'Programada' AND isDeleted = 0"
@@ -966,8 +976,29 @@ export const createMantencionPeriodica = async (req, res) => {
       return res.status(400).json({ message: "No se encontró el estado 'Programada'" });
     }
 
-    const estado_mantencion_id = estadoProgramada[0].id;
+    
+    // Obtener el ID de la clave  "6-13"
+    const [claveProgramada] = await pool.query(
+      "SELECT id FROM clave WHERE nombre = '6-13' AND isDeleted = 0"
+    );
 
+    if (!claveProgramada.length) {
+      return res.status(400).json({ message: "No se encontró el clave '6-13'" });
+    }
+
+
+    // Obtener el ID del tipo "Preventiva"
+    const [tipoPreventiva] = await pool.query(
+      "SELECT id FROM tipo_mantencion WHERE nombre = 'Preventiva' AND isDeleted = 0"
+    );
+
+    if (!tipoPreventiva.length) {
+      return res.status(400).json({ message: "No se encontró el tipo 'Preventiva'" });
+    }
+
+    const estado_mantencion_id = estadoProgramada[0].id;
+    const tipo_mantencion_id = tipoPreventiva[0].id;
+    const clave_id = claveProgramada[0].id;
     // Crear las mantenciones programadas
     const mantencionesProgramadas = [];
     let errorEnCreacion = false;
@@ -977,9 +1008,9 @@ export const createMantencionPeriodica = async (req, res) => {
         // Crear bitácora para cada mantención
         const [bitacoraResult] = await pool.query(
           `INSERT INTO bitacora (
-            compania_id, maquina_id, isDeleted
-          ) VALUES (?, ?, 0)`,
-          [compania_id, maquina_id]
+            compania_id, maquina_id,clave_id, isDeleted
+          ) VALUES (?, ?,?, 0)`,
+          [compania_id, maquina_id,   clave_id]
         );
 
         const bitacora_id = bitacoraResult.insertId;
@@ -987,27 +1018,28 @@ export const createMantencionPeriodica = async (req, res) => {
         // Crear la mantención programada
         const [mantencionResult] = await pool.query(
           `INSERT INTO mantencion (
-            bitacora_id, maquina_id, taller_id, 
+            bitacora_id, maquina_id, taller_id, personal_responsable_id,
             estado_mantencion_id, tipo_mantencion_id,
-            fec_inicio, ord_trabajo, cost_ser, isDeleted
-          ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, 0)`,
+            fec_inicio, cost_ser, descripcion,  isDeleted
+          ) VALUES (?, ?,?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?,?, 0)`,
           [
             bitacora_id,
             maquina_id,
             taller_id,
+            personal_responsable_id,
             estado_mantencion_id,
             tipo_mantencion_id,
             fecha,
-            ord_trabajo_base ? `${ord_trabajo_base}-${fecha}` : null,
-            cost_ser_estimado || null
+            cost_ser_estimado || null,
+            descripcion,
+         
           ]
         );
 
         mantencionesProgramadas.push({
           id: mantencionResult.insertId,
           fecha,
-          bitacora_id,
-          ord_trabajo: ord_trabajo_base ? `${ord_trabajo_base}-${fecha}` : null
+          bitacora_id
         });
 
       } catch (error) {

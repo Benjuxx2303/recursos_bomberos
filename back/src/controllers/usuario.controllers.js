@@ -198,8 +198,8 @@ export const loginUser = async (req, res) => {
 
         // Validar existencia del usuario por username o correo
         const [rows] = await pool.query(
-            "SELECT * FROM usuario WHERE (username = ? OR correo = ?) AND isDeleted = 0", 
-            [username, username]
+            "SELECT * FROM usuario u JOIN personal p ON u.personal_id = p.id WHERE (u.username = ? OR u.correo = ? OR p.rut= ?) AND u.isDeleted = 0", 
+            [username, username, username]
         );
         
         if (rows.length === 0) {

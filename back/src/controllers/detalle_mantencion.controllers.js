@@ -278,7 +278,6 @@ export const updateDetalleMantencion = async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM detalle_mantencion WHERE id = ?', [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        console.log(error); // Mostrar más detalles del error
         return res.status(500).json({ message: "Error interno del servidor", errors: [error.message] });
     }
 };

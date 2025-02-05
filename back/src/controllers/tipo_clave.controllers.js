@@ -220,7 +220,6 @@ export const updateTipoClave = async (req, res) => {
         const [rows] = await pool.query("SELECT * FROM tipo_clave WHERE id = ?", [idNumber]);
         res.json(rows[0]);
     } catch (error) {
-        console.log(error);
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message

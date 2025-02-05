@@ -151,9 +151,6 @@ describe('Rol Personal Controller', () => {
             .set('Authorization', `Bearer ${token}`)
             .send(updatedRol);
 
-        // Log para inspeccionar el cuerpo de la respuesta
-        console.log(response.body);  // Muestra los detalles de la respuesta para depurar
-
         // Asegúrate de que la respuesta sea exitosa
         expect(response.status).toBe(200);
         expect(response.body.nombre).toBe(updatedRol.nombre);

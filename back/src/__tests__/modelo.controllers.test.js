@@ -99,9 +99,6 @@ describe("Modelo Controller", () => {
         .set("Authorization", `Bearer ${token}`)
         .send(newModelo);
 
-        console.log(response.status)
-        console.log(response.body[0])
-        console.log(newModelo.nombre)
       expect(response.status).toBe(201);
       expect(response.body.id).toBe(1);
       expect(response.body.nombre).toBe(newModelo.nombre);

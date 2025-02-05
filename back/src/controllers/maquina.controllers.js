@@ -382,7 +382,6 @@ export const deleteMaquina = async (req, res) => {
     );
     if (result.affectedRows === 0)
       return res.status(404).json({ message: "Máquina no encontrada" });
-    console.log(result);
     res.status(204).end();
   } catch (error) {
     return res

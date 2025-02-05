@@ -140,11 +140,6 @@ describe("Procedencia Controller", () => {
         .set("Authorization", `Bearer ${token}`)
         .send(updatedProcedencia);
 
-      // Verifica la respuesta
-      console.log(
-        "Respuesta de la base de datos 'debe actualizar':",
-        response.body
-      );
       expect(response.status).toBe(200);
       expect(response.body.nombre).toBe(updatedProcedencia.nombre);
     });

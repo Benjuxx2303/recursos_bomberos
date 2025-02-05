@@ -233,7 +233,6 @@ export const createTaller = async (req, res) => {
 
     // Si hay errores de validación, devolverlos
     if (errors.length > 0) {
-      console.log(errors)
       return res.status(400).json({ errors });
     }
 

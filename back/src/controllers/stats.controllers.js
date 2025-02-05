@@ -515,7 +515,6 @@ export const getSummaryData = async (req, res) => {
     res.json({ success: true, data: summaryData });
 
   } catch (error) {
-    console.log({message: `error en /api/stats/summary: ${error.message}`})
     res.status(500).json({ 
       success: false, 
       message: 'Error al obtener los datos de resumen',

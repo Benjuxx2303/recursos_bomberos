@@ -258,7 +258,6 @@ export const createBitacora = async (req, res) => {
 
     const errors = []; // Array para capturar errores
 
-    // console.log(`fh_salida: ${f_salida} ${h_salida}`)
     try {
         direccion = String(direccion || "").trim();
 
@@ -266,8 +265,6 @@ export const createBitacora = async (req, res) => {
 
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
-            // console.log(validateDate(f_salida, h_salida))
-            // console.log(`${f_salida} ${h_salida}`)
             if (error === false) errors.push("Fecha y hora de salida inválida.");
             else fh_salida = `${f_salida} ${h_salida}`;
         }
@@ -318,12 +315,10 @@ export const createBitacora = async (req, res) => {
                 [personalIdNumber]
             );
 
-            // console.log(personalDisponible)
             if (!personalDisponible || personalDisponible.length === 0 || personalDisponible[0]?.disponible !== 1) errors.push("El personal no está disponible.");
         }
 
         if (errors.length > 0) {
-            // console.log({errores_post: errors})
             return res.status(400).json({ errors });
         }
         
@@ -403,7 +398,6 @@ export const createBitacora = async (req, res) => {
             obs: obsValue,
         });
     } catch (error) {
-        console.log(error.message);
         return res.status(500).json({ message: "Error en la creación de la bitácora", error: error.message });
     }
 };
@@ -669,7 +663,6 @@ export const updateBitacora = async (req, res) => {
 
         // Devolver la bitácora actualizada
         const [updatedRows] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
-        // console.log(updatedRows[0].direccion);
         res.json(updatedRows[0]);
     } catch (error) {
         console.error(error); // Para depuración

@@ -39,22 +39,22 @@ const transporter = nodemailer.createTransport({
  * @throws Will throw an error if the email could not be sent.
  */
 export const sendEmail = async (to, subject, text, html) => {
-    console.log('\n=== Iniciando envío de correo ===');
-    console.log('Destinatario:', to);
-    console.log('Asunto:', subject);
+    // console.log('\n=== Iniciando envío de correo ===');
+    // console.log('Destinatario:', to);
+    // console.log('Asunto:', subject);
     
     // Verificar si ya se envió un correo similar en los últimos segundos
     if (global.lastEmailSent && global.lastEmailSent[to]) {
         const timeDiff = Date.now() - global.lastEmailSent[to].timestamp;
         if (timeDiff < 5000 && global.lastEmailSent[to].subject === subject) {
-            console.log('Evitando envío duplicado de correo');
+            // console.log('Evitando envío duplicado de correo');
             return null;
         }
     }
     
     try {
         // Crear el transporter
-        console.log('Configurando transporter...');
+        // console.log('Configurando transporter...');
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -66,9 +66,9 @@ export const sendEmail = async (to, subject, text, html) => {
             }
         });
 
-        console.log('Verificando configuración del transporter...');
+        // console.log('Verificando configuración del transporter...');
         await transporter.verify();
-        console.log('Transporter verificado exitosamente');
+        // console.log('Transporter verificado exitosamente');
 
         // Configurar el correo
         const mailOptions = {
@@ -79,7 +79,7 @@ export const sendEmail = async (to, subject, text, html) => {
             html
         };
 
-        console.log('Enviando correo...');
+        // console.log('Enviando correo...');
         const info = await transporter.sendMail(mailOptions);
         
         // Registrar este envío
@@ -89,8 +89,8 @@ export const sendEmail = async (to, subject, text, html) => {
             subject: subject
         };
         
-        console.log('Correo enviado exitosamente');
-        console.log('ID del mensaje:', info.messageId);
+        // console.log('Correo enviado exitosamente');
+        // console.log('ID del mensaje:', info.messageId);
         
         return info;
     } catch (error) {

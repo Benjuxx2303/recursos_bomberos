@@ -129,9 +129,6 @@ export const createModelo = async (req, res) => {
   const errors = [];
 
   try {
-    // console.log('Body recibido:', req.body);
-    // console.log('Files recibidos:', req.files);
-
     // // Validar campos requeridos
     // if (!req.body.nombre || !req.body.marca_id || !req.body.tipo_maquina_id) {
     //   return res.status(400).json({
@@ -238,7 +235,6 @@ export const createModelo = async (req, res) => {
     );
 
     res.status(201).json(newModelo[0]);
-    // console.log(newModelo[0])
   } catch (error) {
     console.error('Error en createModelo:', error);
     return res.status(500).json({
@@ -412,7 +408,6 @@ if (errors.length > 0) {
 
       res.json(updatedModelo[0]);
   } catch (error) {
-    console.log(error.message)
       return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };

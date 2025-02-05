@@ -384,11 +384,6 @@ export const createPersonal = async (req, res) => {
             ]
         );
 
-        console.log('Resultado de la inserción:', {
-            insertId: rows.insertId,
-            affectedRows: rows.affectedRows
-        });
-
         return res.status(201).json({
             id: rows.insertId,
             rol_personal_id: rolPersonalIdNumber,
@@ -630,9 +625,6 @@ export const updatePersonal = async (req, res) => {
             updates.ultima_fec_servicio = `${ultima_fec_servicio_fecha} ${ultima_fec_servicio_hora}`;
         }
 
-        // console.log("Updates:", updates);
-        // console.log("Files: ", req.files)
-
         if (errors.length > 0) {
             return res.status(400).json({ errors }); // Devuelve los errores
         }
@@ -819,14 +811,8 @@ export const updateUltimaFecServicio = async (req, res) => {
                 [personalId]
             );
 
-            // console.log({
-            //     id: personalId,
-            // });
-            // Si existe una fecha, actualizar el campo ultima_fec_servicio
             if (ultimaFecha.length > 0) {
                 const fecha = ultimaFecha[0].fh_llegada;
-
-                // console.log(fecha)
 
                 await pool.query(
                     `UPDATE personal 

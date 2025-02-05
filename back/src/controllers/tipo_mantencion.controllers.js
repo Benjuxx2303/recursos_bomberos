@@ -103,7 +103,6 @@ export const createTipoMantencion = async (req, res) => {
     try {
         // Se crea activo (isDeleted = 0) por defecto
         const [rows] = await pool.query("INSERT INTO tipo_mantencion (nombre, isDeleted) VALUES (?, 0)", [nombre]);
-        console.log('rows: ', rows);
         res.status(201).send({
             id: rows.insertId,
             nombre,
@@ -217,7 +216,6 @@ export const updateTipoMantencion = async (req, res) => {
 
         // Actualizar tipo de mantención en la base de datos
         const [result] = await pool.query(`UPDATE tipo_mantencion SET ${setClause} WHERE id = ?`, values);
-        console.log("Resultado de la actualización:", result);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Tipo de mantención no encontrado" });
@@ -232,7 +230,6 @@ export const updateTipoMantencion = async (req, res) => {
                 message: 'tipo_mantencion no encontrado'
             });
         }
-    console.log('Fila encontrada:', rows[0]);
     res.json(rows[0]);
     } catch (error) {
         console.error('Error interno del servidor:', error); // Mostrar el error completo

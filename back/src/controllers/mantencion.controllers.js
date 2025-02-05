@@ -1008,9 +1008,9 @@ export const createMantencionPeriodica = async (req, res) => {
         // Crear bitácora para cada mantención
         const [bitacoraResult] = await pool.query(
           `INSERT INTO bitacora (
-            compania_id, maquina_id, isDeleted
-          ) VALUES (?, ?, 0)`,
-          [compania_id, maquina_id]
+            compania_id, maquina_id,clave_id, isDeleted
+          ) VALUES (?, ?,?, 0)`,
+          [compania_id, maquina_id,   clave_id]
         );
 
         const bitacora_id = bitacoraResult.insertId;
@@ -1020,8 +1020,8 @@ export const createMantencionPeriodica = async (req, res) => {
           `INSERT INTO mantencion (
             bitacora_id, maquina_id, taller_id, personal_responsable_id,
             estado_mantencion_id, tipo_mantencion_id,
-            fec_inicio, cost_ser, descripcion, clave_id, isDeleted
-          ) VALUES (?, ?,?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?,?,?, 0)`,
+            fec_inicio, cost_ser, descripcion,  isDeleted
+          ) VALUES (?, ?,?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?,?, 0)`,
           [
             bitacora_id,
             maquina_id,
@@ -1032,7 +1032,7 @@ export const createMantencionPeriodica = async (req, res) => {
             fecha,
             cost_ser_estimado || null,
             descripcion,
-            clave_id
+         
           ]
         );
 

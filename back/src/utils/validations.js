@@ -243,45 +243,38 @@ export function validateUsername(username, errors) {
 }
 
 /**
- * Compara una fecha y hora proporcionada con la fecha y hora actual.
- * Si la fecha proporcionada es pasada respecto a la fecha actual, retorna `true`, de lo contrario `false`.
- * 
- * La fecha puede ser proporcionada en cualquier formato válido. La hora es opcional.
- * 
- * @param {string|Date} fecha - La fecha a comparar.
- * @param {string} [hora=''] - La hora opcional a comparar (en formato 'HH:mm').
- * @returns {boolean} - Retorna `true` si la fecha es pasada, `false` si es futura.
- * @throws {Error} - Lanza un error si la fecha proporcionada no es válida.
+ * Transforma una fecha y opcionalmente una hora del formato 'dd-MM-yyyy' y 'HH:mm' 
+ * al formato compatible con MySQL 'yyyy-MM-dd' o 'yyyy-MM-dd HH:mm:ss'.
+ *
+ * @param {string} fecha - La fecha en formato 'dd-MM-yyyy'.
+ * @param {string} [hora=''] - La hora opcional en formato 'HH:mm'.
+ * @returns {string|null} - Retorna la fecha transformada en formato MySQL, 
+ *                          o null si la fecha no es válida.
  */
-export function isPastDate(fecha, hora = '') {
-  // Definir los formatos esperados
-  const dateFormat = 'dd-MM-yyyy';          // Formato sin hora
-  const dateTimeFormat = 'dd-MM-yyyy HH:mm'; // Formato con hora
+export function transformToMySQLDate(fecha, hora = '') {
+  const dateFormat = 'dd-MM-yyyy';
+  const dateTimeFormat = 'dd-MM-yyyy HH:mm';
 
-  // Función para parsear la fecha y hora, manejando ambos formatos
-  const parseDate = (dateString, timeString) => {
-    // Si se proporciona hora, intentamos parsear con el formato completo
-    if (timeString) {
-      const dateTimeString = `${dateString} ${timeString}`;
-      let parsedDate = parse(dateTimeString, dateTimeFormat, new Date());
-      if (isValid(parsedDate)) return parsedDate;
+  // Parsear la fecha
+  const parsedDate = parse(fecha, dateFormat, new Date());
+
+  // Comprobar si la fecha es válida
+  if (!isValid(parsedDate)) {
+    return null; // La fecha no es válida
+  }
+
+  // Formatear la fecha al formato MySQL
+  let mysqlDate = format(parsedDate, 'yyyy-MM-dd');
+
+  // Si se proporciona hora, añadirla al formato
+  if (hora) {
+    const parsedTime = parse(hora, 'HH:mm', new Date());
+    if (isValid(parsedTime)) {
+      const hours = parsedTime.getHours();
+      const minutes = parsedTime.getMinutes();
+      mysqlDate += ` ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     }
-
-    // Si no se proporciona hora o no es válida, intentamos con solo la fecha
-    let parsedDate = parse(dateString, dateFormat, new Date());
-    return parsedDate;
-  };
-
-  // Parsear la fecha (y la hora si es proporcionada)
-  if (typeof fecha === 'string') {
-    fecha = parseDate(fecha, hora);
   }
 
-  // Validar que la fecha proporcionada sea válida
-  if (!(fecha instanceof Date) || !isValid(fecha)) {
-    throw new Error("La fecha proporcionada no es válida.");
-  }
-
-  // Comparar si la fecha es pasada respecto a la fecha actual
-  return isBefore(fecha, new Date());
+  return mysqlDate;
 }

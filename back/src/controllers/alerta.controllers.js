@@ -4,8 +4,12 @@ import { saveAndEmitAlert } from "../utils/notifications.js";
 
 export const getAlertasByUsuario = async (req, res) => {
     const { usuario_id } = req.params;
+    const page = parseInt(req.query.page) || 1; // Página actual
+    const limit = 15; // Elementos por página
+    const offset = (page - 1) * limit; // Desplazamiento para la consulta
+
     try {
-        // Obtener información del usuario, incluyendo rol y compañía
+        // Obtener información del usuario
         const userQuery = `
             SELECT 
                 u.id,
@@ -25,45 +29,24 @@ export const getAlertasByUsuario = async (req, res) => {
 
         const { rol, compania_id } = userInfo[0];
 
-        // Consulta base para alertas
+        // Consulta para obtener alertas
         let query = `
-            SELECT DISTINCT
-                a.id,
-                a.contenido,
-                DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
-                a.tipo,
-                COALESCE(ua.isRead, 0) as isRead
-            FROM alerta a
-            LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
-            WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible'))
-            AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        `;
+            SELECT
+            a.id,
+            a.contenido,
+            DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
+            a.tipo,
+            COALESCE(ua.isRead, 0) as isRead,
+            a.createdAt AS createdAtOriginal
+        FROM alerta a
+        LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
+        WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible', 'revision_tecnica', 'vencimiento'))
+        AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ORDER BY a.createdAt DESC; -- Sin LIMIT ni OFFSET`;     
 
-        const params = [usuario_id, usuario_id];
+        const params = [usuario_id, usuario_id, limit, offset];
 
-        // Agregar alertas específicas según el rol
-        if (rol === 'TELECOM' || rol === 'Teniente de Máquina' || rol === 'Capitán') {
-            query += `
-                UNION
-                SELECT 
-                    m.id,
-                    CONCAT('Mantención programada para ', DATE_FORMAT(m.fec_inicio, '%d-%m-%Y'), ' - ', m.descripcion) as contenido,
-                    DATE_FORMAT(NOW(), '%d-%m-%Y %H:%i') as createdAt,
-                    'mantencion' as tipo,
-                    COALESCE(ua.isRead, 0) as isRead
-                FROM mantencion m
-                INNER JOIN bitacora b ON m.bitacora_id = b.id
-                INNER JOIN maquina maq ON b.maquina_id = maq.id
-                LEFT JOIN usuario_alerta ua ON m.id = ua.alerta_id AND ua.usuario_id = ?
-                WHERE maq.compania_id = ?
-                AND m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
-                AND m.isDeleted = 0
-            `;
-            params.push(usuario_id, compania_id);
-        }
-
-        query += ` ORDER BY createdAt DESC`;
-
+        // Ejecutar la consulta
         const [rows] = await pool.query(query, params);
         res.status(200).json(rows);
     } catch (error) {
@@ -73,15 +56,14 @@ export const getAlertasByUsuario = async (req, res) => {
         });
     }
 };
-
 /**
  * Enviar alertas por correo y almacenarlas en la base de datos.
  */
 export const sendVencimientoAlerts = async (req, res) => {
     try {
-        // Consulta SQL para obtener los registros de personal con licencias próximas a vencer o vencidas recientemente
-        const [rows] = await pool.query(`
-            SELECT 
+        const correosEnviados = new Set(); // Conjunto para verificar duplicados
+
+        const [rows] = await pool.query(`SELECT 
                 p.id AS personal_id,
                 p.nombre, 
                 p.apellido, 
@@ -92,16 +74,18 @@ export const sendVencimientoAlerts = async (req, res) => {
             INNER JOIN usuario u ON p.id = u.personal_id
             WHERE p.isDeleted = 0 
               AND u.isDeleted = 0 
-              AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-        `);
+              AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`);
 
         if (rows.length === 0) {
             return res.status(200).json({ message: "No hay permisos próximos a vencer o vencidos recientemente." });
         }
 
-        // Enviar correos y guardar alertas
         for (const personal of rows) {
             const { nombre, apellido, ven_licencia, correo, usuario_id } = personal;
+
+            if (correosEnviados.has(correo)) continue; // Verificar duplicados
+            correosEnviados.add(correo); // Agregar al conjunto
+
             const fechaFormateada = new Date(ven_licencia).toLocaleDateString("es-ES");
 
             // **Nueva funcionalidad: Calcular la diferencia en días entre la fecha actual y la fecha de vencimiento**
@@ -147,68 +131,60 @@ export const sendVencimientoAlerts = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
-
 //TODO: EN CASO DE ERROR, REVISAR DESDE AQUÍ
 /**
  * Enviar alertas sobre vencimientos de revisión técnica a los conductores asignados.
  */
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
-        // Consultar máquinas con revisión técnica vencida o próxima a vencer
-        const query = `
-            SELECT 
-                m.id AS maquina_id,
-                m.codigo,
-                m.patente,
-                m.ven_rev_tec,
-                (
-                    SELECT GROUP_CONCAT(
-                        JSON_OBJECT(
-                            'id', u.id,
-                            'nombre', CONCAT(p.nombre, ' ', p.apellido),
-                            'correo', u.correo
-                        )
+        const correosEnviados = new Set(); // Conjunto para verificar duplicados
+
+        const query = `SELECT 
+            m.id AS maquina_id,
+            m.codigo,
+            m.patente,
+            m.ven_rev_tec,
+            (
+                SELECT GROUP_CONCAT(
+                    JSON_OBJECT(
+                        'id', u.id,
+                        'nombre', CONCAT(p.nombre, ' ', p.apellido),
+                        'correo', u.correo
                     )
-                    FROM conductor_maquina cm
-                    INNER JOIN personal p ON cm.personal_id = p.id
-                    INNER JOIN usuario u ON p.id = u.personal_id
-                    WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
-                ) AS conductores
-            FROM maquina m
-            WHERE m.isDeleted = 0 
-              AND m.ven_rev_tec IS NOT NULL 
-              AND m.ven_rev_tec <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-        `;
+                )
+                FROM conductor_maquina cm
+                INNER JOIN personal p ON cm.personal_id = p.id
+                INNER JOIN usuario u ON p.id = u.personal_id
+                WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
+            ) AS conductores
+        FROM maquina m
+        WHERE m.isDeleted = 0 
+          AND m.ven_rev_tec IS NOT NULL 
+          AND m.ven_rev_tec <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+        
         const [rows] = await pool.query(query);
 
         if (rows.length === 0) {
             return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
         }
 
-        // Procesar cada máquina y enviar correos a los conductores asignados
         for (const maquina of rows) {
-            const { codigo, patente, ven_rev_tec, conductores } = maquina;
-            const fechaFormateada = new Date(ven_rev_tec).toLocaleDateString("es-ES");
-
+            const { conductores } = maquina;
             if (!conductores) continue;
 
             const conductoresArray = JSON.parse(`[${conductores}]`);
             for (const conductor of conductoresArray) {
                 const { nombre, correo } = conductor;
 
-                // Crear contenido de la alerta
-                const contenido = `
-                    Hola ${nombre},
+                if (correosEnviados.has(correo)) continue; // Verificar duplicados
+                correosEnviados.add(correo); // Agregar al conjunto
 
-                    Te informamos que la revisión técnica de la máquina con patente ${patente} y código ${codigo}
-                    vence el ${fechaFormateada}. Por favor, toma las medidas necesarias.
-                `;
-
-                // Enviar el correo
+                const contenido = `Hola ${nombre}, te informamos que la revisión técnica de la máquina con patente ${maquina.patente} y código ${maquina.codigo} vence el ${new Date(maquina.ven_rev_tec).toLocaleDateString("es-ES")}. Por favor, toma las medidas necesarias.`;
+                
                 const htmlContent = generateEmailTemplate(
                     "Recordatorio: Vencimiento de Revisión Técnica",
                     "Ver Detalles",
-                    "https://example.com/detalles-revision" // Cambiar al enlace real
+                    "https://example.com/detalles-revision"
                 );
 
                 await sendEmail(
@@ -218,12 +194,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                     htmlContent
                 );
 
-                // Guardar la alerta en la base de datos
-                const insertQuery = `
-                    INSERT INTO alerta (usuario_id, contenido, createdAt)
-                    VALUES (?, ?, NOW())
-                `;
-                await pool.query(insertQuery, [conductor.id, contenido]);
+                await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
             }
         }
 
@@ -231,32 +202,30 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
-}
+};
 //TODO: Pulir contenido que viene en el correo
 export const sendMantencionAlerts = async (req, res) => {
     try {
-        // Consultar mantenciones pendientes
-        const query = `
-            SELECT 
-                m.id AS mantencion_id,
-                b.personal_id,
-                b.fh_llegada
-            FROM mantencion m
-            INNER JOIN bitacora b ON m.bitacora_id = b.id
-            WHERE b.fh_llegada IS NULL 
-              AND m.isDeleted = 0
-        `;
+        const correosEnviados = new Set(); // Conjunto para verificar duplicados
+
+        const query = `SELECT 
+            m.id AS mantencion_id,
+            b.personal_id,
+            b.fh_llegada
+        FROM mantencion m
+        INNER JOIN bitacora b ON m.bitacora_id = b.id
+        WHERE b.fh_llegada IS NULL 
+          AND m.isDeleted = 0`;
+        
         const [rows] = await pool.query(query);
 
         if (rows.length === 0) {
             return res.status(200).json({ message: "No hay mantenciones pendientes." });
         }
 
-        // Enviar correos y guardar alertas
         for (const maintenance of rows) {
-            const { mantencion_id, personal_id } = maintenance;
+            const { personal_id, mantencion_id } = maintenance;
 
-            // Obtener el correo del personal asignado
             const [personal] = await pool.query(`
                 SELECT 
                     u.correo,
@@ -270,19 +239,15 @@ export const sendMantencionAlerts = async (req, res) => {
             if (personal.length > 0) {
                 const { correo, rol } = personal[0];
 
-                // Crear contenido de la alerta
-                const contenido = `
-                    Hola ${rol},
-                    
-                    Te recordamos que hay una mantención pendiente para la máquina con ID ${mantencion_id}.
-                    Por favor, revisa el sistema para más detalles.
-                `;
+                if (correosEnviados.has(correo)) continue; // Verificar duplicados
+                correosEnviados.add(correo); // Agregar al conjunto
 
-                // Enviar el correo
+                const contenido = `Hola ${rol}, te recordamos que hay una mantención pendiente para la máquina con ID ${mantencion_id}. Por favor, revisa el sistema para más detalles.`;
+                
                 const htmlContent = generateEmailTemplate(
                     "Recordatorio: Mantención Pendiente",
                     "Ver Detalles",
-                    "https://example.com/detalles-mantencion" // Cambiar al enlace real
+                    "https://example.com/detalles-mantencion"
                 );
 
                 await sendEmail(
@@ -291,76 +256,76 @@ export const sendMantencionAlerts = async (req, res) => {
                     contenido,
                     htmlContent
                 );
-            }
 
-            // Obtener roles superiores
-            const superiorRoles = ['TELECOM', 'Teniente de Máquina'];
-            const [superiorPersonal] = await pool.query(`
-                SELECT 
-                    u.correo 
-                FROM personal p
-                INNER JOIN usuario u ON p.id = u.personal_id
-                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                WHERE rp.nombre IN (?) AND p.isDeleted = 0
-            `, [superiorRoles]);
+                // Obtener roles superiores
+                const superiorRoles = ['TELECOM', 'Teniente de Máquina'];
+                const [superiorPersonal] = await pool.query(`
+                    SELECT 
+                        u.correo 
+                    FROM personal p
+                    INNER JOIN usuario u ON p.id = u.personal_id
+                    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+                    WHERE rp.nombre IN (?) AND p.isDeleted = 0
+                `, [superiorRoles]);
 
-            // Enviar alertas a roles superiores
-            for (const superior of superiorPersonal) {
-                await sendEmail(
-                    superior.correo,
-                    "Recordatorio: Mantención Pendiente",
-                    `Estimado(a), hay una mantención pendiente para la máquina con ID ${mantencion_id}.`,
-                    `<!DOCTYPE html>
-                    <html>
-                    <body>
-                        <h3>Alerta de Mantención Pendiente</h3>
-                        <p>Estimado(a),</p>
-                        <p>Hay una mantención pendiente para la máquina con ID <strong>${mantencion_id}</strong>.</p>
-                        <p>Por favor, revisa el sistema para más detalles.</p>
-                    </body>
-                    </html>`
-                );
+                // Enviar alertas a roles superiores
+                for (const superior of superiorPersonal) {
+                    await sendEmail(
+                        superior.correo,
+                        "Recordatorio: Mantención Pendiente",
+                        `Estimado(a), hay una mantención pendiente para la máquina con ID ${mantencion_id}.`,
+                        `<!DOCTYPE html>
+                        <html>
+                        <body>
+                            <h3>Alerta de Mantención Pendiente</h3>
+                            <p>Estimado(a),</p>
+                            <p>Hay una mantención pendiente para la máquina con ID <strong>${mantencion_id}</strong>.</p>
+                            <p>Por favor, revisa el sistema para más detalles.</p>
+                        </body>
+                        </html>`
+                    );
+                }
             }
         }
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
-        return res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
 
 // Nueva función para enviar alertas de mantenciones próximas
 export const sendProximaMantencionAlerts = async (req, res) => {
     try {
-        const query = `
-            SELECT 
-                m.id,
-                m.descripcion,
-                m.fec_inicio,
-                maq.codigo,
-                maq.compania_id,
-                (
-                    SELECT GROUP_CONCAT(
-                        JSON_OBJECT(
-                            'id', u.id,
-                            'correo', u.correo,
-                            'nombre', CONCAT(p.nombre, ' ', p.apellido),
-                            'rol', rp.nombre
-                        )
+        const correosEnviados = new Set(); // Conjunto para verificar duplicados
+
+        const query = `SELECT 
+            m.id,
+            m.descripcion,
+            m.fec_inicio,
+            maq.codigo,
+            maq.compania_id,
+            (
+                SELECT GROUP_CONCAT(
+                    JSON_OBJECT(
+                        'id', u.id,
+                        'correo', u.correo,
+                        'nombre', CONCAT(p.nombre, ' ', p.apellido),
+                        'rol', rp.nombre
                     )
-                    FROM usuario u
-                    INNER JOIN personal p ON u.personal_id = p.id
-                    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                    WHERE p.compania_id = maq.compania_id
-                    AND rp.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán')
-                    AND u.isDeleted = 0
-                ) as usuarios
-            FROM mantencion m
-            INNER JOIN bitacora b ON m.bitacora_id = b.id
-            INNER JOIN maquina maq ON b.maquina_id = maq.id
-            WHERE m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
-            AND m.isDeleted = 0
-        `;
+                )
+                FROM usuario u
+                INNER JOIN personal p ON u.personal_id = p.id
+                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+                WHERE p.compania_id = maq.compania_id
+                AND rp.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán')
+                AND u.isDeleted = 0
+            ) as usuarios
+        FROM mantencion m
+        INNER JOIN bitacora b ON m.bitacora_id = b.id
+        INNER JOIN maquina maq ON b.maquina_id = maq.id
+        WHERE m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
+        AND m.isDeleted = 0`;
 
         const [mantenciones] = await pool.query(query);
 
@@ -371,15 +336,15 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             const fechaFormateada = new Date(mantencion.fec_inicio).toLocaleDateString('es-ES');
 
             for (const usuario of usuarios) {
-                const contenido = `Mantención próxima a realizarse:
-                    Máquina: ${mantencion.codigo}
-                    Fecha: ${fechaFormateada}
-                    Descripción: ${mantencion.descripcion}`;
+                const { nombre, correo } = usuario;
 
-                // Usar saveAndEmitAlert en lugar de inserción directa
+                if (correosEnviados.has(correo)) continue; // Verificar duplicados
+                correosEnviados.add(correo); // Agregar al conjunto
+
+                const contenido = `Mantención próxima a realizarse: Máquina: ${mantencion.codigo} Fecha: ${fechaFormateada} Descripción: ${mantencion.descripcion}`;
+
                 await saveAndEmitAlert(usuario.id, contenido, 'mantencion');
 
-                // Enviar correo
                 const htmlContent = generateEmailTemplate(
                     'Próxima Mantención Programada',
                     'Ver Detalles',
@@ -387,7 +352,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
                 );
 
                 await sendEmail(
-                    usuario.correo,
+                    correo,
                     'Próxima Mantención Programada',
                     contenido,
                     htmlContent
@@ -395,10 +360,8 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             }
         }
 
-        if (!res) return;
         res.status(200).json({ message: "Alertas de mantenciones enviadas correctamente" });
     } catch (error) {
-        if (!res) return;
         res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
@@ -438,8 +401,6 @@ export const markAllAlertsAsRead = async (req, res) => {
     const { usuario_id } = req.params;
     
     try {
-        
-        // Primero, obtener todas las alertas no leídas del usuario
         const [alertas] = await pool.query(`
             SELECT DISTINCT a.id
             FROM alerta a
@@ -449,7 +410,6 @@ export const markAllAlertsAsRead = async (req, res) => {
             AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         `, [usuario_id, usuario_id]);
 
-        // Marcar cada alerta como leída
         for (const alerta of alertas) {
             await pool.query(`
                 INSERT INTO usuario_alerta (usuario_id, alerta_id, isRead)

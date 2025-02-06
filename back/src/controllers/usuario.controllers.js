@@ -197,11 +197,10 @@ export const loginUser = async (req, res) => {
         }
 
         // Validar existencia del usuario por username o correo
-        const [rows] = await pool.query(
-            "SELECT * FROM usuario u JOIN personal p ON u.personal_id = p.id WHERE (u.username = ? OR u.correo = ? OR p.rut= ?) AND u.isDeleted = 0", 
-            [username, username, username]
+        const [rows] = await pool.query( // al usar  el * se estaba tomando el id como de la tabla personal en vez de la tabla usuario.
+            "SELECT u.*, p.*, u.id AS user_id FROM usuario u JOIN personal p ON u.personal_id = p.id WHERE (u.username = ? OR u.correo = ? OR p.rut= ?) AND u.isDeleted = 0", 
+            [username, username, username] 
         );
-        
         if (rows.length === 0) {
             errors.push('Usuario no encontrado');
         }
@@ -274,8 +273,9 @@ export const loginUser = async (req, res) => {
 
         // JSON Web Token
         const token = jwt.sign({
-            userId: user.id,
+            userId: user.user_id,
             username: user.username,
+            personal_id: user.personal_id,
             correo: user.correo,
             nombre: nombreCompleto,
             rol_personal: rol,
@@ -289,8 +289,9 @@ export const loginUser = async (req, res) => {
             message: 'Inicio de sesión exitoso',
             token: token,
             user: {
-                id: user.id,
+                id: user.user_id,
                 username: user.username,
+                personal_id: user.personal_id,
                 correo:user.correo,
                 nombre: nombreCompleto,
                 rol: rol,

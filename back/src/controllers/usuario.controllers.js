@@ -197,9 +197,9 @@ export const loginUser = async (req, res) => {
         }
 
         // Validar existencia del usuario por username o correo
-        const [rows] = await pool.query(
+        const [rows] = await pool.query( // al usar  el * se estaba tomando el id como de la tabla personal en vez de la tabla usuario.
             "SELECT u.*, p.*, u.id AS user_id FROM usuario u JOIN personal p ON u.personal_id = p.id WHERE (u.username = ? OR u.correo = ? OR p.rut= ?) AND u.isDeleted = 0", 
-            [username, username, username]
+            [username, username, username] 
         );
         if (rows.length === 0) {
             errors.push('Usuario no encontrado');

@@ -5,7 +5,7 @@ export const verifyToken = async (token) => {
     try {
         console.log('Verificando token:', token.substring(0, 20) + '...');
         const decoded = jwt.verify(token, process.env.SECRET_JWT_KEY);
-        console.log('Token decodificado:', decoded);
+        /* console.log('Token decodificado:', decoded); */
         
         if (!decoded || !decoded.userId) {
             console.log('Token inválido: falta userId');

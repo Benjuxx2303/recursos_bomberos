@@ -422,6 +422,16 @@ export const updateMaquina = async (req, res) => {
     "img_url",
   ];
 
+  // Función para convertir fechas de dd-mm-yyyy a yyyy-mm-dd
+  const convertirFecha = (fecha) => {
+    const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+    if (fechaRegex.test(fecha)) {
+      const [dia, mes, anio] = fecha.split("-");
+      return `${anio}-${mes}-${dia}`;
+    }
+    return null;
+  };
+
   try {
     // Validar el ID
     const idNumber = parseInt(id, 10);
@@ -448,13 +458,14 @@ export const updateMaquina = async (req, res) => {
       if (allowedFields.includes(field)) {
         let value = req.body[field];
 
-        // Validar formatos específicos (opcional)
-        if (field === "ven_patente" || field === "ven_rev_tec" || field === "ven_seg_auto") {
-          const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-          if (!fechaRegex.test(value)) {
-            errors.push(`Formato de fecha inválido para ${field}. Debe ser dd-mm-aaaa.`);
+        // Convertir fechas al formato MySQL si es necesario
+        if (["ven_patente", "ven_rev_tec", "ven_seg_auto"].includes(field)) {
+          const fechaConvertida = convertirFecha(value);
+          if (!fechaConvertida) {
+            errors.push(`Formato de fecha inválido para ${field}. Debe ser dd-mm-yyyy.`);
             continue;
           }
+          value = fechaConvertida;
         }
 
         // Validar valores numéricos
@@ -512,6 +523,7 @@ export const updateMaquina = async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
+
 
 // Asignar conductores
 export const asignarConductores = async (req, res) => {

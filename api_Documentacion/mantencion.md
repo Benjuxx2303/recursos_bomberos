@@ -112,16 +112,15 @@
 ```json
 {
     "bitacora_id": 1,
-    "maquina_id": 1,
-    "taller_id": 1,
+    "maquina_id": 10,
+    "taller_id": 4,
     "tipo_mantencion_id": 1,
     "fec_inicio": "01-01-2024",
     "fec_termino": "01-01-2024",
     "ord_trabajo": "OT-12345",
     "n_factura": "123456",
     "cost_ser": 1000,
-    "aprobada": 1,
-    "aprobada_por": 1
+
 }
 ```
 

@@ -9,6 +9,7 @@ export const getAlertasByUsuario = async (req, res) => {
     const offset = (page - 1) * limit; // Desplazamiento para la consulta
 
     try {
+        // Obtener información del usuario
         const userQuery = `
             SELECT 
                 u.id,
@@ -28,45 +29,24 @@ export const getAlertasByUsuario = async (req, res) => {
 
         const { rol, compania_id } = userInfo[0];
 
+        // Consulta para obtener alertas
         let query = `
-            SELECT DISTINCT
-                a.id,
-                a.contenido,
-                DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
-                a.tipo,
-                COALESCE(ua.isRead, 0) as isRead
-            FROM alerta a
-            LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
-            WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible'))
-            AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        `;
+            SELECT
+            a.id,
+            a.contenido,
+            DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
+            a.tipo,
+            COALESCE(ua.isRead, 0) as isRead,
+            a.createdAt AS createdAtOriginal
+        FROM alerta a
+        LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
+        WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible', 'revision_tecnica', 'vencimiento'))
+        AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ORDER BY a.createdAt DESC; -- Sin LIMIT ni OFFSET`;     
 
-        const params = [usuario_id, usuario_id];
+        const params = [usuario_id, usuario_id, limit, offset];
 
-        // Agregar alertas específicas según el rol
-        if (rol === 'TELECOM' || rol === 'Teniente de Máquina' || rol === 'Capitán') {
-            query += `
-                UNION
-                SELECT 
-                    m.id,
-                    CONCAT('Mantención programada para ', DATE_FORMAT(m.fec_inicio, '%d-%m-%Y'), ' - ', m.descripcion) as contenido,
-                    DATE_FORMAT(NOW(), '%d-%m-%Y %H:%i') as createdAt,
-                    'mantencion' as tipo,
-                    COALESCE(ua.isRead, 0) as isRead
-                FROM mantencion m
-                INNER JOIN bitacora b ON m.bitacora_id = b.id
-                INNER JOIN maquina maq ON b.maquina_id = maq.id
-                LEFT JOIN usuario_alerta ua ON m.id = ua.alerta_id AND ua.usuario_id = ?
-                WHERE maq.compania_id = ?
-                AND m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
-                AND m.isDeleted = 0
-            `;
-            params.push(usuario_id, compania_id);
-        }
-
-        query += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
-        params.push(limit, offset);
-
+        // Ejecutar la consulta
         const [rows] = await pool.query(query, params);
         res.status(200).json(rows);
     } catch (error) {
@@ -76,7 +56,6 @@ export const getAlertasByUsuario = async (req, res) => {
         });
     }
 };
-
 /**
  * Enviar alertas por correo y almacenarlas en la base de datos.
  */

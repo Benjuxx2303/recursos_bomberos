@@ -7,7 +7,9 @@ import {
   getBitacoraById, // habilitado
   getBitacoraPage,
   getLastBitacora,
-  updateBitacora
+  updateBitacora,
+  startServicio,
+  endServicio,
 } from "../controllers/bitacora.controllers.js";
 
 const router = Router();
@@ -29,5 +31,7 @@ router.post(base_route, checkPermission('createBitacora'), createBitacora);
 router.delete(`${base_route}/:id`, checkPermission('deleteBitacora'),deleteBitacora);
 
 router.patch(`${base_route}/:id`, checkPermission('updateBitacora'),updateBitacora);
+router.patch(`${base_route}/:id/start`, checkPermission('updateBitacora'), startServicio);
+router.patch(`${base_route}/:id/end`, checkPermission('updateBitacora'), endServicio);
 
 export default router;

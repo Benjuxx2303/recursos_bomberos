@@ -42,7 +42,7 @@ const corsOptions = {
     origin: JSON.parse(process.env.CORS_ORIGINS),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
     optionsSuccessStatus: 200
 };
 

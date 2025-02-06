@@ -87,85 +87,96 @@ export const getMantencionesAllDetails = async (req, res) => {
 // Paginacion
 export const getMantencionesAllDetailsSearch = async (req, res) => {
   try {
-    const { taller, estado_mantencion, ord_trabajo, compania, page, pageSize } =
-      req.query;
+    const { taller, estado_mantencion, ord_trabajo, compania, maquina_id, patente, page, pageSize } = req.query;
 
     // Inicializar la consulta SQL base
     let query = `
-            SELECT
-                m.id,
-                b.id AS 'bitacora.id',
-                c.nombre AS 'bitacora.compania', -- Nombre de la compañia
-                CONCAT(p.rut) AS 'bitacora.conductor', -- RUT del conductor
-                b.direccion AS 'bitacora.direccion',
-                DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.fh_salida',
-                DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.fh_llegada',
-                b.km_salida AS 'bitacora.km_salida',
-                b.km_llegada AS 'bitacora.km_llegada',
-                b.hmetro_salida AS 'bitacora.hmetro_salida',
-                b.hmetro_llegada AS 'bitacora.hmetro_llegada',
-                b.hbomba_salida AS 'bitacora.hbomba_salida',
-                b.hbomba_llegada AS 'bitacora.hbomba_llegada',
-                b.obs AS 'bitacora.obs',
-                ma.patente AS 'patente',
-                DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fec_inicio',
-                DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
-                m.ord_trabajo,
-                m.n_factura,
-                m.img_url,
-                m.cost_ser,
-                t.razon_social AS 'taller',
-                em.nombre AS 'estado_mantencion',
-                tm.nombre AS 'tipo_mantencion',
-                tm.id AS 'tipo_mantencion_id'
-            FROM mantencion m
-            INNER JOIN bitacora b ON m.bitacora_id = b.id
-            INNER JOIN compania c ON b.compania_id = c.id
-            INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN personal p ON b.personal_id = p.id
-            INNER JOIN taller t ON m.taller_id = t.id
-            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-            INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
-            WHERE m.isDeleted = 0 AND b.isDeleted = 0
-        `;
+      SELECT
+        m.id,
+        b.id AS 'bitacora.id',
+        c.nombre AS 'bitacora.compania',
+        CONCAT(p.rut) AS 'bitacora.conductor',
+        b.direccion AS 'bitacora.direccion',
+        DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.fh_salida',
+        DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.fh_llegada',
+        b.km_salida AS 'bitacora.km_salida',
+        b.km_llegada AS 'bitacora.km_llegada',
+        b.hmetro_salida AS 'bitacora.hmetro_salida',
+        b.hmetro_llegada AS 'bitacora.hmetro_llegada',
+        b.hbomba_salida AS 'bitacora.hbomba_salida',
+        b.hbomba_llegada AS 'bitacora.hbomba_llegada',
+        b.obs AS 'bitacora.obs',
+        ma.patente AS 'patente',
+        DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fec_inicio',
+        CASE 
+          WHEN em.nombre = 'Programada' THEN NULL 
+          ELSE DATE_FORMAT(m.fec_termino, '%d-%m-%Y') 
+        END AS 'fec_termino',
+        m.ord_trabajo,
+        m.n_factura,
+        m.img_url,
+        m.cost_ser,
+        t.razon_social AS 'taller',
+        em.nombre AS 'estado_mantencion',
+        tm.nombre AS 'tipo_mantencion',
+        tm.id AS 'tipo_mantencion_id'
+      FROM mantencion m
+      INNER JOIN bitacora b ON m.bitacora_id = b.id
+      INNER JOIN compania c ON b.compania_id = c.id
+      INNER JOIN maquina ma ON m.maquina_id = ma.id
+      INNER JOIN personal p ON b.personal_id = p.id
+      INNER JOIN taller t ON m.taller_id = t.id
+      INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+      INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+      WHERE m.isDeleted = 0 AND b.isDeleted = 0
+    `;
 
-    // Array para almacenar los parámetros a inyectar
+    // Array para almacenar los parámetros
     const params = [];
 
+    // Aplicar filtros dinámicos
     if (taller) {
-      query += " AND t.razon_social = ?";
-      params.push(taller);
+      query += " AND t.razon_social LIKE ?";
+      params.push(`%${taller}%`);
     }
     if (estado_mantencion) {
       query += " AND em.nombre = ?";
       params.push(estado_mantencion);
     }
     if (ord_trabajo) {
-      query += " AND m.ord_trabajo = ?";
-      params.push(ord_trabajo);
+      query += " AND m.ord_trabajo LIKE ?";
+      params.push(`%${ord_trabajo}%`);
     }
     if (compania) {
-      query += " AND c.nombre = ?";
-      params.push(compania);
+      query += " AND c.nombre LIKE ?";
+      params.push(`%${compania}%`);
+    }
+    if (maquina_id) {
+      query += " AND ma.id = ?";
+      params.push(maquina_id);
+    }
+    if (patente) {
+      query += " AND ma.patente LIKE ?";
+      params.push(`%${patente}%`);
     }
 
-    // Si se proporciona "page", se aplica paginación
-    if (page) {
-      const currentPage = parseInt(page) || 1; // Página actual, por defecto 1
-      const currentPageSize = parseInt(pageSize) || 10; // Página tamaño, por defecto 10
-      const offset = (currentPage - 1) * currentPageSize; // Calcular el offset para la consulta
+    // Ordenar por ID de mantención de forma descendente
+    query += " ORDER BY m.id DESC";
 
-      // Añadir LIMIT y OFFSET a la consulta
+    // Paginación
+    if (page && pageSize) {
+      const currentPage = parseInt(page) || 1;
+      const currentPageSize = parseInt(pageSize) || 10;
+      const offset = (currentPage - 1) * currentPageSize;
+
       query += " LIMIT ? OFFSET ?";
       params.push(currentPageSize, offset);
     }
 
-    query += " ORDER BY m.id DESC";
-
-    // Ejecutar la consulta con los parámetros
+    // Ejecutar la consulta
     const [rows] = await pool.query(query, params);
 
-    // Mapeo de resultados a la estructura deseada
+    // Formatear los resultados
     const result = rows.map((row) => ({
       id: row.id,
       "bitacora.id": row["bitacora.id"],
@@ -194,16 +205,19 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
       tipo_mantencion_id: row.tipo_mantencion_id,
     }));
 
-    // Responder con los resultados formateados
-    res.json(result);
+    // Responder con los resultados y cantidad de filas
+    res.json({ rows: result.length, data: result });
   } catch (error) {
-    console.error("Error: ", error);
+    console.error("Error en getMantencionesAllDetailsSearch:", error);
     return res.status(500).json({
       message: "Error interno del servidor",
       error: error.message,
     });
   }
 };
+
+
+
 
 // TODO: actualizar
 export const getMantencionAllDetailsById = async (req, res) => {

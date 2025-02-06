@@ -95,26 +95,26 @@ describe("Bitacora Controller", () => {
         hbomba_llegada: 20.0,
         obs: "Observaciones opcionales",
       };
-    
+  
       // Simulando que la máquina y el personal están disponibles (disponible: 1)
       mockQueryResponse([
         { insertId: 1 },  // Simula una inserción exitosa en la bitácora
         { disponible: 1 },  // Máquina disponible
         { disponible: 1 },  // Personal disponible
       ]);
-    
+  
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(newBitacora);
-    
+  
       expect(response.status).toBe(201);  // Esperamos un 201 al ser exitosa la inserción
       expect(response.body).toHaveProperty("id");  // Esperamos que el ID de la nueva bitácora esté presente
       expect(response.body.compania_id).toBe(newBitacora.compania_id);
       expect(response.body.personal_id).toBe(newBitacora.personal_id);
       expect(response.body.maquina_id).toBe(newBitacora.maquina_id);
       expect(response.body.direccion).toBe(newBitacora.direccion);
-      expect(response.body.fh_salida).toBe(`${newBitacora.f_salida} ${newBitacora.h_salida}`);  // La fecha y hora de salida concatenada
+      expect(response.body.fh_salida).toBe("2024-11-04 08:50:00");  // Fecha y hora de salida en formato MySQL
       expect(response.body.km_salida).toBe(newBitacora.km_salida);
       expect(response.body.km_llegada).toBe(newBitacora.km_llegada);
       expect(response.body.hmetro_salida).toBe(newBitacora.hmetro_salida);
@@ -123,21 +123,21 @@ describe("Bitacora Controller", () => {
       expect(response.body.hbomba_llegada).toBe(newBitacora.hbomba_llegada);
       expect(response.body.obs).toBe(newBitacora.obs);
     });
-
+  
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidBitacora = { direccion: "" }; // Datos inválidos
-    
+  
       // Simulando la respuesta para los casos de error
       mockQueryResponse([
         { disponible: 1 },
         { disponible: 1 },
       ]);
-    
+  
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidBitacora);
-    
+  
       expect(response.status).toBe(400);
       expect(response.body.errors).toEqual([
         "Tipo de datos inválido.",
@@ -149,7 +149,7 @@ describe("Bitacora Controller", () => {
         "Hbomba llegada es requerido y debe ser un número válido.",
       ]);
     });
-
+  
     it("debe devolver un error 400 si la máquina no está disponible", async () => {
       const newBitacora = {
         compania_id: 1,
@@ -167,23 +167,23 @@ describe("Bitacora Controller", () => {
         hbomba_llegada: 2,
         obs: "Observaciones",
       };
-    
+  
       // Simulando que la máquina no está disponible
       mockQueryResponse([
         { insertId: 1 }, // Simula una inserción exitosa
         { disponible: 0 }, // Máquina no disponible
         { disponible: 1 }, // Personal disponible
       ]);
-    
+  
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(newBitacora);
-    
+  
       expect(response.status).toBe(400);
       expect(response.body.errors).toContain("La máquina no está disponible.");
     });
-
+  
     it("debe devolver un error 400 si el personal no está disponible", async () => {
       const newBitacora = {
         compania_id: 1,
@@ -201,24 +201,24 @@ describe("Bitacora Controller", () => {
         hbomba_llegada: 2,
         obs: "Observaciones",
       };
-    
+  
       // Simulando que el personal no está disponible
       mockQueryResponse([
         { insertId: 1 }, // Simula una inserción exitosa
         { disponible: 1 }, // Máquina disponible
         { disponible: 0 }, // Personal no disponible
       ]);
-    
+  
       const response = await request(app)
         .post("/api/bitacora")
         .set("Authorization", `Bearer ${token}`)
         .send(newBitacora);
-    
+  
       expect(response.status).toBe(400);
       expect(response.body.errors).toContain("El personal no está disponible.");
     });
-    
   });
+  
 
   // Test para eliminar una bitácora
   describe("DELETE /api/bitacora/:id", () => {

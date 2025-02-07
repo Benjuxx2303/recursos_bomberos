@@ -3,6 +3,7 @@ import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
+import { transformToMySQLDate, validateDate, validateStartEndDate } from "../utils/validations.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -216,11 +217,6 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
   }
 };
 
-
-
-
-
-
 // TODO: actualizar
 export const getMantencionAllDetailsById = async (req, res) => {
   const { id } = req.params;
@@ -323,7 +319,7 @@ export const createMantencion = async (req, res) => {
       ord_trabajo,
       n_factura,
       cost_ser,
-      aprobada,
+      // aprobada,
       aprobada_por, // **Nuevo campo opcional**
     } = req.body;
 
@@ -342,15 +338,27 @@ export const createMantencion = async (req, res) => {
     if (cost_ser && isNaN(parseFloat(cost_ser))) errors.push("El costo del servicio es inválido");
 
     // validar foreign keys
-    await checkIfDeletedById('bitacora', bitacora_id, errors);
-    await checkIfDeletedById('maquina', maquina_id, errors);
-    await checkIfDeletedById('taller', taller_id, errors);
-    await checkIfDeletedById('tipo_mantencion', tipo_mantencion_id, errors);
+    await checkIfDeletedById(pool, bitacora_id, 'bitacora',  errors);
+    await checkIfDeletedById(pool, maquina_id, 'maquina', errors);
+    await checkIfDeletedById(pool, taller_id,'taller',  errors);
+    await checkIfDeletedById(pool, tipo_mantencion_id, 'tipo_mantencion', errors);
 
-    // Validación de fechas
-    const isValidDate = dateStr => /^\d{2}-\d{2}-\d{4}$/.test(dateStr);
-    if (fec_inicio && !isValidDate(fec_inicio)) errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
-    if (fec_termino && !isValidDate(fec_termino)) errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+    // **Validación de fechas usando validateDate** (modificado)
+    if (!validateDate(fec_inicio)) {  // **Usamos la función validateDate aquí**
+      errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
+    }
+    if (!validateDate(fec_termino)) {  // **Usamos la función validateDate aquí**
+      errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+    }
+
+    // **Validación de fecha de inicio y fecha de término usando validateStartEndDate** (modificado)
+    try {
+      if (!validateStartEndDate(fec_inicio, fec_termino)) {  // **Usamos validateStartEndDate aquí**
+        errors.push("La fecha de término no puede ser anterior a la fecha de inicio");
+      }
+    } catch (error) {
+      errors.push(error.message);  // **Capturamos cualquier error lanzado por validateStartEndDate**
+    }
 
     // **Validación del campo aprobada_por** (si está presente)
     let aprobada_por_nombre = null;
@@ -419,6 +427,10 @@ export const createMantencion = async (req, res) => {
       }
     }
 
+    // **Insertar mantención usando transformToMySQLDate para las fechas** (modificado)
+    const mysqlFecInicio = transformToMySQLDate(fec_inicio);  // **Usamos transformToMySQLDate aquí**
+    const mysqlFecTermino = transformToMySQLDate(fec_termino);  // **Usamos transformToMySQLDate aquí**
+
     // Insertar mantención
     const [result] = await pool.query(
       `INSERT INTO mantencion (
@@ -439,8 +451,8 @@ export const createMantencion = async (req, res) => {
          ?, 
          ?, 
          ?, 
-         STR_TO_DATE(?, '%d-%m-%Y'), 
-         STR_TO_DATE(?, '%d-%m-%Y'), 
+         ?, 
+         ?, 
          ?, 
          ?, 
          ?, 
@@ -451,8 +463,8 @@ export const createMantencion = async (req, res) => {
         tallerIdNumber, 
         estado_mantencion_id, 
         tipoMantencionIdNumber,
-        fec_inicio, 
-        fec_termino, 
+        mysqlFecInicio,  // **Usamos mysqlFecInicio aquí**
+        mysqlFecTermino,  // **Usamos mysqlFecTermino aquí**
         ord_trabajo, 
         n_factura || null, 
         costSerNumber || null
@@ -503,7 +515,8 @@ export const createMantencion = async (req, res) => {
       estado_mantencion_id,
       tipo_mantencion_id: tipoMantencionIdNumber,
       fec_inicio, fec_termino, ord_trabajo, n_factura,
-      cost_ser: costSerNumber, img_url, aprobada,
+      cost_ser: costSerNumber, img_url, 
+      // aprobada,
       message: "Mantención creada exitosamente",
     });
 
@@ -621,27 +634,26 @@ export const updateMantencion = async (req, res) => {
       }
     }
 
+    // TODO: Usar "validateStartEndDate"
     // Validar y agregar fec_inicio
     if (fec_inicio !== undefined) {
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-      if (!fechaRegex.test(fec_inicio)) {
+      if (!validateDate(fec_inicio)) { // Cambié validación aquí
         errors.push(
           "El formato de la fecha de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa"
         );
       } else {
-        updates.fec_inicio = fec_inicio;
+        updates.fec_inicio = transformToMySQLDate(fec_inicio); // Convertí la fecha a formato MySQL
       }
     }
 
     // Validar y agregar fec_termino
     if (fec_termino !== undefined) {
-      const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-      if (!fechaRegex.test(fec_termino)) {
+      if (!validateDate(fec_termino)) { // Cambié validación aquí
         errors.push(
           "El formato de la fecha de 'fec_termino' es inválido. Debe ser dd-mm-aaaa"
         );
       } else {
-        updates.fec_termino = fec_termino;
+        updates.fec_termino = transformToMySQLDate(fec_termino); // Convertí la fecha a formato MySQL
       }
     }
 
@@ -687,7 +699,7 @@ export const updateMantencion = async (req, res) => {
     const setClause = Object.keys(updates)
       .map((key) => {
         if (key === "fec_inicio" || key === "fec_termino") {
-          return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
+          return `${key} = ?`; // Ya convertí las fechas antes, no se necesita STR_TO_DATE
         }
         return `${key} = ?`;
       })
@@ -701,10 +713,7 @@ export const updateMantencion = async (req, res) => {
     // Preparar los valores para la actualización
     const values = Object.keys(updates)
       .map((key) => {
-        if (key === "fec_inicio" || key === "fec_termino") {
-          return req.body[key];
-        }
-        return updates[key];
+        return updates[key]; // Las fechas ya están en el formato MySQL
       })
       .concat(id);
 
@@ -992,7 +1001,6 @@ export const createMantencionPeriodica = async (req, res) => {
       return res.status(400).json({ message: "No se encontró el estado 'Programada'" });
     }
 
-    
     // Obtener el ID de la clave  "6-13"
     const [claveProgramada] = await pool.query(
       "SELECT id FROM clave WHERE nombre = '6-13' AND isDeleted = 0"
@@ -1001,7 +1009,6 @@ export const createMantencionPeriodica = async (req, res) => {
     if (!claveProgramada.length) {
       return res.status(400).json({ message: "No se encontró el clave '6-13'" });
     }
-
 
     // Obtener el ID del tipo "Preventiva"
     const [tipoPreventiva] = await pool.query(
@@ -1015,6 +1022,7 @@ export const createMantencionPeriodica = async (req, res) => {
     const estado_mantencion_id = estadoProgramada[0].id;
     const tipo_mantencion_id = tipoPreventiva[0].id;
     const clave_id = claveProgramada[0].id;
+
     // Crear las mantenciones programadas
     const mantencionesProgramadas = [];
     let errorEnCreacion = false;
@@ -1024,20 +1032,28 @@ export const createMantencionPeriodica = async (req, res) => {
         // Crear bitácora para cada mantención
         const [bitacoraResult] = await pool.query(
           `INSERT INTO bitacora (
-            compania_id, maquina_id,clave_id, isDeleted
+            compania_id, maquina_id, clave_id, isDeleted
           ) VALUES (?, ?,?, 0)`,
-          [compania_id, maquina_id,   clave_id]
+          [compania_id, maquina_id, clave_id]
         );
 
         const bitacora_id = bitacoraResult.insertId;
+
+        // Transformar la fecha a formato MySQL
+        const fechaTransformada = transformToMySQLDate(fecha); // Modificado
+
+        // Validar si la fecha transformada es nula (fecha no válida)
+        if (!fechaTransformada) {
+          return res.status(400).json({ message: `La fecha ${fecha} no es válida` }); // Modificado
+        }
 
         // Crear la mantención programada
         const [mantencionResult] = await pool.query(
           `INSERT INTO mantencion (
             bitacora_id, maquina_id, taller_id, personal_responsable_id,
             estado_mantencion_id, tipo_mantencion_id,
-            fec_inicio, cost_ser, descripcion,  isDeleted
-          ) VALUES (?, ?,?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?,?, 0)`,
+            fec_inicio, cost_ser, descripcion, isDeleted
+          ) VALUES (?, ?,?, ?, ?, ?, ?, ?, ?, 0)`,
           [
             bitacora_id,
             maquina_id,
@@ -1045,16 +1061,15 @@ export const createMantencionPeriodica = async (req, res) => {
             personal_responsable_id,
             estado_mantencion_id,
             tipo_mantencion_id,
-            fecha,
+            fechaTransformada, // Usamos la fecha transformada
             cost_ser_estimado || null,
             descripcion,
-         
           ]
         );
 
         mantencionesProgramadas.push({
           id: mantencionResult.insertId,
-          fecha,
+          fecha: fechaTransformada, // Usamos la fecha transformada
           bitacora_id
         });
 

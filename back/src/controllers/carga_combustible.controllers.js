@@ -18,7 +18,7 @@ export const getCargasCombustible = async (req, res) => {
             FROM carga_combustible cc
             INNER JOIN bitacora b ON cc.bitacora_id = b.id
             INNER JOIN compania c ON b.compania_id = c.id
-            INNER JOIN personal p ON b.personal_id = p.id
+            LEFT JOIN personal p ON b.personal_id = p.id
             WHERE cc.isDeleted = 0
         `;
         

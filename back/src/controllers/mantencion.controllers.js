@@ -38,7 +38,7 @@ export const getMantencionesAllDetails = async (req, res) => {
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN compania c ON b.compania_id = c.id
             INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN personal p ON b.personal_id = p.id
+            LEFT JOIN personal p ON b.personal_id = p.id
             INNER JOIN taller t ON m.taller_id = t.id
             INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
@@ -259,7 +259,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN compania c ON b.compania_id = c.id
             INNER JOIN maquina ma ON m.maquina_id = ma.id
-            INNER JOIN personal p ON b.personal_id = p.id
+            LEFT JOIN personal p ON b.personal_id = p.id
             INNER JOIN taller t ON m.taller_id = t.id
             INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id

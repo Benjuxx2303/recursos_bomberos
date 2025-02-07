@@ -1,9 +1,6 @@
 import { pool } from "../db.js";
-import { validateDate, validateFloat, validateStartEndDate, } from "../utils/validations.js";
+import { validateDate, validateFloat, validateStartEndDate, transformToMySQLDate} from "../utils/validations.js";
 import { checkIfDeletedById, checkIfDeletedByField, checkIfExists } from '../utils/queries.js';
-import { isBefore } from "date-fns";
-
-let todayDate = new Date();
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -274,7 +271,7 @@ export const createBitacora = async (req, res) => {
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
             if (error === false) errors.push("Fecha y hora de salida inválida.");
-            else fh_salida = `${f_salida} ${h_salida}`;
+            else fh_salida = transformToMySQLDate(f_salida, h_salida);
         }
 
         // Validación de tipo de datos
@@ -324,13 +321,14 @@ export const createBitacora = async (req, res) => {
                 hbomba_llegada, 
                 obs, 
                 isDeleted
-            ) VALUES (?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y %H:%i'), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
             [
                 companiaIdNumber,
                 personal_id,
                 maquinaIdNumber,
                 direccion,
-                fh_salida,
+                fh_salida, // Ahora esta fecha ya está transformada al formato MySQL
                 claveIdNumber,
                 km_salida,
                 km_llegada,
@@ -361,6 +359,7 @@ export const createBitacora = async (req, res) => {
             obs,
         });
     } catch (error) {
+        console.log(error.message)
         return res.status(500).json({ message: "Error en la creación de la bitácora", error: error.message });
     }
 };
@@ -389,7 +388,6 @@ export const getLastBitacora = async (req, res) => {
         return res.status(500).json({ message: error.message });
     }
 };
-
 
 // Dar de baja (marcar como inactivo)
 export const deleteBitacora = async (req, res) => {
@@ -438,9 +436,7 @@ export const updateBitacora = async (req, res) => {
     try {
         // Obtener la bitácora existente
         const [current] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
-        if (current.length === 0) {
-            return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
-        }
+        if (current.length === 0) return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
 
         const updates = [];
         const values = [];
@@ -448,47 +444,60 @@ export const updateBitacora = async (req, res) => {
         // Actualizar solo los campos que están en el body
         if (direccion !== undefined) {
             direccion = String(direccion).trim();
-            if(typeof direccion !== 'string') {
-                errors.push('Tipo de dato inválido para "direccion"');
-            }
-            if (direccion.length > 100) {
-                errors.push('La dirección no puede tener más de 100 caracteres');
-            }
+            if (typeof direccion !== 'string') errors.push('Tipo de dato inválido para "direccion"');
+            if (direccion.length > 100) errors.push('La dirección no puede tener más de 100 caracteres');
+            
             updates.push("direccion = ?");
             values.push(direccion);
         }
 
         // Manejar fechas y horas
+        let transformedFhSalida = null;
+        let transformedFhLlegada = null;
+
         if (f_salida !== undefined && h_salida !== undefined) {
             const fh_salida = `${f_salida} ${h_salida}`;
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
-            if (!fechaRegex.test(f_salida) || !horaRegex.test(h_salida)) {
-                errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
-            } else {
-                updates.push("fh_salida = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
-                values.push(fh_salida);
+            if (!validateDate(f_salida, h_salida)) errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            else {
+                transformedFhSalida = transformToMySQLDate(f_salida, h_salida); // Modificado: Transformación de la fecha y hora de salida
+                if (transformedFhSalida) {
+                    updates.push("fh_salida = ?");
+                    values.push(transformedFhSalida);
+                } else {
+                    errors.push('Fecha de salida no válida');
+                }
             }
         }
 
         if (f_llegada !== undefined && h_llegada !== undefined) {
-            const fh_llegada = `${f_llegada} ${h_llegada}`;
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
-            if (!fechaRegex.test(f_llegada) || !horaRegex.test(h_llegada)) {
-                errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
-            } else {
-                updates.push("fh_llegada = STR_TO_DATE(?, '%d-%m-%Y %H:%i')");
-                values.push(fh_llegada);
+            // const fh_llegada = `${f_llegada} ${h_llegada}`;
+            if (!validateDate(f_llegada, h_llegada)) errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
+            else {
+                transformedFhLlegada = transformToMySQLDate(f_llegada, h_llegada); // Modificado: Transformación de la fecha y hora de llegada
+                if (transformedFhLlegada) {
+                    updates.push("fh_llegada = ?");
+                    values.push(transformedFhLlegada);
+                } else {
+                    errors.push('Fecha de llegada no válida');
+                }
+            }
+        }
+
+        // Validar que la fecha de salida no sea posterior a la fecha de llegada
+        if (transformedFhSalida && transformedFhLlegada) {
+            try {
+                const isValidStartEnd = validateStartEndDate(transformedFhSalida, transformedFhLlegada); // Modificado: Validación de fechas de salida y llegada
+                if (!isValidStartEnd) errors.push('La fecha de salida no puede ser posterior a la fecha de llegada');
+            } catch (err) {
+                errors.push(err.message); // Error de validación de fechas
             }
         }
 
         // Validar y agregar los campos numéricos
         if (km_llegada !== undefined) {
             const error = validateFloat(km_llegada);
-            if (error) {
-                errors.push(`Km llegada: ${error}`);
-            } else {
+            if (error) errors.push(`Km llegada: ${error}`);
+            else {
                 updates.push("km_llegada = ?");
                 values.push(km_llegada);
             }
@@ -496,9 +505,8 @@ export const updateBitacora = async (req, res) => {
 
         if (km_salida !== undefined) {
             const error = validateFloat(km_salida);
-            if (error) {
-                errors.push(`Km salida: ${error}`);
-            } else {
+            if (error) errors.push(`Km salida: ${error}`);
+            else {
                 updates.push("km_salida = ?");
                 values.push(km_salida);
             }
@@ -506,9 +514,8 @@ export const updateBitacora = async (req, res) => {
         
         if (hmetro_llegada !== undefined) {
             const error = validateFloat(hmetro_llegada);
-            if (error) {
-                errors.push(`Hmetro llegada: ${error}`);
-            } else {
+            if (error) errors.push(`Hmetro llegada: ${error}`);
+            else {
                 updates.push("hmetro_llegada = ?");
                 values.push(hmetro_llegada);
             }
@@ -516,9 +523,8 @@ export const updateBitacora = async (req, res) => {
 
         if (hmetro_salida !== undefined) {
             const error = validateFloat(hmetro_salida);
-            if (error) {
-                errors.push(`Hmetro salida: ${error}`);
-            } else {
+            if (error) errors.push(`Hmetro salida: ${error}`);
+            else {
                 updates.push("hmetro_salida = ?");
                 values.push(hmetro_salida);
             }
@@ -526,9 +532,8 @@ export const updateBitacora = async (req, res) => {
 
         if (hbomba_llegada !== undefined) {
             const error = validateFloat(hbomba_llegada);
-            if (error) {
-                errors.push(`Hbomba llegada: ${error}`);
-            } else {
+            if (error) errors.push(`Hbomba llegada: ${error}`);
+            else {
                 updates.push("hbomba_llegada = ?");
                 values.push(hbomba_llegada);
             }
@@ -536,9 +541,8 @@ export const updateBitacora = async (req, res) => {
 
         if (hbomba_salida !== undefined) {
             const error = validateFloat(hbomba_salida);
-            if (error) {
-                errors.push(`Hbomba salida: ${error}`);
-            } else {
+            if (error) errors.push(`Hbomba salida: ${error}`);
+            else {
                 updates.push("hbomba_salida = ?");
                 values.push(hbomba_salida);
             }
@@ -547,9 +551,8 @@ export const updateBitacora = async (req, res) => {
         // Validaciones de existencia solo si se proporcionan
         if (compania_id !== undefined) {
             const [companiaExists] = await pool.query("SELECT 1 FROM compania WHERE id = ? AND isDeleted = 0", [compania_id]);
-            if (companiaExists.length === 0) {
-                errors.push("Compania no existe o está eliminada");
-            } else {
+            if (companiaExists.length === 0) errors.push("Compania no existe o está eliminada");
+            else {
                 updates.push("compania_id = ?");
                 values.push(compania_id);
             }
@@ -557,9 +560,8 @@ export const updateBitacora = async (req, res) => {
 
         if (personal_id !== undefined) {
             const [personalExists] = await pool.query("SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0", [personal_id]);
-            if (personalExists.length === 0) {
-                errors.push("Personal no existe o está eliminado");
-            } else {
+            if (personalExists.length === 0) errors.push("Personal no existe o está eliminado");
+            else {
                 updates.push("personal_id = ?");
                 values.push(personal_id);
             }
@@ -567,9 +569,8 @@ export const updateBitacora = async (req, res) => {
 
         if (maquina_id !== undefined) {
             const [maquinaExists] = await pool.query("SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0", [maquina_id]);
-            if (maquinaExists.length === 0) {
-                errors.push("Máquina no existe o está eliminada");
-            } else {
+            if (maquinaExists.length === 0) errors.push("Máquina no existe o está eliminada");
+            else {
                 updates.push("maquina_id = ?");
                 values.push(maquina_id);
             }
@@ -577,9 +578,8 @@ export const updateBitacora = async (req, res) => {
 
         if (clave_id !== undefined) {
             const [claveExists] = await pool.query("SELECT 1 FROM clave WHERE id = ? AND isDeleted = 0", [clave_id]);
-            if (claveExists.length === 0) {
-                errors.push("Clave no existe o está eliminada");
-            } else {
+            if (claveExists.length === 0) errors.push("Clave no existe o está eliminada");
+            else {
                 updates.push("clave_id = ?");
                 values.push(clave_id);
             }
@@ -593,25 +593,20 @@ export const updateBitacora = async (req, res) => {
 
         // Validación y asignación de isDeleted
         if (isDeleted !== undefined) {
-            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) {
-                errors.push("Tipo de dato inválido para 'isDeleted'");
-            } else {
+            if (typeof isDeleted !== "number" || (isDeleted !== 0 && isDeleted !== 1)) errors.push("Tipo de dato inválido para 'isDeleted'");
+            else {
                 updates.push("isDeleted = ?");
                 values.push(isDeleted);
             }
         }
 
         // Si hay errores, devolverlos sin proceder con la actualización
-        if (errors.length > 0) {
-            return res.status(400).json({ errors });
-        }
-
+        if (errors.length > 0) return res.status(400).json({ errors });
+        
         // Construir la consulta de actualización
         const setClause = updates.join(", ");
-        if (!setClause) {
-            return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
-        }
-
+        if (!setClause) return res.status(400).json({ message: "No se proporcionaron campos para actualizar" });
+        
         // Agregar el ID a los valores
         values.push(id);
 
@@ -620,9 +615,7 @@ export const updateBitacora = async (req, res) => {
             values
         );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
 
         // Devolver la bitácora actualizada
         const [updatedRows] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
@@ -667,16 +660,24 @@ export const endServicio = async (req, res) => {
 
         const { personal_id, maquina_id } = bitacora[0];
 
-        // Actualizar datos en la bitácora
+        // Transformar la fecha y hora a formato MySQL
+        const mysqlFechaHora = transformToMySQLDate(f_llegada, h_llegada); // Modificado: Uso de transformToMySQLDate
+
+        // Si la fecha/hora no es válida, devolver error
+        if (!mysqlFechaHora) {
+            return res.status(400).json({ message: "Fecha y hora de llegada no son válidas." });
+        }
+
+        // Actualizar datos en la bitácora (Eliminada la instrucción STR_TO_DATE)
         await pool.query(
             `UPDATE bitacora SET 
-                fh_llegada = STR_TO_DATE(?, '%d-%m-%Y %H:%i'), 
+                fh_llegada = ?,  // Modificado: eliminada la función STR_TO_DATE y se usa el valor transformado
                 km_llegada = ?, 
                 hmetro_llegada = ?, 
                 hbomba_llegada = ?, 
                 obs = ?
             WHERE id = ?`,
-            [`${f_llegada} ${h_llegada}`, km_llegada, hmetro_llegada, hbomba_llegada, obs || null, id]
+            [mysqlFechaHora, km_llegada, hmetro_llegada, hbomba_llegada, obs || null, id]
         );
 
         // Actualizar disponibilidad de personal y máquina
@@ -751,15 +752,23 @@ export const startServicio = async (req, res) => {
 
         if (errors.length > 0) return res.status(400).json({ errors });
 
-        // Actualizar datos en la bitácora
+        // Transformar la fecha y hora a formato MySQL
+        const mysqlFechaHora = transformToMySQLDate(f_salida, h_salida); // Modificado: Uso de transformToMySQLDate
+
+        // Si la fecha/hora no es válida, devolver error
+        if (!mysqlFechaHora) {
+            return res.status(400).json({ message: "Fecha y hora de salida no son válidas." });
+        }
+
+        // Actualizar datos en la bitácora (Eliminada la instrucción STR_TO_DATE)
         await pool.query(
             `UPDATE bitacora SET 
-                fh_salida = STR_TO_DATE(?, '%d-%m-%Y %H:%i'), 
+                fh_salida = ?,  // Modificado: eliminada la función STR_TO_DATE y se usa el valor transformado
                 km_salida = ?, 
                 hmetro_salida = ?, 
                 hbomba_salida = ?
             WHERE id = ?`,
-            [`${f_salida} ${h_salida}`, km_salida, hmetro_salida, hbomba_salida, id]
+            [mysqlFechaHora, km_salida, hmetro_salida, hbomba_salida, id]
         );
 
         // Actualizar disponibilidad de personal y máquina

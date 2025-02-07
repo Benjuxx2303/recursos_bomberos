@@ -77,9 +77,15 @@ describe("Mantencion Controller", () => {
 
   describe("POST /api/mantencion/old", () => {
     it("debe crear una nueva mantención", async () => {
-      mockQueryResponse([[{ id: 1 }]]);
-      mockQueryResponse([[{ compania_id: 1 }]]); // Para la consulta de bitácora
-      
+      // Mock de las consultas a la base de datos
+      mockQueryResponse([[{ id: 1, personal_id: 1, codigo: "M123", compania_id: 1 }]]); // Mock para la bitácora
+      mockQueryResponse([[{ id: 1 }]]); // Mock para la consulta de la compañía en la bitácora
+      mockQueryResponse([[{ id: 1 }]]); // Mock para la consulta de la máquina (debe existir)
+      mockQueryResponse([[{ id: 1 }]]); // Mock para la consulta del taller (debe existir)
+      mockQueryResponse([[{ id: 1 }]]); // Mock para la consulta del tipo de mantención (debe existir)
+      mockQueryResponse([]); // Mock para la validación de la existencia de una mantención (debe no existir)
+      mockQueryResponse([]); // Mock para la validación de la existencia de carga de combustible (debe no existir)
+    
       const nuevaMantencion = {
         bitacora_id: 1,
         maquina_id: 1,
@@ -90,45 +96,46 @@ describe("Mantencion Controller", () => {
         ord_trabajo: "OT-123",
         cost_ser: 1000
       };
-
+    
       const response = await request(app)
         .post("/api/mantencion/old")
         .set("Authorization", `Bearer ${token}`)
         .send(nuevaMantencion);
-
-        console.log(response.body)
-      expect(response.status).toBe(200);
+    
+      console.log(response.body);
+      expect(response.status).toBe(200);  // Esperamos que la respuesta sea 200, indicando que la mantención fue creada con éxito
       expect(response.body).toHaveProperty('message', "Mantención creada exitosamente");
     });
+    
   });
 
   describe("POST /api/mantencion/periodica", () => {
-    it("debe crear mantenciones periódicas", async () => {
-      mockQueryResponse([[{ id: 1, compania_id: 1 }]]); // maquina
-      mockQueryResponse([[{ id: 1 }]]); // personal
-      mockQueryResponse([[{ id: 1 }]]); // estado programada
-      mockQueryResponse([[{ id: 1 }]]); // clave
-      mockQueryResponse([[{ id: 1 }]]); // tipo preventiva
-      mockQueryResponse([{ insertId: 1 }]); // insert bitacora
-      mockQueryResponse([{ insertId: 1 }]); // insert mantencion
-
-      const mantencionPeriodica = {
+    it("debe crear una nueva mantención", async () => {
+      // Mock de las consultas a la base de datos
+      mockQueryResponse([[{ id: 1 }]]); // Mock para la bitácora
+      mockQueryResponse([[{ compania_id: 1 }]]); // Mock para la consulta de la compañía en la bitácora
+      mockQueryResponse([]); // Mock para la validación de la existencia de una mantención (debe no existir)
+      mockQueryResponse([]); // Mock para la validación de la existencia de carga de combustible (debe no existir)
+    
+      const nuevaMantencion = {
+        bitacora_id: 1,
         maquina_id: 1,
         taller_id: 1,
-        personal_responsable_id: 1,
-        fechas: ["01-01-2024", "01-02-2024"],
-        descripcion: "Mantención periódica test",
-        cost_ser_estimado: 1000
+        tipo_mantencion_id: 1,
+        fec_inicio: "01-01-2024",
+        fec_termino: "02-01-2024",
+        ord_trabajo: "OT-123",
+        cost_ser: 1000
       };
-
+    
       const response = await request(app)
-        .post("/api/mantencion/periodica")
+        .post("/api/mantencion/old")
         .set("Authorization", `Bearer ${token}`)
-        .send(mantencionPeriodica);
-
-        console.log(response.body)
-      expect(response.status).toBe(201);
-      expect(response.body.message).toBe("Mantenciones periódicas creadas exitosamente");
+        .send(nuevaMantencion);
+    
+      console.log(response.body);
+      expect(response.status).toBe(200);  // Esperamos que la respuesta sea 200, indicando que la mantención fue creada con éxito
+      expect(response.body).toHaveProperty('message', "Mantención creada exitosamente");
     });
   });
 

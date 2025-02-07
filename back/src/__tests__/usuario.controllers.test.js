@@ -84,23 +84,24 @@ describe("Usuario Controller", () => {
 
   // Test para registrar un nuevo usuario
   describe("POST /api/usuario/register", () => {
-    it("debe registrar un nuevo usuario", async () => {
+    it('debe registrar un nuevo usuario', async () => {
       const newUsuario = {
         username: "nuevoUsuario",
         correo: "nuevo@example.com",
         contrasena: "SecurePass321",
         personal_id: 1,
       };
-
+    
       mockQueryResponse([{ insertId: 1 }]);
-
+    
       const response = await request(app)
         .post("/api/usuario/register")
         .send(newUsuario);
-
+    
       expect(response.status).toBe(201);
       expect(response.body.message).toBe("Usuario registrado exitosamente. Se ha enviado un correo de verificación.");
     });
+    
 
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidUsuario = { username: "", correo: "invalid", contrasena: "123" }; // Datos inválidos

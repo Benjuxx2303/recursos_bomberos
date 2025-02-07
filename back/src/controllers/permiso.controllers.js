@@ -1,9 +1,52 @@
 import { pool } from "../db.js";
 
-// Devuelve todos los permisos
+// Obtener todas las categorías
+export const getCategorias = async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT * FROM categoria WHERE isDeleted IS NULL OR isDeleted = false");
+        res.json(rows);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
+// Devuelve todos los permisos con filtros opcionales
 export const getPermisos = async (req, res) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM permiso");
+        const { categoriaId, rolPersonalId, search } = req.query;
+        let query = `
+            SELECT p.*, c.nombre as categoria_nombre 
+            FROM permiso p
+            LEFT JOIN categoria c ON p.categoria_id = c.id
+            WHERE (p.isDeleted IS NULL OR p.isDeleted = false)
+        `;
+        const params = [];
+
+        if (categoriaId) {
+            query += " AND p.categoria_id = ?";
+            params.push(parseInt(categoriaId));
+        }
+
+        if (rolPersonalId) {
+            query += ` AND EXISTS (
+                SELECT 1 FROM rol_permisos rp 
+                WHERE rp.permiso_id = p.id 
+                AND rp.rol_personal_id = ?
+                AND (rp.isDeleted IS NULL OR rp.isDeleted = false)
+            )`;
+            params.push(parseInt(rolPersonalId));
+        }
+
+        if (search) {
+            query += " AND (p.nombre LIKE ? OR p.descripcion LIKE ?)";
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm);
+        }
+
+        const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (error) {
         return res.status(500).json({
@@ -24,7 +67,13 @@ export const getPermisoById = async (req, res) => {
             });
         }
         
-        const [rows] = await pool.query("SELECT * FROM permiso WHERE id = ?", [idNumber]);
+        const [rows] = await pool.query(`
+            SELECT p.*, c.nombre as categoria_nombre 
+            FROM permiso p
+            LEFT JOIN categoria c ON p.categoria_id = c.id
+            WHERE p.id = ? AND (p.isDeleted IS NULL OR p.isDeleted = false)
+        `, [idNumber]);
+
         if (rows.length <= 0) {
             return res.status(404).json({
                 message: "Permiso no encontrado"
@@ -32,6 +81,90 @@ export const getPermisoById = async (req, res) => {
         }
         res.json(rows[0]);
     } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
+// Obtener permisos por rol
+export const getPermisosByRol = async (req, res) => {
+    const { rolId } = req.params;
+    try {
+        const idNumber = parseInt(rolId);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "ID de rol inválido"
+            });
+        }
+
+        const [rows] = await pool.query(`
+            SELECT p.*, c.nombre as categoria_nombre 
+            FROM permiso p
+            LEFT JOIN categoria c ON p.categoria_id = c.id
+            INNER JOIN rol_permisos rp ON p.id = rp.permiso_id
+            WHERE rp.rol_personal_id = ? 
+            AND (p.isDeleted IS NULL OR p.isDeleted = false)
+            AND (rp.isDeleted IS NULL OR rp.isDeleted = false)
+        `, [idNumber]);
+
+        res.json(rows);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
+// Asignar permisos a un rol
+export const asignarPermisosRol = async (req, res) => {
+    const { rolId } = req.params;
+    const { permisoIds } = req.body;
+    
+    try {
+        const idNumber = parseInt(rolId);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "ID de rol inválido"
+            });
+        }
+
+        if (!Array.isArray(permisoIds)) {
+            return res.status(400).json({
+                message: "permisoIds debe ser un array"
+            });
+        }
+
+        // Iniciar transacción
+        await pool.query("START TRANSACTION");
+
+        // Marcar como eliminados los permisos actuales del rol
+        await pool.query(
+            "UPDATE rol_permisos SET isDeleted = true WHERE rol_personal_id = ?",
+            [idNumber]
+        );
+
+        // Insertar nuevos permisos
+        for (const permisoId of permisoIds) {
+            await pool.query(
+                `INSERT INTO rol_permisos (rol_personal_id, permiso_id) 
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE isDeleted = false`,
+                [idNumber, permisoId]
+            );
+        }
+
+        // Confirmar transacción
+        await pool.query("COMMIT");
+
+        res.status(200).json({
+            message: "Permisos asignados correctamente"
+        });
+    } catch (error) {
+        // Revertir transacción en caso de error
+        await pool.query("ROLLBACK");
         return res.status(500).json({
             message: "Error interno del servidor",
             error: error.message

@@ -207,6 +207,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 export const sendMantencionAlerts = async (req, res) => {
     try {
         const correosEnviados = new Set(); // Conjunto para verificar duplicados
+        const alertasEnviadas = new Set(); // Conjunto para verificar alertas enviadas
 
         const query = `SELECT 
             m.id AS mantencion_id,
@@ -225,6 +226,9 @@ export const sendMantencionAlerts = async (req, res) => {
 
         for (const maintenance of rows) {
             const { personal_id, mantencion_id } = maintenance;
+
+            if (alertasEnviadas.has(mantencion_id)) continue; // Verificar si ya se envió la alerta
+            alertasEnviadas.add(mantencion_id); // Agregar al conjunto
 
             const [personal] = await pool.query(`
                 SELECT 

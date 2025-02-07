@@ -1,5 +1,5 @@
 import { pool } from "../db.js";
-import { validateDate, validateFloat, validateStartEndDate, transformToMySQLDate} from "../utils/validations.js";
+import { validateDate, validateFloat, validateStartEndDate, formatDateTime} from "../utils/validations.js";
 import { checkIfDeletedById, checkIfDeletedByField, checkIfExists } from '../utils/queries.js';
 
 // Nueva función getBitacora con filtros
@@ -271,7 +271,7 @@ export const createBitacora = async (req, res) => {
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
             if (error === false) errors.push("Fecha y hora de salida inválida.");
-            else fh_salida = transformToMySQLDate(f_salida, h_salida);
+            else fh_salida = formatDateTime(f_salida, h_salida);
         }
 
         // Validación de tipo de datos
@@ -459,7 +459,7 @@ export const updateBitacora = async (req, res) => {
             const fh_salida = `${f_salida} ${h_salida}`;
             if (!validateDate(f_salida, h_salida)) errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
             else {
-                transformedFhSalida = transformToMySQLDate(f_salida, h_salida); // Modificado: Transformación de la fecha y hora de salida
+                transformedFhSalida = formatDateTime(f_salida, h_salida); // Modificado: Transformación de la fecha y hora de salida
                 if (transformedFhSalida) {
                     updates.push("fh_salida = ?");
                     values.push(transformedFhSalida);
@@ -473,7 +473,7 @@ export const updateBitacora = async (req, res) => {
             // const fh_llegada = `${f_llegada} ${h_llegada}`;
             if (!validateDate(f_llegada, h_llegada)) errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
             else {
-                transformedFhLlegada = transformToMySQLDate(f_llegada, h_llegada); // Modificado: Transformación de la fecha y hora de llegada
+                transformedFhLlegada = formatDateTime(f_llegada, h_llegada); // Modificado: Transformación de la fecha y hora de llegada
                 if (transformedFhLlegada) {
                     updates.push("fh_llegada = ?");
                     values.push(transformedFhLlegada);
@@ -661,7 +661,7 @@ export const endServicio = async (req, res) => {
         const { personal_id, maquina_id } = bitacora[0];
 
         // Transformar la fecha y hora a formato MySQL
-        const mysqlFechaHora = transformToMySQLDate(f_llegada, h_llegada); // Modificado: Uso de transformToMySQLDate
+        const mysqlFechaHora = formatDateTime(f_llegada, h_llegada); // Modificado: Uso de formatDateTime
 
         // Si la fecha/hora no es válida, devolver error
         if (!mysqlFechaHora) {
@@ -753,7 +753,7 @@ export const startServicio = async (req, res) => {
         if (errors.length > 0) return res.status(400).json({ errors });
 
         // Transformar la fecha y hora a formato MySQL
-        const mysqlFechaHora = transformToMySQLDate(f_salida, h_salida); // Modificado: Uso de transformToMySQLDate
+        const mysqlFechaHora = formatDateTime(f_salida, h_salida); // Modificado: Uso de formatDateTime
 
         // Si la fecha/hora no es válida, devolver error
         if (!mysqlFechaHora) {

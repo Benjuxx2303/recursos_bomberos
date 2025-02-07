@@ -3,7 +3,7 @@ import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
-import { transformToMySQLDate, validateDate, validateStartEndDate } from "../utils/validations.js";
+import { formatDateTime, validateDate, validateStartEndDate } from "../utils/validations.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -326,8 +326,6 @@ export const createMantencion = async (req, res) => {
     let errors = [];
     const estado_mantencion_id = 1;
 
-    console.log(req.body)
-
     // Validaciones de entrada
     const validateId = (id, fieldName) => isNaN(parseInt(id)) && errors.push(`El ID de ${fieldName} es inválido`);
     validateId(bitacora_id, 'bitácora');
@@ -346,21 +344,19 @@ export const createMantencion = async (req, res) => {
     await checkIfDeletedById(pool, tipo_mantencion_id, 'tipo_mantencion', errors);
 
     // **Validación de fechas usando validateDate** (modificado)
-    if (!validateDate(fec_inicio)) {  // **Usamos la función validateDate aquí**
-      errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
-    }
-    if (!validateDate(fec_termino)) {  // **Usamos la función validateDate aquí**
-      errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
-    }
+    if (validateDate(fec_inicio) === false) errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy"); // **Usamos la función validateDate aquí**
+    
+    if (fec_termino && !validateDate(fec_termino)) errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy"); // **Usamos la función validateDate aquí**
 
+    // TODO: Revisar Validacion
     // **Validación de fecha de inicio y fecha de término usando validateStartEndDate** (modificado)
-    try {
-      if (!validateStartEndDate(fec_inicio, fec_termino)) {  // **Usamos validateStartEndDate aquí**
-        errors.push("La fecha de término no puede ser anterior a la fecha de inicio");
-      }
-    } catch (error) {
-      errors.push(error.message);  // **Capturamos cualquier error lanzado por validateStartEndDate**
-    }
+    // try {
+    //   if (!validateStartEndDate(fec_inicio, fec_termino)) {  // **Usamos validateStartEndDate aquí**
+    //     errors.push("La fecha de término no puede ser anterior a la fecha de inicio");
+    //   }
+    // } catch (error) {
+    //   errors.push(error.message);  // **Capturamos cualquier error lanzado por validateStartEndDate**
+    // }
 
     // **Validación del campo aprobada_por** (si está presente)
     let aprobada_por_nombre = null;
@@ -429,9 +425,10 @@ export const createMantencion = async (req, res) => {
       }
     }
 
-    // **Insertar mantención usando transformToMySQLDate para las fechas** (modificado)
-    const mysqlFecInicio = transformToMySQLDate(fec_inicio);  // **Usamos transformToMySQLDate aquí**
-    const mysqlFecTermino = transformToMySQLDate(fec_termino);  // **Usamos transformToMySQLDate aquí**
+    // **Insertar mantención usando formatDateTime para las fechas** (modificado)
+    const mysqlFecTermino = null
+    const mysqlFecInicio = formatDateTime(fec_inicio);  // **Usamos formatDateTime aquí**
+    if (fec_termino !== undefined) mysqlFecTermino = formatDateTime(fec_termino);  // **Usamos formatDateTime aquí**
 
     // Insertar mantención
     const [result] = await pool.query(
@@ -644,7 +641,7 @@ export const updateMantencion = async (req, res) => {
           "El formato de la fecha de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa"
         );
       } else {
-        updates.fec_inicio = transformToMySQLDate(fec_inicio); // Convertí la fecha a formato MySQL
+        updates.fec_inicio = formatDateTime(fec_inicio); // Convertí la fecha a formato MySQL
       }
     }
 
@@ -655,7 +652,7 @@ export const updateMantencion = async (req, res) => {
           "El formato de la fecha de 'fec_termino' es inválido. Debe ser dd-mm-aaaa"
         );
       } else {
-        updates.fec_termino = transformToMySQLDate(fec_termino); // Convertí la fecha a formato MySQL
+        updates.fec_termino = formatDateTime(fec_termino); // Convertí la fecha a formato MySQL
       }
     }
 
@@ -1042,7 +1039,7 @@ export const createMantencionPeriodica = async (req, res) => {
         const bitacora_id = bitacoraResult.insertId;
 
         // Transformar la fecha a formato MySQL
-        const fechaTransformada = transformToMySQLDate(fecha); // Modificado
+        const fechaTransformada = formatDateTime(fecha); // Modificado
 
         // Validar si la fecha transformada es nula (fecha no válida)
         if (!fechaTransformada) {

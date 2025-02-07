@@ -76,32 +76,39 @@ export function validateEmail(email) {
   return regex.test(email);
 }
 
-// Expresiones regulares para validar fecha y hora
-const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
-
 /**
- * Validates a date and optionally a time.
+ * Validates a username based on specific criteria and adds error messages to the errors array.
  *
- * @param {string} fecha - The date string to validate.
- * @param {string} [hora=''] - The optional time string to validate.
- * @returns {boolean} - Returns true if the date (and optionally the time) is valid, otherwise false.
+ * @param {string} username - The username to validate.
+ * @param {string[]} errors - An array to store error messages if the username does not meet the criteria.
  */
-export function validateDate(fecha, hora = '') {
-  // Validación de la fecha
-  if (!fechaRegex.test(fecha)) {
-    return false; // La fecha no es válida
+export function validateUsername(username, errors) {
+  // Verificar que no esté vacío
+  if (!username || username.trim().length === 0) {
+    errors.push('El nombre de usuario no puede estar vacío.');
+    return; // Si está vacío, no hace falta continuar con el resto de las validaciones
   }
 
-  // Si se proporciona una hora, validamos también
-  if (hora && !horaRegex.test(hora)) {
-    return false; // La hora no es válida
+  // Verificar longitud
+  if (username.length < 4 || username.length > 20) {
+    errors.push('El nombre de usuario debe tener entre 4 y 20 caracteres.');
   }
 
-  // Si no hay errores de validación, retornamos true
-  return true;
+  // Verificar caracteres permitidos (letras, números y guion bajo)
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    errors.push('El nombre de usuario solo puede contener letras, números y guiones bajos.');
+  }
+
+  // Verificar que no empiece ni termine con un guion bajo
+  if (username.startsWith('_') || username.endsWith('_')) {
+    errors.push('El nombre de usuario no puede empezar ni terminar con un guion bajo.');
+  }
+
+  // Verificar que no contenga espacios
+  if (/\s/.test(username)) {
+    errors.push('El nombre de usuario no puede contener espacios.');
+  }
 }
-
 
 /**
  * Validates if a value matches a specified type.
@@ -120,58 +127,6 @@ export function validateType(value, type) {
   }
 
   return typeof value === type;
-}
-
-/**
- * Validates that the start date is before the end date.
- * The dates can be provided as strings in the formats 'dd-MM-yyyy' or 'dd-MM-yyyy HH:mm'.
- *
- * @param {string|Date} startDate - The start date to validate.
- * @param {string|Date} endDate - The end date to validate.
- * @returns {boolean} - Returns true if the end date is not before the start date, otherwise false.
- * @throws {Error} - Throws an error if the provided dates are not valid.
- */
-export function validateStartEndDate(startDate, endDate) {
-  // Definir los formatos esperados
-  const dateFormat = 'dd-MM-yyyy';          // Formato sin hora
-  const dateTimeFormat = 'dd-MM-yyyy HH:mm'; // Formato con hora
-
-  // Función para parsear las fechas, manejando ambos formatos
-  const parseDate = (dateString) => {
-    // Primero intentamos con el formato completo con hora
-    let parsedDate = parse(dateString, dateTimeFormat, new Date());
-    
-    // Si no es válido, intentamos con solo la fecha (sin hora)
-    if (!isValid(parsedDate)) {
-      parsedDate = parse(dateString, dateFormat, new Date());
-    }
-
-    return parsedDate;
-  };
-
-  // Parsear las fechas si son cadenas
-  if (typeof startDate === 'string') {
-    startDate = parseDate(startDate);
-  }
-  if (typeof endDate === 'string') {
-    endDate = parseDate(endDate);
-  }
-
-  // Validar que las fechas sean correctas
-  if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
-    throw new Error("Las fechas proporcionadas no son válidas.");
-  }
-
-  // Validar si las fechas son válidas
-  if (!isValid(startDate)) {
-    throw new Error("La fecha de inicio proporcionada no es válida.");
-  }
-  if (!isValid(endDate)) {
-    throw new Error("La fecha de fin proporcionada no es válida.");
-  }
-
-  // Comprobar si endDate es anterior a startDate
-  return !isBefore(endDate, startDate);
 }
 
 /**
@@ -209,72 +164,136 @@ export function validatePassword(password, errors) {
 }
 
 /**
- * Validates a username based on specific criteria and adds error messages to the errors array.
+ * Validates a date and optionally a time.
  *
- * @param {string} username - The username to validate.
- * @param {string[]} errors - An array to store error messages if the username does not meet the criteria.
+ * @param {string} fecha - The date string to validate.
+ * @param {string} [hora=''] - The optional time string to validate.
+ * @returns {boolean} - Returns true if the date (and optionally the time) is valid, otherwise false.
  */
-export function validateUsername(username, errors) {
-  // Verificar que no esté vacío
-  if (!username || username.trim().length === 0) {
-    errors.push('El nombre de usuario no puede estar vacío.');
-    return; // Si está vacío, no hace falta continuar con el resto de las validaciones
-  }
+export function validateDate(fecha, hora = '') {
+  // Definir varios formatos posibles de fecha
+  const formatosFecha = [
+    'yyyy-MM-dd',  // ISO 8601 (yyyy-MM-dd)
+    'dd/MM/yyyy',  // dd/MM/yyyy
+    'MM/dd/yyyy',  // MM/dd/yyyy
+    'yyyy/MM/dd',  // yyyy/MM/dd
+    'dd-MM-yyyy',  // dd-MM-yyyy
+    'MM-dd-yyyy'   // MM-dd-yyyy
+  ];
 
-  // Verificar longitud
-  if (username.length < 4 || username.length > 20) {
-    errors.push('El nombre de usuario debe tener entre 4 y 20 caracteres.');
-  }
-
-  // Verificar caracteres permitidos (letras, números y guion bajo)
-  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-    errors.push('El nombre de usuario solo puede contener letras, números y guiones bajos.');
-  }
-
-  // Verificar que no empiece ni termine con un guion bajo
-  if (username.startsWith('_') || username.endsWith('_')) {
-    errors.push('El nombre de usuario no puede empezar ni terminar con un guion bajo.');
-  }
-
-  // Verificar que no contenga espacios
-  if (/\s/.test(username)) {
-    errors.push('El nombre de usuario no puede contener espacios.');
-  }
-}
-
-/**
- * Transforma una fecha y opcionalmente una hora del formato 'dd-MM-yyyy' y 'HH:mm' 
- * al formato compatible con MySQL 'yyyy-MM-dd' o 'yyyy-MM-dd HH:mm:ss'.
- *
- * @param {string} fecha - La fecha en formato 'dd-MM-yyyy'.
- * @param {string} [hora=''] - La hora opcional en formato 'HH:mm'.
- * @returns {string|null} - Retorna la fecha transformada en formato MySQL, 
- *                          o null si la fecha no es válida.
- */
-export function transformToMySQLDate(fecha, hora = '') {
-  const dateFormat = 'dd-MM-yyyy';
-  const dateTimeFormat = 'dd-MM-yyyy HH:mm';
-
-  // Parsear la fecha
-  const parsedDate = parse(fecha, dateFormat, new Date());
-
-  // Comprobar si la fecha es válida
-  if (!isValid(parsedDate)) {
-    return null; // La fecha no es válida
-  }
-
-  // Formatear la fecha al formato MySQL
-  let mysqlDate = format(parsedDate, 'yyyy-MM-dd');
-
-  // Si se proporciona hora, añadirla al formato
-  if (hora) {
-    const parsedTime = parse(hora, 'HH:mm', new Date());
-    if (isValid(parsedTime)) {
-      const hours = parsedTime.getHours();
-      const minutes = parsedTime.getMinutes();
-      mysqlDate += ` ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+  // Intentamos parsear la fecha con varios formatos
+  let parsedDate = null;
+  for (const formato of formatosFecha) {
+    parsedDate = parse(fecha, formato, new Date());
+    if (isValid(parsedDate)) {
+      break;
     }
   }
 
-  return mysqlDate;
+  // Si no encontramos un formato válido, retornamos false
+  if (!isValid(parsedDate)) {
+    return false;
+  }
+
+  // Si se proporciona una hora, validamos también
+  if (hora && !/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/.test(hora)) {
+    return false; // La hora no es válida
+  }
+
+  return true;
+}
+
+/**
+ * Validates that the start date is before the end date.
+ * The dates can be provided as strings in various formats or as Date objects.
+ *
+ * @param {string|Date} startDate - The start date to validate.
+ * @param {string|Date} endDate - The end date to validate.
+ * @returns {boolean} - Returns true if the end date is not before the start date, otherwise false.
+ * @throws {Error} - Throws an error if the provided dates are not valid.
+ */
+export function validateStartEndDate(startDate, endDate) {
+  // Función para parsear las fechas de manera más flexible
+  const parseDate = (dateInput) => {
+    // Si ya es un objeto Date, lo retornamos directamente
+    if (dateInput instanceof Date) return dateInput;
+
+    // Intentar convertir la cadena a una fecha válida
+    const parsedDate = parseISO(dateInput);
+    
+    // Verificar si la fecha es válida
+    if (!isValid(parsedDate)) {
+      throw new Error("La fecha proporcionada no es válida.");
+    }
+    return parsedDate;
+  };
+
+  // Parsear las fechas si son cadenas
+  startDate = parseDate(startDate);
+  endDate = parseDate(endDate);
+
+  // Comprobar si endDate es anterior a startDate
+  return !isBefore(endDate, startDate);
+}
+
+/**
+ * Transforms a date and optional time into the format "YYYY-MM-DD" and "HH:MM:SS".
+ * 
+ * @param {string} fecha - The date string to transform.
+ * @param {string} [hora] - The optional time string to transform.
+ * @returns {string} - The formatted date and time in the format "YYYY-MM-DD" and "HH:MM:SS".
+ */
+export function formatDateTime(fecha, hora = '') {
+  // Intentamos parsear la fecha en varios formatos posibles
+  const formatosFecha = [
+    'yyyy-MM-dd',  // ISO 8601 (yyyy-MM-dd)
+    'dd/MM/yyyy',  // dd/MM/yyyy
+    'MM/dd/yyyy',  // MM/dd/yyyy
+    'yyyy/MM/dd',  // yyyy/MM/dd
+    'dd-MM-yyyy',  // dd-MM-yyyy
+    'MM-dd-yyyy'   // MM-dd-yyyy
+  ];
+
+  let parsedDate = null;
+
+  // Intentamos parsear la fecha con varios formatos
+  for (const formato of formatosFecha) {
+    parsedDate = parse(fecha, formato, new Date());
+    if (isValid(parsedDate)) {
+      break;
+    }
+  }
+
+  // Si la fecha no es válida, lanzamos un error
+  if (!isValid(parsedDate)) {
+    throw new Error("La fecha proporcionada no es válida.");
+  }
+
+  // Si se proporciona una hora, la validamos
+  let formattedTime = '';
+  if (hora) {
+    // Validar que la hora tenga el formato "HH:MM" o "HH:MM:SS"
+    const horaRegex = /^(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])(:([0-5][0-9]))?$/;
+    const match = hora.match(horaRegex);
+    
+    if (!match) {
+      throw new Error("La hora proporcionada no es válida.");
+    }
+
+    // Si la hora es "HH:MM", añadimos los segundos ":00"
+    if (!match[3]) {
+      formattedTime = `${match[1]}:${match[2]}:00`;
+    } else {
+      formattedTime = `${match[1]}:${match[2]}:${match[4]}`;
+    }
+  }
+
+  // Si no se proporciona hora, solo retornamos la fecha
+  const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+  
+  if (formattedTime) {
+    return `${formattedDate} ${formattedTime}`;
+  } else {
+    return formattedDate;
+  }
 }

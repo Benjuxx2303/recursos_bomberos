@@ -399,7 +399,7 @@ export const createMantencion = async (req, res) => {
       [bitacoraIdNumber]
     );
 
-    if (!bitacoraInfo.length) return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
+    if (!bitacoraInfo|| !bitacoraInfo.length) return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
 
     const { codigo, compania_id } = bitacoraInfo[0];
 
@@ -914,7 +914,7 @@ export const toggleAprobacionMantencion = async (req, res) => {
     }
 
     // Determinar el nuevo estado (toggle)
-    const nuevoEstado = mantencion[0].aprobada === 1 ? 0 : 1;
+    const nuevoEstado = mantencion.aprobada === 1 ? 0 : 1;
 
     // Actualizar el estado
     const [result] = await pool.query(

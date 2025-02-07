@@ -61,15 +61,21 @@ export async function checkIfExists(pool, value, field, table, errors) {
  * @param {Array} errors - Un array para almacenar los errores si el registro no existe o está eliminado.
  */
 export async function checkIfDeletedById(pool, id, table, errors) {
-  // Verificar si el registro existe y no está eliminado
-  const [result] = await pool.query(
-    `SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`,
-    [id]
-  );
+  try {
+    // Verificar si el registro existe y no está eliminado
+    const [result] = await pool.query(
+      `SELECT 1 FROM ${table} WHERE id = ? AND isDeleted = 0`,
+      [id]
+    );
 
-  // Si no existe o está eliminado, agregar el error
-  if (result.length === 0) {
-    errors.push(`${table} no existe o está eliminado`);
+    // Verificar que el resultado sea un arreglo y tenga elementos
+    if (!Array.isArray(result) || result.length === 0) {
+      errors.push(`${table} no existe o está eliminado`);
+    }
+  } catch (error) {
+    // En caso de error en la consulta, manejarlo
+    console.error(`Error en checkIfDeletedById para la tabla ${table}:`, error);
+    errors.push(`Error al verificar la existencia de ${table}`);
   }
 }
 

@@ -326,6 +326,8 @@ export const createMantencion = async (req, res) => {
     let errors = [];
     const estado_mantencion_id = 1;
 
+    console.log(req.body)
+
     // Validaciones de entrada
     const validateId = (id, fieldName) => isNaN(parseInt(id)) && errors.push(`El ID de ${fieldName} es inválido`);
     validateId(bitacora_id, 'bitácora');

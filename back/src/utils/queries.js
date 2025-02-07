@@ -1,3 +1,5 @@
+import {pool} from "../db.js";
+
 /**
  * Verifica si un valor ya existe en una tabla, excluyendo un registro por su id.
  *

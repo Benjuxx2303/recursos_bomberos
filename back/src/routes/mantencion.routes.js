@@ -2,15 +2,15 @@ import { Router } from "express";
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-    createMantencion,
-    createMantencionPeriodica,
-    deleteMantencion,
-    downloadExcel,
-    getMantencionAllDetailsById,
-    getMantencionesAllDetailsSearch,
-    toggleAprobacionMantencion,
-    updateMaintenanceStatus,
-    updateMantencion
+  createMantencion,
+  createMantencionPeriodica,
+  deleteMantencion,
+  downloadExcel,
+  getMantencionAllDetailsById,
+  getMantencionesAllDetailsSearch,
+  toggleAprobacionMantencion,
+  updateMaintenanceStatus,
+  updateMantencion
 } from "../controllers/mantencion.controllers.js";
 import { getMantencionCostosByAnio, getReporteGeneral, getReporteMantencionesEstadoCosto } from "../controllers/stats_mantencion.js";
 
@@ -37,7 +37,7 @@ router.get(`${base_route}/excel`, checkPermission('getMantencion'), downloadExce
 // ord_trabajo:       OT-12345
 // compania:          compañia 1
 
-router.get(base_route, checkPermission('getMantencion'), getMantencionesAllDetailsSearch);
+router.get(base_route,  getMantencionesAllDetailsSearch);
 // http://{url}/api/mantencion
 // QueryParams:
 // page:              1
@@ -61,7 +61,7 @@ router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion')
 router.patch(`${base_route}/:id/status`, checkPermission('updateMantencion'), updateMaintenanceStatus);
 
 // Nueva ruta para crear mantenciones periódicas
-router.post(`${base_route}/periodica`, checkPermission('createMantencion'), createMantencionPeriodica);
+router.post(`${base_route}/periodica`, checkPermission('createMantencionPeriodica'), createMantencionPeriodica);
 
 // ---- reportes
 router.get(`/reportes${base_route}/costos`, checkPermission('getMantencion'), getMantencionCostosByAnio)

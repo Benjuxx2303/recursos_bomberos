@@ -426,7 +426,7 @@ export const createMantencion = async (req, res) => {
     }
 
     // **Insertar mantención usando formatDateTime para las fechas** (modificado)
-    const mysqlFecTermino = null
+    const mysqlFecTermino = undefined
     const mysqlFecInicio = formatDateTime(fec_inicio);  // **Usamos formatDateTime aquí**
     if (fec_termino !== undefined) mysqlFecTermino = formatDateTime(fec_termino);  // **Usamos formatDateTime aquí**
 

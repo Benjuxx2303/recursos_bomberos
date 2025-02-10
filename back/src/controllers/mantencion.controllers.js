@@ -446,7 +446,8 @@ export const createMantencion = async (req, res) => {
           ord_trabajo, 
           n_factura, 
           cost_ser, 
-          isDeleted
+          isDeleted,
+          img_url
         ) VALUES (
          ?, 
          ?, 
@@ -458,7 +459,8 @@ export const createMantencion = async (req, res) => {
          ?, 
          ?, 
          ?, 
-         0)`,
+         0,
+         ?)`,
       [
         bitacoraIdNumber, 
         maquinaIdNumber, 
@@ -469,7 +471,8 @@ export const createMantencion = async (req, res) => {
         mysqlFecTermino,  // **Usamos mysqlFecTermino aquí**
         ord_trabajo, 
         n_factura || null, 
-        costSerNumber || null
+        costSerNumber || null,
+        img_url || null
       ]
     );
 

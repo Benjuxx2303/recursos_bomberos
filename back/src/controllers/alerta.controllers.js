@@ -56,157 +56,128 @@ export const getAlertasByUsuario = async (req, res) => {
         });
     }
 };
+
 /**
- * Enviar alertas por correo y almacenarlas en la base de datos.
+ * Verifica si una alerta similar ya fue enviada en los últimos 7 días.
+ */
+const alertaYaEnviada = async (usuario_id, tipo) => {
+    const [rows] = await pool.query(
+        `SELECT COUNT(*) as count FROM alerta 
+        WHERE usuario_id = ? AND tipo = ? 
+        AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+        [usuario_id, tipo]
+    );
+    return rows[0].count > 0;
+};
+
+/**
+ * Envía alertas de vencimiento de licencias.
  */
 export const sendVencimientoAlerts = async (req, res) => {
     try {
-        const correosEnviados = new Set(); // Conjunto para verificar duplicados
-
-        const [rows] = await pool.query(`SELECT 
-                p.id AS personal_id,
-                p.nombre, 
-                p.apellido, 
-                p.ven_licencia, 
-                u.id AS usuario_id,
-                u.correo
+        const correosEnviados = new Set();
+        const [rows] = await pool.query(`SELECT p.id AS personal_id, p.nombre, p.apellido, p.ven_licencia, u.id AS usuario_id, u.correo
             FROM personal p
             INNER JOIN usuario u ON p.id = u.personal_id
-            WHERE p.isDeleted = 0 
-              AND u.isDeleted = 0 
+            WHERE p.isDeleted = 0 AND u.isDeleted = 0
               AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`);
-
-        if (rows.length === 0) {
-            return res.status(200).json({ message: "No hay permisos próximos a vencer o vencidos recientemente." });
-        }
 
         for (const personal of rows) {
             const { nombre, apellido, ven_licencia, correo, usuario_id } = personal;
 
+            if (correosEnviados.has(correo) || await alertaYaEnviada(usuario_id, 'vencimiento')) continue;
+            correosEnviados.add(correo);
+            
+            const fechaFormateada = new Date(ven_licencia).toLocaleDateString("es-ES");
+            const contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaFormateada}. Por favor, renueva a tiempo.`;
+            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
+            
+            const htmlContent = generateEmailTemplate("Recordatorio: Vencimiento de Licencia", "Renovar Licencia", "https://example.com/renovar-licencia");
+            await sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent);
+        }
+        res.status(200).json({ message: "Alertas enviadas correctamente." });
+    } catch (error) {
+        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+    }
+};
+
+/**
+ * Envía alertas sobre vencimientos de revisión técnica.
+ */
+export const sendRevisionTecnicaAlerts = async (req, res) => {
+    try {
+        const correosEnviados = new Set();
+        const query = `SELECT 
+        m.id AS maquina_id,
+        m.codigo,
+        m.patente,
+        m.ven_rev_tec,
+        (
+            SELECT GROUP_CONCAT(
+                JSON_OBJECT(
+                    'id', u.id,
+                    'nombre', CONCAT(p.nombre, ' ', p.apellido),
+                    'correo', u.correo
+                )
+            )
+            FROM conductor_maquina cm
+            INNER JOIN personal p ON cm.personal_id = p.id
+            INNER JOIN usuario u ON p.id = u.personal_id
+            WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
+        ) AS conductores
+    FROM maquina m
+    WHERE m.isDeleted = 0 
+      AND m.ven_rev_tec IS NOT NULL 
+      AND m.ven_rev_tec <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+    
+    const [rows] = await pool.query(query);
+
+    if (rows.length === 0) {
+        return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
+    }
+
+    for (const maquina of rows) {
+        const { conductores } = maquina;
+        if (!conductores) continue;
+
+        const conductoresArray = JSON.parse(`[${conductores}]`);
+        for (const conductor of conductoresArray) {
+            const { nombre, correo } = conductor;
+
             if (correosEnviados.has(correo)) continue; // Verificar duplicados
             correosEnviados.add(correo); // Agregar al conjunto
 
-            const fechaFormateada = new Date(ven_licencia).toLocaleDateString("es-ES");
-
-            // **Nueva funcionalidad: Calcular la diferencia en días entre la fecha actual y la fecha de vencimiento**
-            const fechaVencimiento = new Date(ven_licencia);
-            const fechaActual = new Date();
-            const diferenciaDias = Math.floor((fechaVencimiento - fechaActual) / (1000 * 60 * 60 * 24));
-
-            let contenido = '';
-
-            // **Ajustar el mensaje según los días restantes o días de retraso**
-            if (diferenciaDias > 0) {
-                // Mensaje para licencias que vencen en los próximos días
-                contenido = `Hola ${nombre} ${apellido}, te recordamos que tu licencia vence en ${diferenciaDias} días (${fechaFormateada}). Por favor, asegúrate de renovarlo a tiempo.`;
-            } else if (diferenciaDias === 0) {
-                // Mensaje para el último día antes de la expiración de la licencia
-                contenido = `Hola ${nombre} ${apellido}, hoy es el último día para renovar tu licencia (${fechaFormateada}). Por favor, renueva tu licencia lo antes posible.`;
-            } else {
-                // Mensaje para licencias vencidas, calculando los días de retraso
-                const diasRetraso = Math.abs(diferenciaDias);
-                contenido = `Hola ${nombre} ${apellido}, tu licencia está vencida hace ${diasRetraso} días (${fechaFormateada}). Por favor, renueva tu licencia lo antes posible para evitar inconvenientes.`;
-            }
-
-            // Usar la función saveAndEmitAlert para guardar y emitir la alerta
-            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
-
-            // Enviar el correo con el contenido ajustado según los días de vencimiento o retraso
+            const contenido = `Hola ${nombre}, te informamos que la revisión técnica de la máquina con patente ${maquina.patente} y código ${maquina.codigo} vence el ${new Date(maquina.ven_rev_tec).toLocaleDateString("es-ES")}. Por favor, toma las medidas necesarias.`;
+            
             const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",
-                "Renovar Licencia",
-                "https://example.com/renovar-licencia"
+                "Recordatorio: Vencimiento de Revisión Técnica",
+                "Ver Detalles",
+                "https://example.com/detalles-revision"
             );
 
             await sendEmail(
                 correo,
-                "Recordatorio: Vencimiento de Licencia",
+                "Recordatorio: Vencimiento de Revisión Técnica",
                 contenido,
                 htmlContent
             );
-        }
 
-        res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
+            await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
+        }
+    }
+
+    res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
-//TODO: EN CASO DE ERROR, REVISAR DESDE AQUÍ
+
 /**
- * Enviar alertas sobre vencimientos de revisión técnica a los conductores asignados.
+ * Envía alertas sobre mantenciones.
  */
-export const sendRevisionTecnicaAlerts = async (req, res) => {
-    try {
-        const correosEnviados = new Set(); // Conjunto para verificar duplicados
-
-        const query = `SELECT 
-            m.id AS maquina_id,
-            m.codigo,
-            m.patente,
-            m.ven_rev_tec,
-            (
-                SELECT GROUP_CONCAT(
-                    JSON_OBJECT(
-                        'id', u.id,
-                        'nombre', CONCAT(p.nombre, ' ', p.apellido),
-                        'correo', u.correo
-                    )
-                )
-                FROM conductor_maquina cm
-                INNER JOIN personal p ON cm.personal_id = p.id
-                INNER JOIN usuario u ON p.id = u.personal_id
-                WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
-            ) AS conductores
-        FROM maquina m
-        WHERE m.isDeleted = 0 
-          AND m.ven_rev_tec IS NOT NULL 
-          AND m.ven_rev_tec <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-        
-        const [rows] = await pool.query(query);
-
-        if (rows.length === 0) {
-            return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
-        }
-
-        for (const maquina of rows) {
-            const { conductores } = maquina;
-            if (!conductores) continue;
-
-            const conductoresArray = JSON.parse(`[${conductores}]`);
-            for (const conductor of conductoresArray) {
-                const { nombre, correo } = conductor;
-
-                if (correosEnviados.has(correo)) continue; // Verificar duplicados
-                correosEnviados.add(correo); // Agregar al conjunto
-
-                const contenido = `Hola ${nombre}, te informamos que la revisión técnica de la máquina con patente ${maquina.patente} y código ${maquina.codigo} vence el ${new Date(maquina.ven_rev_tec).toLocaleDateString("es-ES")}. Por favor, toma las medidas necesarias.`;
-                
-                const htmlContent = generateEmailTemplate(
-                    "Recordatorio: Vencimiento de Revisión Técnica",
-                    "Ver Detalles",
-                    "https://example.com/detalles-revision"
-                );
-
-                await sendEmail(
-                    correo,
-                    "Recordatorio: Vencimiento de Revisión Técnica",
-                    contenido,
-                    htmlContent
-                );
-
-                await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
-            }
-        }
-
-        res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
-    } catch (error) {
-        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
-    }
-};
-//TODO: Pulir contenido que viene en el correo
 export const sendMantencionAlerts = async (req, res) => {
     try {
-        const correosEnviados = new Set(); // Conjunto para verificar duplicados
+        const correosEnviados = new Set();
         const alertasEnviadas = new Set(); // Conjunto para verificar alertas enviadas
 
         const query = `SELECT 
@@ -298,11 +269,12 @@ export const sendMantencionAlerts = async (req, res) => {
     }
 };
 
-// Nueva función para enviar alertas de mantenciones próximas
+/**
+ * Envía alertas sobre mantenciones próximas.
+ */
 export const sendProximaMantencionAlerts = async (req, res) => {
     try {
-        const correosEnviados = new Set(); // Conjunto para verificar duplicados
-
+        const correosEnviados = new Set();
         const query = `SELECT 
             m.id,
             m.descripcion,
@@ -366,7 +338,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
 
         res.status(200).json({ message: "Alertas de mantenciones enviadas correctamente" });
     } catch (error) {
-        res.status(500).json({ message: "Error interno del servidor", error: error.message });
+        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
 

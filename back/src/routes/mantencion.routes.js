@@ -51,7 +51,7 @@ router.get(base_route,  getMantencionesAllDetailsSearch);
 router.get(`${base_route}/:id`, checkPermission('getMantencion'), getMantencionAllDetailsById);
 
 /* router.post(base_route, checkPermission('createMantencion'), createMantencionBitacora); */
-router.post(`${base_route}/old`, checkPermission('createMantencion'), createMantencion);
+router.post(`${base_route}/old`, checkPermission('createMantencion'), uploadFields,createMantencion);
 router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMantencion);
 router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);
 

@@ -216,7 +216,7 @@ export const createCargaCombustible = async (req, res) => {
         [bitacoraIdNumber]
       );
   
-      if (!bitacoraInfo.length) {
+      if (!bitacoraInfo ||!bitacoraInfo.length) {
         return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
       }
   

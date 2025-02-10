@@ -77,64 +77,98 @@ describe("Carga Combustible Controller", () => {
   });
 
   // Test para crear una nueva carga de combustible
-  describe("POST /api/carga_combustible", () => {
+  describe("POST /api/carga_combustible/simple", () => {
     it("debe crear una nueva carga de combustible", async () => {
       const newCarga = {
-        "bitacora.compania_id": 1,
-        "bitacora.personal_id": 29,
-        "bitacora.maquina_id": 8,
-        "bitacora.clave_id": 4,
-        "bitacora.direccion": "Dirección de prueba",
-        "bitacora.f_salida": "11-12-2024",
-        "bitacora.h_salida": "08:00",
-        "bitacora.f_llegada": "11-12-2024",
-        "bitacora.h_llegada": "10:00",
-        "bitacora.km_salida": 1000.5,
-        "bitacora.km_llegada": 1050.5,
-        "bitacora.hmetro_salida": 150.2,
-        "bitacora.hmetro_llegada": 155.2,
-        "bitacora.hbomba_salida": 200.1,
-        "bitacora.hbomba_llegada": 210.1,
-        "bitacora.obs": "Observaciones de la bitácora",
+        bitacora_id: 1,
         litros: 50,
         valor_mon: 150.75,
       };
-      
-
+    
+      // Simulando la respuesta de la base de datos para la consulta de la bitácora
+      mockQueryResponse([
+        [{ id: 1, codigo: "ABC123", compania_id: 1 }], // Respuesta simulada que la bitácora existe y no está eliminada
+        [], // No existe una carga de combustible asociada (cargaExistente)
+        [], // No existe una mantención asociada (mantencionExistente)
+      ]);
+    
+      // Simulando la inserción de la nueva carga de combustible
       mockQueryResponse([{ insertId: 1 }]);
-
+    
       const response = await request(app)
-        .post("/api/carga_combustible")
+        .post("/api/carga_combustible/simple")
         .set("Authorization", `Bearer ${token}`)
         .send(newCarga);
-
-      expect(response.status).toBe(201);
+    
+      console.log(response.body);
+    
+      // Validar que la respuesta sea la esperada
+      expect(response.status).toBe(200);
       expect(response.body.id).toBe(1);
       expect(response.body.litros).toBe(newCarga.litros);
       expect(response.body.valor_mon).toBe(newCarga.valor_mon);
     });
-
+    
+    
+    
+  
     it("debe devolver un error 400 si los datos son inválidos", async () => {
       const invalidCarga = { bitacora_id: 1, litros: -10, valor_mon: -500 }; // Datos inválidos
-
+  
       const response = await request(app)
-        .post("/api/carga_combustible")
+        .post("/api/carga_combustible/simple")
         .set("Authorization", `Bearer ${token}`)
         .send(invalidCarga);
-
-      expect(response.status).toBe(400);
+  
       expect(response.status).toBe(400);
       expect(response.body.errors).toEqual([
-        "Tipo de datos inválido en la bitácora",
-        "Ingrese valor válido para 'litros'",
-        "Ingrese valor válido para 'valor_mon'",
-        "km_salida es obligatorio",
-        "km_llegada es obligatorio",
-        "hmetro_salida es obligatorio",
-        "hmetro_llegada es obligatorio",
-        "hbomba_salida es obligatorio",
-        "hbomba_llegada es obligatorio",
+        "El valor no puede ser negativo.",
+        "El valor no puede ser negativo.",
       ]);
+    });
+  
+    it("debe devolver un error 400 si la bitácora no existe o está eliminada", async () => {
+      const cargaSinBitacora = {
+        bitacora_id: 999, // ID de bitácora inexistente
+        litros: 50,
+        valor_mon: 150.75,
+      };
+  
+      // Simulando respuesta con bitácora no existente
+      mockQueryResponse([]);
+  
+      const response = await request(app)
+        .post("/api/carga_combustible/simple")
+        .set("Authorization", `Bearer ${token}`)
+        .send(cargaSinBitacora);
+  
+        console.log(response.body)
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("Bitácora no existe o está eliminada");
+    });
+  
+    it("debe devolver un error 400 si ya existe un servicio asociado a la bitácora", async () => {
+      const cargaConServicioExistente = {
+        bitacora_id: 1,
+        litros: 50,
+        valor_mon: 150.75,
+      };
+  
+      // Simulando que la bitácora existe
+      mockQueryResponse([
+        [{ id: 1, codigo: "ABC123", compania_id: 1 }], // Respuesta para la consulta de bitácora
+        [{ "1": 1 }], // Simula que ya existe una carga
+        [] // No hay mantención asociada
+      ]);
+  
+      const response = await request(app)
+        .post("/api/carga_combustible/simple")
+        .set("Authorization", `Bearer ${token}`)
+        .send(cargaConServicioExistente);
+  
+      console.log(response.body);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("Ya existe un servicio asociado a esta bitácora");
     });
   });
 

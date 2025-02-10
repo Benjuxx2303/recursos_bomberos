@@ -309,7 +309,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
 // Crear una nueva mantención
 export const createMantencion = async (req, res) => {
   try {
-    const {
+    let {
       bitacora_id,
       maquina_id,
       taller_id,
@@ -322,6 +322,8 @@ export const createMantencion = async (req, res) => {
       // aprobada,
       aprobada_por, // **Nuevo campo opcional**
     } = req.body;
+
+    console.log(typeof fec_termino)
 
     let errors = [];
     const estado_mantencion_id = 1;
@@ -426,9 +428,10 @@ export const createMantencion = async (req, res) => {
     }
 
     // **Insertar mantención usando formatDateTime para las fechas** (modificado)
-    const mysqlFecTermino = undefined
+    const mysqlFecTermino = typeof fec_termino !== 'undefined' ? formatDateTime(fec_termino) : null;
+    console.log(mysqlFecTermino)
     const mysqlFecInicio = formatDateTime(fec_inicio);  // **Usamos formatDateTime aquí**
-    if (fec_termino !== undefined) mysqlFecTermino = formatDateTime(fec_termino);  // **Usamos formatDateTime aquí**
+    // if (fec_termino !== undefined) mysqlFecTermino = formatDateTime(fec_termino);  // **Usamos formatDateTime aquí**
 
     // Insertar mantención
     const [result] = await pool.query(

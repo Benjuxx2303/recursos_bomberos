@@ -74,10 +74,13 @@ export const getNotificationUsers = async (filters = {}) => {
  * // Enviar una notificación de un tipo específico
  * await saveAndEmitAlert(1, 'Nueva mantención asignada', 'mantencion');
  */
-export const saveAndEmitAlert = async (userId, contenido, tipo = 'general') => {
+/**
+ * Guarda la alerta en la base de datos y la emite en tiempo real.
+ */
+export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') => {
     try {
-        if (!userId || !contenido) {
-            throw new Error('userId y contenido son requeridos');
+        if (!usuario_id || !contenido) {
+            throw new Error('usuario_id y contenido son requeridos');
         }
 
         // Verificar que el usuario existe y obtener su información
@@ -87,27 +90,28 @@ export const saveAndEmitAlert = async (userId, contenido, tipo = 'general') => {
              INNER JOIN personal p ON u.personal_id = p.id
              INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
              WHERE u.id = ? AND u.isDeleted = 0`,
-            [userId]
+            [usuario_id]
         );
 
         if (userInfo.length === 0) {
-            throw new Error(`Usuario no encontrado o inactivo: ${userId}`);
+            throw new Error(`Usuario no encontrado o inactivo: ${usuario_id}`);
         }
 
-        // Crear la alerta
+        // Crear la alerta con el usuario_id registrado en la tabla alerta
         const [result] = await pool.query(
-            'INSERT INTO alerta (contenido, tipo, createdAt, isRead) VALUES (?, ?, NOW(), false)',
-            [contenido, tipo]
+            'INSERT INTO alerta (contenido, tipo, createdAt, usuario_id, isRead) VALUES (?, ?, NOW(), ?, false)',
+            [contenido, tipo, usuario_id]
         );
 
         // Crear relación usuario-alerta
         await pool.query(
             'INSERT INTO usuario_alerta (usuario_id, alerta_id) VALUES (?, ?)',
-            [userId, result.insertId]
+            [usuario_id, result.insertId]
         );
-        
+
         const alertaData = {
             id: result.insertId,
+            usuario_id,
             contenido,
             tipo,
             createdAt: new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' }),
@@ -115,11 +119,11 @@ export const saveAndEmitAlert = async (userId, contenido, tipo = 'general') => {
         };
 
         // Enviar notificación WebSocket
-        await emitNotification(userId, alertaData);
+        await emitNotification(usuario_id, alertaData);
         
         return alertaData;
     } catch (error) {
-        console.error('Error en saveAndEmitAlert:', error);
+        console.error("Error al guardar la alerta:", error);
         throw error;
     }
 };

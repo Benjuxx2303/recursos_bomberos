@@ -93,35 +93,18 @@ export const sendVencimientoAlerts = async (req, res) => {
             const tresSemanasAntes = new Date(fechaVencimiento);
             tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
 
-            // Obtener correos de los superiores
-            const superiorsQuery = `SELECT u.correo FROM personal p
-                INNER JOIN usuario u ON p.id = u.personal_id
-                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                WHERE rp.nombre = 'TELECOM' AND p.isDeleted = 0`;
-            const [superiors] = await pool.query(superiorsQuery);
-            const superiorEmails = superiors.map(superior => superior.correo);
-
             let contenido;
-            let contenidoSuperior;
             if (hoy < dosMesesAntes) {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
-                contenidoSuperior = `La licencia de ${nombre} ${apellido} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, que se renueve a la brevedad.`;
             } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
-                contenidoSuperior = `La licencia de ${nombre} ${apellido} está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Que se le dé una prioridad alta.`;
             } else {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
-                contenidoSuperior = `Licencia vencida de ${nombre} ${apellido}, no puede circular. Dar máxima prioridad.`;
             }
 
             const htmlContent = generateEmailTemplate("Recordatorio: Vencimiento de Licencia", "Renovar Licencia", "https://example.com/renovar-licencia");
             await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
             await sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent);
-
-            // Enviar alertas a los superiores
-            for (const superiorEmail of superiorEmails) {
-                await sendEmail(superiorEmail, "Alerta de Vencimiento de Licencia", contenidoSuperior, htmlContent);
-            }
         }
         res.status(200).json({ message: "Alertas enviadas correctamente." });
     } catch (error) {
@@ -162,7 +145,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         }
 
         for (const maquina of rows) {
-            const { conductores, ven_rev_tec, codigo } = maquina;
+            const { conductores, ven_rev_tec } = maquina;
             if (!conductores) continue;
 
             const conductoresArray = JSON.parse(`[${conductores}]`);
@@ -173,14 +156,6 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
             const tresSemanasAntes = new Date(fechaVencimiento);
             tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
 
-            // Obtener correos de los superiores
-            const superiorsQuery = `SELECT u.correo FROM personal p
-                INNER JOIN usuario u ON p.id = u.personal_id
-                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                WHERE rp.nombre = 'TELECOM' AND p.isDeleted = 0`;
-            const [superiors] = await pool.query(superiorsQuery);
-            const superiorEmails = superiors.map(superior => superior.correo);
-
             for (const conductor of conductoresArray) {
                 const { nombre, correo } = conductor;
 
@@ -188,16 +163,12 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                 correosEnviados.add(correo); // Agregar al conjunto
 
                 let contenido;
-                let contenidoSuperior;
                 if (hoy < dosMesesAntes) {
                     contenido = `Hola ${nombre}, la revisión técnica está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
-                    contenidoSuperior = `La revisión técnica del carro al nombre de ${nombre}, con fecha de vencimiento el ${fechaVencimiento.toLocaleDateString("es-ES")}, por favor que vaya a la brevedad.`;
                 } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
                     contenido = `Hola ${nombre}, la revisión técnica está demasiado próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
-                    contenidoSuperior = `La revisión técnica del carro ${codigo} al nombre de ${nombre} está previo a vencer, que se le dé una prioridad alta.`;
                 } else {
                     contenido = `Hola ${nombre}, este vehículo ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
-                    contenidoSuperior = `Revisión técnica vencida del carro ${codigo}, a nombre de ${nombre}, no puede circular, dar máxima prioridad.`;
                 }
 
                 const htmlContent = generateEmailTemplate(
@@ -208,11 +179,6 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 
                 await sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent);
                 await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
-
-                // Enviar alertas a los superiores
-                for (const superiorEmail of superiorEmails) {
-                    await sendEmail(superiorEmail, "Alerta de Revisión Técnica", contenidoSuperior, htmlContent);
-                }
             }
         }
 

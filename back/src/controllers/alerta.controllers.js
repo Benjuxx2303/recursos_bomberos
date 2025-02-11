@@ -272,7 +272,7 @@ export const sendMantencionAlerts = async (req, res) => {
 /**
  * Envía alertas sobre mantenciones próximas.
  */
-export const sendProximaMantencionAlerts = async (req, res) => {
+export const sendProximaMantencionAlerts = async () => {
     try {
         const correosEnviados = new Set();
         const query = `SELECT 

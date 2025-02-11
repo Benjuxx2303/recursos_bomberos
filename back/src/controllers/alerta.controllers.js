@@ -70,9 +70,7 @@ const alertaYaEnviada = async (usuario_id, tipo) => {
     return rows[0].count > 0;
 };
 
-/**
- * Envía alertas de vencimiento de licencias.
- */
+// Envía alertas de vencimiento de licencias.
 export const sendVencimientoAlerts = async (req, res) => {
     try {
         const correosEnviados = new Set();
@@ -88,12 +86,42 @@ export const sendVencimientoAlerts = async (req, res) => {
             if (correosEnviados.has(correo) || await alertaYaEnviada(usuario_id, 'vencimiento')) continue;
             correosEnviados.add(correo);
             
-            const fechaFormateada = new Date(ven_licencia).toLocaleDateString("es-ES");
-            const contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaFormateada}. Por favor, renueva a tiempo.`;
-            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
-            
+            const fechaVencimiento = new Date(ven_licencia);
+            const hoy = new Date();
+            const dosMesesAntes = new Date(fechaVencimiento);
+            dosMesesAntes.setMonth(fechaVencimiento.getMonth() - 2);
+            const tresSemanasAntes = new Date(fechaVencimiento);
+            tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
+
+            // Obtener correos de los superiores
+            const superiorsQuery = `SELECT u.correo FROM personal p
+                INNER JOIN usuario u ON p.id = u.personal_id
+                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+                WHERE rp.nombre = 'TELECOM' AND p.isDeleted = 0`;
+            const [superiors] = await pool.query(superiorsQuery);
+            const superiorEmails = superiors.map(superior => superior.correo);
+
+            let contenido;
+            let contenidoSuperior;
+            if (hoy < dosMesesAntes) {
+                contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
+                contenidoSuperior = `La licencia de ${nombre} ${apellido} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, que se renueve a la brevedad.`;
+            } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
+                contenido = `Hola ${nombre} ${apellido}, tu licencia está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
+                contenidoSuperior = `La licencia de ${nombre} ${apellido} está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Que se le dé una prioridad alta.`;
+            } else {
+                contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
+                contenidoSuperior = `Licencia vencida de ${nombre} ${apellido}, no puede circular. Dar máxima prioridad.`;
+            }
+
             const htmlContent = generateEmailTemplate("Recordatorio: Vencimiento de Licencia", "Renovar Licencia", "https://example.com/renovar-licencia");
+            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
             await sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent);
+
+            // Enviar alertas a los superiores
+            for (const superiorEmail of superiorEmails) {
+                await sendEmail(superiorEmail, "Alerta de Vencimiento de Licencia", contenidoSuperior, htmlContent);
+            }
         }
         res.status(200).json({ message: "Alertas enviadas correctamente." });
     } catch (error) {
@@ -101,72 +129,94 @@ export const sendVencimientoAlerts = async (req, res) => {
     }
 };
 
-/**
- * Envía alertas sobre vencimientos de revisión técnica.
- */
+// Envía alertas sobre vencimientos de revisión técnica.
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
         const correosEnviados = new Set();
         const query = `SELECT 
-        m.id AS maquina_id,
-        m.codigo,
-        m.patente,
-        m.ven_rev_tec,
-        (
-            SELECT GROUP_CONCAT(
-                JSON_OBJECT(
-                    'id', u.id,
-                    'nombre', CONCAT(p.nombre, ' ', p.apellido),
-                    'correo', u.correo
+            m.id AS maquina_id,
+            m.codigo,
+            m.patente,
+            m.ven_rev_tec,
+            (
+                SELECT GROUP_CONCAT(
+                    JSON_OBJECT(
+                        'id', u.id,
+                        'nombre', CONCAT(p.nombre, ' ', p.apellido),
+                        'correo', u.correo
+                    )
                 )
-            )
-            FROM conductor_maquina cm
-            INNER JOIN personal p ON cm.personal_id = p.id
-            INNER JOIN usuario u ON p.id = u.personal_id
-            WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
-        ) AS conductores
-    FROM maquina m
-    WHERE m.isDeleted = 0 
-      AND m.ven_rev_tec IS NOT NULL 
-      AND m.ven_rev_tec <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-    
-    const [rows] = await pool.query(query);
+                FROM conductor_maquina cm
+                INNER JOIN personal p ON cm.personal_id = p.id
+                INNER JOIN usuario u ON p.id = u.personal_id
+                WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
+            ) AS conductores
+        FROM maquina m
+        WHERE m.isDeleted = 0 
+          AND m.ven_rev_tec IS NOT NULL`;
 
-    if (rows.length === 0) {
-        return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
-    }
+        const [rows] = await pool.query(query);
 
-    for (const maquina of rows) {
-        const { conductores } = maquina;
-        if (!conductores) continue;
-
-        const conductoresArray = JSON.parse(`[${conductores}]`);
-        for (const conductor of conductoresArray) {
-            const { nombre, correo } = conductor;
-
-            if (correosEnviados.has(correo)) continue; // Verificar duplicados
-            correosEnviados.add(correo); // Agregar al conjunto
-
-            const contenido = `Hola ${nombre}, te informamos que la revisión técnica de la máquina con patente ${maquina.patente} y código ${maquina.codigo} vence el ${new Date(maquina.ven_rev_tec).toLocaleDateString("es-ES")}. Por favor, toma las medidas necesarias.`;
-            
-            const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Revisión Técnica",
-                "Ver Detalles",
-                "https://example.com/detalles-revision"
-            );
-
-            await sendEmail(
-                correo,
-                "Recordatorio: Vencimiento de Revisión Técnica",
-                contenido,
-                htmlContent
-            );
-
-            await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
+        if (rows.length === 0) {
+            return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
         }
-    }
 
-    res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
+        for (const maquina of rows) {
+            const { conductores, ven_rev_tec, codigo } = maquina;
+            if (!conductores) continue;
+
+            const conductoresArray = JSON.parse(`[${conductores}]`);
+            const fechaVencimiento = new Date(ven_rev_tec);
+            const hoy = new Date();
+            const dosMesesAntes = new Date(fechaVencimiento);
+            dosMesesAntes.setMonth(fechaVencimiento.getMonth() - 2);
+            const tresSemanasAntes = new Date(fechaVencimiento);
+            tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
+
+            // Obtener correos de los superiores
+            const superiorsQuery = `SELECT u.correo FROM personal p
+                INNER JOIN usuario u ON p.id = u.personal_id
+                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+                WHERE rp.nombre = 'TELECOM' AND p.isDeleted = 0`;
+            const [superiors] = await pool.query(superiorsQuery);
+            const superiorEmails = superiors.map(superior => superior.correo);
+
+            for (const conductor of conductoresArray) {
+                const { nombre, correo } = conductor;
+
+                if (correosEnviados.has(correo)) continue; // Verificar duplicados
+                correosEnviados.add(correo); // Agregar al conjunto
+
+                let contenido;
+                let contenidoSuperior;
+                if (hoy < dosMesesAntes) {
+                    contenido = `Hola ${nombre}, la revisión técnica está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
+                    contenidoSuperior = `La revisión técnica del carro al nombre de ${nombre}, con fecha de vencimiento el ${fechaVencimiento.toLocaleDateString("es-ES")}, por favor que vaya a la brevedad.`;
+                } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
+                    contenido = `Hola ${nombre}, la revisión técnica está demasiado próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
+                    contenidoSuperior = `La revisión técnica del carro ${codigo} al nombre de ${nombre} está previo a vencer, que se le dé una prioridad alta.`;
+                } else {
+                    contenido = `Hola ${nombre}, este vehículo ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
+                    contenidoSuperior = `Revisión técnica vencida del carro ${codigo}, a nombre de ${nombre}, no puede circular, dar máxima prioridad.`;
+                }
+
+                const htmlContent = generateEmailTemplate(
+                    "Recordatorio: Vencimiento de Revisión Técnica",
+                    "Ver Detalles",
+                    "https://example.com/detalles-revision"
+                );
+
+                await sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent);
+                await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
+
+                // Enviar alertas a los superiores
+                for (const superiorEmail of superiorEmails) {
+                    await sendEmail(superiorEmail, "Alerta de Revisión Técnica", contenidoSuperior, htmlContent);
+                }
+            }
+        }
+
+        res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }

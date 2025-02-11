@@ -102,12 +102,14 @@ export const sendEmail = async (to, subject, text, html) => {
     }
 };
 
+
 /**
- * Generates an HTML email template with the given title, link text, and link.
+ * Generates an HTML email template.
  *
  * @param {string} title - The title of the email.
- * @param {string} linkText - The text to display for the link.
- * @param {string} link - The URL for the link.
+ * @param {string} content - The main content of the email.
+ * @param {string} actionUrl - The URL for the action button.
+ * @param {string} actionText - The text for the action button.
  * @returns {string} The generated HTML email template.
  */
 export const generateEmailTemplate = (title, content, actionUrl, actionText) => {

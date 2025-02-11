@@ -272,7 +272,7 @@ export const sendMantencionAlerts = async (req, res) => {
 /**
  * Envía alertas sobre mantenciones próximas.
  */
-export const sendProximaMantencionAlerts = async () => {
+export const sendProximaMantencionAlerts = async (req, res) => {
     try {
         const correosEnviados = new Set();
         const query = `SELECT 
@@ -324,7 +324,8 @@ export const sendProximaMantencionAlerts = async () => {
                 const htmlContent = generateEmailTemplate(
                     'Próxima Mantención Programada',
                     'Ver Detalles',
-                    `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`
+                    `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`,
+                    `Acceder`
                 );
 
                 await sendEmail(

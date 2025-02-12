@@ -69,48 +69,105 @@ export const getAlertasByUsuario = async (req, res) => {
 // Función para enviar alertas de vencimiento de licencias
 export const sendVencimientoAlerts = async (req, res) => {
     try {
-        const correosEnviados = new Set();
-        const [rows] = await pool.query(`
-            SELECT p.id AS personal_id, p.nombre, p.apellido, p.ven_licencia, u.id AS usuario_id, u.correo
+        // Obtener los correos de los cargos importantes
+        const [correosCargosImportantes] = await pool.query(`
+            SELECT DISTINCT u.correo
             FROM personal p
             INNER JOIN usuario u ON p.id = u.personal_id
-            WHERE p.isDeleted = 0 AND u.isDeleted = 0
-              AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
+            AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
         `);
 
-        for (const personal of rows) {
-            const { nombre, apellido, ven_licencia, correo, usuario_id } = personal;
+        // Crear un conjunto para almacenar los correos ya enviados
+        const correosEnviados = new Set();
 
+        // Consulta a la base de datos para obtener la información de personal y usuario con licencias a punto de vencer
+        const [rows] = await pool.query(`
+            SELECT p.id AS personal_id, p.nombre, p.apellido, p.ven_licencia, u.id AS usuario_id, u.correo, rp.nombre AS rol
+            FROM personal p
+            INNER JOIN usuario u ON p.id = u.personal_id
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
+            AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY);
+        `);
+
+        // Recorre todos los registros obtenidos de la consulta
+        const emailPromises = [];
+
+        for (const personal of rows) {
+            const { nombre, apellido, ven_licencia, correo, usuario_id, rol } = personal;
+
+            // Si ya se ha enviado un correo a este usuario, se salta el registro
             if (correosEnviados.has(correo)) continue;
+
+            // Añadir el correo al conjunto para no enviarle más de una alerta
             correosEnviados.add(correo);
 
+            // Convertir la fecha de vencimiento de la licencia a un objeto Date
             const fechaVencimiento = new Date(ven_licencia);
             const hoy = new Date();
+
+            // Calcular la fecha que representa dos meses antes del vencimiento
             const dosMesesAntes = new Date(fechaVencimiento);
             dosMesesAntes.setMonth(fechaVencimiento.getMonth() - 2);
+
+            // Calcular la fecha que representa tres semanas antes del vencimiento
             const tresSemanasAntes = new Date(fechaVencimiento);
             tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
 
+            // Variable para almacenar el contenido del correo
             let contenido;
+            let contenidoTelecom; // TODO: Guardar en la base de datos las alertas de para TELECOM
+
+            // Verifica las diferentes condiciones para determinar el tipo de recordatorio
             if (hoy < dosMesesAntes) {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
+                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
             } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
+                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia`;
             } else {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
+                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad`;
             }
 
+            // Generar el contenido HTML para el correo electrónico usando una plantilla
             const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia", 
-                contenido, 
-                `${process.env.FRONTEND_URL}`, // TODO: ver que endpoint del front se va a usar. de momento redirecciona a la pagina principal
-                `Acceder`
+                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
+                contenido,  // Cuerpo del correo
+                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
+                `Acceder`  // Texto del enlace en el correo
             );
-            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
-            await sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent);
+
+            // Generar el contenido HTML para el correo de TELECOM
+            const htmlContentTelecom = generateEmailTemplate(
+                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
+                contenidoTelecom,  // Cuerpo del correo
+                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
+                `Acceder`  // Texto del enlace en el correo
+            );
+
+            // Enviar las alertas en paralelo usando Promise.all
+            emailPromises.push(
+                // Enviar el correo al usuario
+                sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
+                // Enviar los correos a los cargos importantes
+                ...correosCargosImportantes.map(({ correo: correoCargo }) =>
+                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom)
+                ),
+                // Guardar y emitir la alerta de vencimiento
+                saveAndEmitAlert(usuario_id, contenido, 'vencimiento')
+            );
         }
+
+        // Ejecutar todas las promesas de correo en paralelo
+        await Promise.all(emailPromises);
+
+        // Responder con un mensaje indicando que las alertas se enviaron correctamente
         res.status(200).json({ message: "Alertas enviadas correctamente." });
     } catch (error) {
+        // En caso de error, responder con un mensaje de error y el detalle
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };

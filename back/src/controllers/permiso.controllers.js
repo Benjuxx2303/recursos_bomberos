@@ -13,10 +13,9 @@ export const getCategorias = async (req, res) => {
     }
 };
 
-// Devuelve todos los permisos con filtros opcionales
 export const getPermisos = async (req, res) => {
     try {
-        const { categoriaId, rolPersonalId, search } = req.query;
+        const { categoriaId, rolPersonalId, search, assignedStatus } = req.query;
         let query = `
             SELECT p.*, c.nombre as categoria_nombre 
             FROM permiso p
@@ -30,20 +29,30 @@ export const getPermisos = async (req, res) => {
             params.push(parseInt(categoriaId));
         }
 
-        if (rolPersonalId) {
-            query += ` AND EXISTS (
-                SELECT 1 FROM rol_permisos rp 
-                WHERE rp.permiso_id = p.id 
-                AND rp.rol_personal_id = ?
-                AND (rp.isDeleted IS NULL OR rp.isDeleted = false)
-            )`;
-            params.push(parseInt(rolPersonalId));
-        }
-
         if (search) {
             query += " AND (p.nombre LIKE ? OR p.descripcion LIKE ?)";
             const searchTerm = `%${search}%`;
             params.push(searchTerm, searchTerm);
+        }
+
+        if (assignedStatus && rolPersonalId) {
+            if (assignedStatus === "asignado") {
+                query += ` AND EXISTS (
+                    SELECT 1 FROM rol_permisos rp 
+                    WHERE rp.permiso_id = p.id 
+                    AND rp.rol_personal_id = ?
+                    AND (rp.isDeleted IS NULL OR rp.isDeleted = false)
+                )`;
+                params.push(parseInt(rolPersonalId));
+            } else if (assignedStatus === "no_asignado") {
+                query += ` AND NOT EXISTS (
+                    SELECT 1 FROM rol_permisos rp 
+                    WHERE rp.permiso_id = p.id 
+                    AND rp.rol_personal_id = ?
+                    AND (rp.isDeleted IS NULL OR rp.isDeleted = false)
+                )`;
+                params.push(parseInt(rolPersonalId));
+            }
         }
 
         const [rows] = await pool.query(query, params);
@@ -55,6 +64,7 @@ export const getPermisos = async (req, res) => {
         });
     }
 };
+
 
 // Devuelve permiso por ID
 export const getPermisoById = async (req, res) => {

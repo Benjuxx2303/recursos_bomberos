@@ -1,0 +1,8 @@
+{
+    "execMap": {
+        "js": "cls && node"
+    },
+    "events": {
+        "restart": "cls"
+    }
+}

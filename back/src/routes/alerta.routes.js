@@ -14,15 +14,31 @@ import {
 const router = Router();
 const base_route = '/alerta';
 
+// Función para simular el objeto 'res' en el cron job
+const createResSimulado = () => {
+    const resSimulado = {
+        status: (statusCode) => {
+            console.log(`Status: ${statusCode}`);
+            return resSimulado; // Encadenamos el objeto resSimulado para poder llamar json() después
+        },
+        json: (message) => {
+            console.log('Response:', message);
+        }
+    };
+    
+    return resSimulado; // Regresamos el objeto resSimulado
+};
+
 // Configuración de los cron jobs para las alertas automáticas
 // Ejecutar todos los días a las 8:00 AM
 cron.schedule('0 8 * * *', async () => {
     try {
+        const resSimulado = createResSimulado();
         await Promise.all([
-            sendVencimientoAlerts(),
-            sendRevisionTecnicaAlerts(),
-            sendMantencionAlerts(),
-            sendProximaMantencionAlerts()
+            sendVencimientoAlerts({}, resSimulado),
+            sendRevisionTecnicaAlerts({}, resSimulado),
+            sendMantencionAlerts({}, resSimulado),
+            sendProximaMantencionAlerts({}, resSimulado)
         ]);
         console.log('Alertas programadas enviadas exitosamente');
     } catch (error) {
@@ -33,7 +49,8 @@ cron.schedule('0 8 * * *', async () => {
 // Verificar mantenciones próximas cada 4 horas
 cron.schedule('0 */4 * * *', async () => {
     try {
-        await sendProximaMantencionAlerts();
+        const resSimulado = createResSimulado();
+        await sendProximaMantencionAlerts({}, resSimulado);
         console.log('Verificación de mantenciones próximas completada');
     } catch (error) {
         console.error('Error al verificar mantenciones próximas:', error);
@@ -43,7 +60,8 @@ cron.schedule('0 */4 * * *', async () => {
 // Limpiar alertas antiguas todos los días a la 1:00 AM
 cron.schedule('0 1 * * *', async () => {
     try {
-        await deleteOldAlerts();
+        const resSimulado = createResSimulado();
+        await deleteOldAlerts({}, resSimulado);
     } catch (error) {
         console.error('Error al limpiar alertas antiguas:', error);
     }

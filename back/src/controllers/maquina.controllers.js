@@ -89,6 +89,9 @@ export const getMaquinasDetailsPage = async (req, res) => {
         c.nombre AS compania,
         p.nombre AS procedencia,
         mo.nombre AS modelo,
+        mo.id AS modelo_id,
+        tm.id AS tipo_maquina_id,
+        tm.nombre AS tipo_maquina,
         (
           SELECT GROUP_CONCAT(
             JSON_OBJECT(

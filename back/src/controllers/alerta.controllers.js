@@ -174,7 +174,6 @@ export const sendVencimientoAlerts = async (req, res) => {
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
-        // Obtener los correos de los cargos importantes
         const [correosCargosImportantes] = await pool.query(`
             SELECT DISTINCT u.id, u.correo
             FROM personal p
@@ -273,6 +272,9 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         }
 
         await Promise.all(emailPromises);
+
+        // Agregar un timeout de 500ms después de procesar todos los correos
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {

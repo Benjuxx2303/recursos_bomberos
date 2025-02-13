@@ -67,12 +67,11 @@ export const getAlertasByUsuario = async (req, res) => {
 };
 
 // Función para enviar alertas de vencimiento de licencias
-// TODO: Pulir contenido visual del correo y que se vea más profesional y añadir enlace al sistema (botón acceder).
 export const sendVencimientoAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
         const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.id, u.correo
+            SELECT DISTINCT u.correo
             FROM personal p
             INNER JOIN usuario u ON p.id = u.personal_id
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
@@ -119,7 +118,7 @@ export const sendVencimientoAlerts = async (req, res) => {
 
             // Variable para almacenar el contenido del correo
             let contenido;
-            let contenidoTelecom;
+            let contenidoTelecom; // TODO: Guardar en la base de datos las alertas de para TELECOM
 
             // Verifica las diferentes condiciones para determinar el tipo de recordatorio
             if (hoy < dosMesesAntes) {
@@ -154,14 +153,10 @@ export const sendVencimientoAlerts = async (req, res) => {
                 // Enviar el correo al usuario
                 sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
                 // Enviar los correos a los cargos importantes
-                ...correosCargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
+                ...correosCargosImportantes.map(({ correo: correoCargo }) =>
                     sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom)
-                        .then(() => {
-                            // Guardar alerta en la base de datos para cada cargo importante (TELECOM, Capitán, Teniente de Máquina)
-                            return saveAndEmitAlert(cargoId, contenidoTelecom, 'vencimiento');
-                        })
                 ),
-                // Guardar y emitir la alerta de vencimiento para el usuario
+                // Guardar y emitir la alerta de vencimiento
                 saveAndEmitAlert(usuario_id, contenido, 'vencimiento')
             );
         }
@@ -180,6 +175,16 @@ export const sendVencimientoAlerts = async (req, res) => {
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
+        // Obtener los correos de los cargos importantes
+        const [correosCargosImportantes] = await pool.query(`
+            SELECT DISTINCT u.id, u.correo
+            FROM personal p
+            INNER JOIN usuario u ON p.id = u.personal_id
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
+            AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
+        `);
+
         const correosEnviados = new Set();
         const [rows] = await pool.query(`
             SELECT 
@@ -209,8 +214,10 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
             return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
         }
 
+        const emailPromises = [];
+
         for (const maquina of rows) {
-            const { conductores, ven_rev_tec } = maquina;
+            const { conductores, ven_rev_tec, codigo } = maquina;
             if (!conductores) continue;
 
             const conductoresArray = JSON.parse(`[${conductores}]`);
@@ -222,36 +229,56 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
             tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
 
             for (const conductor of conductoresArray) {
-                const { nombre, correo } = conductor;
+                const { id: usuario_id, nombre, correo } = conductor;
 
                 if (correosEnviados.has(correo)) continue;
                 correosEnviados.add(correo);
 
                 let contenido;
+                let contenidoTelecom;
+
                 if (hoy < dosMesesAntes) {
                     contenido = `Hola ${nombre}, la revisión técnica está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
+                    contenidoTelecom = `¡Aviso! La revisión técnica del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
                 } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
                     contenido = `Hola ${nombre}, la revisión técnica está demasiado próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
+                    contenidoTelecom = `¡Aviso! La revisión técnica del vehículo ${codigo} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                 } else {
                     contenido = `Hola ${nombre}, este vehículo ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
+                    contenidoTelecom = `¡Aviso! La revisión técnica del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
                 }
 
                 const htmlContent = generateEmailTemplate(
                     "Recordatorio: Vencimiento de Revisión Técnica",
                     contenido,
-                    `${process.env.FRONTEND_URL}` // TODO: ver que endpoint del front se va a usar. de momento redirecciona a la pagina principal
+                    `${process.env.FRONTEND_URL}`
                 );
 
-                await sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent);
-                await saveAndEmitAlert(conductor.id, contenido, 'revision_tecnica');
+                const htmlContentTelecom = generateEmailTemplate(
+                    "Recordatorio: Vencimiento de Revisión Técnica",
+                    contenidoTelecom,
+                    `${process.env.FRONTEND_URL}`
+                );
+
+                emailPromises.push(
+                    sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent),
+                    saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica'),
+                    ...correosCargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
+                        sendEmail(correoCargo, "Recordatorio: Vencimiento de Revisión Técnica", contenidoTelecom, htmlContentTelecom)
+                            .then(() => saveAndEmitAlert(cargoId, contenidoTelecom, 'revision_tecnica'))
+                    )
+                );
             }
         }
+
+        await Promise.all(emailPromises);
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
+
 
 // Función para enviar alertas sobre mantenciones
 export const sendMantencionAlerts = async (req, res) => {

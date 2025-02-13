@@ -251,13 +251,15 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                 const htmlContent = generateEmailTemplate(
                     "Recordatorio: Vencimiento de Revisión Técnica",
                     contenido,
-                    `${process.env.FRONTEND_URL}`
+                    `${process.env.FRONTEND_URL}`,
+                    "Ver Detalles"
                 );
 
                 const htmlContentTelecom = generateEmailTemplate(
                     "Recordatorio: Vencimiento de Revisión Técnica",
                     contenidoTelecom,
-                    `${process.env.FRONTEND_URL}`
+                    `${process.env.FRONTEND_URL}`,
+                    "Ver Detalles"
                 );
 
                 emailPromises.push(

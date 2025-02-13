@@ -89,6 +89,10 @@ export const getMaquinasDetailsPage = async (req, res) => {
         c.nombre AS compania,
         p.nombre AS procedencia,
         mo.nombre AS modelo,
+        mo.id AS modelo_id,
+        tm.id AS tipo_maquina_id,
+        tm.nombre AS tipo_maquina,
+        ma.nombre AS marca,
         (
           SELECT GROUP_CONCAT(
             JSON_OBJECT(
@@ -104,6 +108,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
       FROM maquina m
       INNER JOIN modelo mo ON m.modelo_id = mo.id
       INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
+      INNER JOIN marca ma ON mo.marca_id = ma.id
       INNER JOIN compania c ON m.compania_id = c.id
       INNER JOIN procedencia p ON m.procedencia_id = p.id
       WHERE m.isDeleted = 0

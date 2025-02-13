@@ -283,95 +283,88 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 // Función para enviar alertas sobre mantenciones
 export const sendMantencionAlerts = async (req, res) => {
     try {
-        const correosEnviados = new Set();
-        const alertasEnviadas = new Set();
+        // Obtener los correos de los cargos importantes
+        const [correosCargosImportantes] = await pool.query(`
+            SELECT DISTINCT u.id, u.correo
+            FROM personal p
+            INNER JOIN usuario u ON p.id = u.personal_id
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
+            AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
+        `);
 
+        const correosEnviados = new Set();
         const [rows] = await pool.query(`
             SELECT 
                 m.id AS mantencion_id,
-                b.personal_id,
-                b.fh_llegada
+                m.maquina_id,
+                m.descripcion,
+                m.fec_inicio,
+                maq.codigo AS codigo_maquina,
+                p.id AS responsable_id,
+                p.nombre AS responsable_nombre,
+                u.correo AS responsable_correo
             FROM mantencion m
-            INNER JOIN bitacora b ON m.bitacora_id = b.id
-            WHERE b.fh_llegada IS NULL 
-              AND m.isDeleted = 0
+            INNER JOIN maquina maq ON m.maquina_id = maq.id
+            INNER JOIN personal p ON m.personal_responsable_id = p.id
+            LEFT JOIN usuario u ON p.id = u.personal_id
+            WHERE m.isDeleted = 0 
+              AND m.fec_inicio IS NOT NULL
+              AND u.id IS NOT NULL
         `);
 
         if (rows.length === 0) {
-            return res.status(200).json({ message: "No hay mantenciones pendientes." });
+            return res.status(200).json({ message: "No hay mantenciones próximas a realizarse." });
         }
 
-        for (const maintenance of rows) {
-            const { personal_id, mantencion_id } = maintenance;
+        const emailPromises = [];
 
-            if (alertasEnviadas.has(mantencion_id)) continue;
-            alertasEnviadas.add(mantencion_id);
+        for (const mantencion of rows) {
+            const { responsable_id, responsable_nombre, responsable_correo, fec_inicio, codigo_maquina, descripcion } = mantencion;
 
-            const [personal] = await pool.query(`
-                SELECT 
-                    u.correo,
-                    rp.nombre AS rol
-                FROM personal p
-                INNER JOIN usuario u ON p.id = u.personal_id
-                INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                WHERE p.id = ? AND p.isDeleted = 0
-            `, [personal_id]);
+            if (!responsable_correo || correosEnviados.has(responsable_correo)) continue;
+            correosEnviados.add(responsable_correo);
 
-            if (personal.length > 0) {
-                const { correo, rol } = personal[0];
+            const fechaMantencion = new Date(fec_inicio).toLocaleDateString("es-ES");
+            let contenido = `Hola ${responsable_nombre}, la mantención del vehículo ${codigo_maquina} (${descripcion}) está programada para el ${fechaMantencion}. Por favor, prepárate con anticipación.`;
+            let contenidoTelecom = `¡Aviso! La mantención del vehículo ${codigo_maquina} (${descripcion}) está programada para el ${fechaMantencion}. Por favor, coordinar recursos.`;
 
-                if (correosEnviados.has(correo)) continue;
-                correosEnviados.add(correo);
+            const htmlContent = generateEmailTemplate(
+                "Recordatorio: Mantención Programada",
+                contenido,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
 
-                const contenido = `Hola ${rol}, te recordamos que hay una mantención pendiente para la máquina con ID ${mantencion_id}. Por favor, revisa el sistema para más detalles.`;
-                
-                const htmlContent = generateEmailTemplate(
-                    "Recordatorio: Mantención Pendiente",
-                    contenido,
-                    `${process.env.FRONTEND_URL}` // TODO: ver que endpoint del front se va a usar. de momento redirecciona a la pagina principal
-                );
+            const htmlContentTelecom = generateEmailTemplate(
+                "Recordatorio: Mantención Programada",
+                contenidoTelecom,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
 
-                await sendEmail(
-                    correo,
-                    "Recordatorio: Mantención Pendiente",
-                    contenido,
-                    htmlContent
-                );
-
-                const superiorRoles = ['TELECOM', 'Teniente de Máquina'];
-                const [superiorPersonal] = await pool.query(`
-                    SELECT 
-                        u.correo 
-                    FROM personal p
-                    INNER JOIN usuario u ON p.id = u.personal_id
-                    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                    WHERE rp.nombre IN (?) AND p.isDeleted = 0
-                `, [superiorRoles]);
-
-                for (const superior of superiorPersonal) {
-                    await sendEmail(
-                        superior.correo,
-                        "Recordatorio: Mantención Pendiente",
-                        `Estimado(a), hay una mantención pendiente para la máquina con ID ${mantencion_id}.`,
-                        `<!DOCTYPE html>
-                        <html>
-                        <body>
-                            <h3>Alerta de Mantención Pendiente</h3>
-                            <p>Estimado(a),</p>
-                            <p>Hay una mantención pendiente para la máquina con ID <strong>${mantencion_id}</strong>.</p>
-                            <p>Por favor, revisa el sistema para más detalles.</p>
-                        </body>
-                        </html>`
-                    );
-                }
-            }
+            emailPromises.push(
+                sendEmail(responsable_correo, "Recordatorio: Mantención Programada", contenido, htmlContent).catch(err => console.error("Error al enviar correo a responsable:", err.message)),
+                saveAndEmitAlert(responsable_id, contenido, 'mantencion'),
+                ...correosCargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
+                    sendEmail(correoCargo, "Recordatorio: Mantención Programada", contenidoTelecom, htmlContentTelecom)
+                        .then(() => saveAndEmitAlert(cargoId, contenidoTelecom, 'mantencion'))
+                        .catch(err => console.error("Error al enviar correo a cargo superior:", err.message))
+                )
+            );
         }
 
-        res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
+        await Promise.all(emailPromises);
+
+        res.status(200).json({ message: "Alertas de mantención enviadas y almacenadas correctamente." });
     } catch (error) {
+        console.error("Error en sendMantencionAlerts:", error);
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
+
+
+
 
 // Función para enviar alertas sobre mantenciones próximas
 export const sendProximaMantencionAlerts = async (req, res) => {

@@ -67,11 +67,12 @@ export const getAlertasByUsuario = async (req, res) => {
 };
 
 // Función para enviar alertas de vencimiento de licencias
+// TODO: Pulir contenido visual del correo y que se vea más profesional y añadir enlace al sistema (botón acceder).
 export const sendVencimientoAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
         const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.correo
+            SELECT DISTINCT u.id, u.correo
             FROM personal p
             INNER JOIN usuario u ON p.id = u.personal_id
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
@@ -118,7 +119,7 @@ export const sendVencimientoAlerts = async (req, res) => {
 
             // Variable para almacenar el contenido del correo
             let contenido;
-            let contenidoTelecom; // TODO: Guardar en la base de datos las alertas de para TELECOM
+            let contenidoTelecom;
 
             // Verifica las diferentes condiciones para determinar el tipo de recordatorio
             if (hoy < dosMesesAntes) {
@@ -153,10 +154,14 @@ export const sendVencimientoAlerts = async (req, res) => {
                 // Enviar el correo al usuario
                 sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
                 // Enviar los correos a los cargos importantes
-                ...correosCargosImportantes.map(({ correo: correoCargo }) =>
+                ...correosCargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
                     sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom)
+                        .then(() => {
+                            // Guardar alerta en la base de datos para cada cargo importante (TELECOM, Capitán, Teniente de Máquina)
+                            return saveAndEmitAlert(cargoId, contenidoTelecom, 'vencimiento');
+                        })
                 ),
-                // Guardar y emitir la alerta de vencimiento
+                // Guardar y emitir la alerta de vencimiento para el usuario
                 saveAndEmitAlert(usuario_id, contenido, 'vencimiento')
             );
         }

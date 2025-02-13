@@ -3,7 +3,6 @@ import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
 import { validateDate, validateRUT } from '../utils/validations.js';
-import { checkIfExistsForUpdate } from "../utils/queries.js";
 
 // TODO: implementacion de "imgLicencia"
 
@@ -59,7 +58,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 10;
 
         // Nuevos filtros opcionales
-        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut } = req.query;
+        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut, esConductor } = req.query;
 
         // Inicializar la consulta y los parámetros
         let query = `
@@ -117,6 +116,15 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             query += ' AND p.rut LIKE ?';
             params.push(`%${rut}%`);
         }
+        if (esConductor !== undefined) {
+            if (esConductor === 'true' || esConductor === 1 || esConductor === '1') {
+                query += ' AND EXISTS (SELECT 1 FROM conductor_maquina WHERE conductor_maquina.personal_id = p.id)';
+            } else {
+                query += ' AND NOT EXISTS (SELECT 1 FROM conductor_maquina WHERE conductor_maquina.personal_id = p.id)';
+            }
+        }
+        
+        
 
         query += ' GROUP BY p.id ORDER BY p.id DESC';
 

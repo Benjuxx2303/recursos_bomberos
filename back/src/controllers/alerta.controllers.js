@@ -69,9 +69,8 @@ export const getAlertasByUsuario = async (req, res) => {
 // Función para enviar alertas de vencimiento de licencias
 export const sendVencimientoAlerts = async (req, res) => {
     try {
-        // Obtener los correos de los cargos importantes
         const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.correo
+            SELECT DISTINCT u.correo, u.id
             FROM personal p
             INNER JOIN usuario u ON p.id = u.personal_id
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
@@ -79,7 +78,7 @@ export const sendVencimientoAlerts = async (req, res) => {
             AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
         `);
 
-        // Crear un conjunto para almacenar los correos ya enviados
+        // Crear un conjunto para almacenar los correos ya enviados, asegurando que no se repitan
         const correosEnviados = new Set();
 
         // Consulta a la base de datos para obtener la información de personal y usuario con licencias a punto de vencer
@@ -116,7 +115,7 @@ export const sendVencimientoAlerts = async (req, res) => {
 
             // Variable para almacenar el contenido del correo
             let contenido;
-            let contenidoTelecom; // TODO: Guardar en la base de datos las alertas de para TELECOM
+            let contenidoTelecom;
 
             // Verifica las diferentes condiciones para determinar el tipo de recordatorio
             if (hoy < dosMesesAntes) {
@@ -124,43 +123,48 @@ export const sendVencimientoAlerts = async (req, res) => {
                 contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
             } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
-                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia`;
+                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
             } else {
                 contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
-                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad`;
+                contenidoTelecom = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
             }
 
             // Generar el contenido HTML para el correo electrónico usando una plantilla
             const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
-                contenido,  // Cuerpo del correo
-                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
-                `Acceder`  // Texto del enlace en el correo
+                "Recordatorio: Vencimiento de Licencia", 
+                contenido, 
+                `${process.env.FRONTEND_URL}`, 
+                `Acceder` 
             );
 
-            // Generar el contenido HTML para el correo de TELECOM
+            // Generar el contenido HTML para el correo de telecomunicaciones
             const htmlContentTelecom = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
-                contenidoTelecom,  // Cuerpo del correo
-                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
-                `Acceder`  // Texto del enlace en el correo
+                "Recordatorio: Vencimiento de Licencia", 
+                contenidoTelecom, 
+                `${process.env.FRONTEND_URL}`, 
+                `Acceder`
             );
 
-            // TODO: Revisar "timeouts"
-            // Enviar el correo al usuario
-            await sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent);
+            // Enviar los correos en paralelo
+            const correoPromises = [];
 
-            // Enviar los correos a los cargos importantes
-            for (const { correo: correoCargo } of correosCargosImportantes) {
-                await sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom);
-                await new Promise(resolve => setTimeout(resolve, 500)); // Esperar 0.5 segundos
+            // Enviar el correo al usuario
+            correoPromises.push(
+                sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent)
+                    .then(() => saveAndEmitAlert(usuario_id, contenido, 'vencimiento'))
+            );
+
+            // Enviar el correo a los cargos importantes
+            for (const cargo of correosCargosImportantes) {
+                const { correo: correoCargo, id: idCargo } = cargo;
+                correoPromises.push(
+                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom)
+                        .then(() => saveAndEmitAlert(idCargo, contenidoTelecom, 'vencimiento'))
+                );
             }
 
-            // Guardar y emitir la alerta de vencimiento
-            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
-
-            // Esperar 0.5 segundos antes de procesar el siguiente correo
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Esperar a que todos los correos se envíen
+            await Promise.all(correoPromises);
         }
 
         // Responder con un mensaje indicando que las alertas se enviaron correctamente

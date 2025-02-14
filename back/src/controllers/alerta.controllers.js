@@ -385,6 +385,16 @@ export const sendMantencionAlerts = async (req, res) => {
 // Función para enviar alertas sobre mantenciones próximas
 export const sendProximaMantencionAlerts = async (req, res) => {
     try {
+        // Obtener los correos de los cargos importantes
+        const [correosCargosImportantes] = await pool.query(`
+            SELECT DISTINCT u.id, u.correo
+            FROM personal p
+            INNER JOIN usuario u ON p.id = u.personal_id
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
+            AND rp.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán')
+        `);
+
         const correosEnviados = new Set();
         const [mantenciones] = await pool.query(`
             SELECT 
@@ -416,6 +426,12 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             AND m.isDeleted = 0
         `);
 
+        if (mantenciones.length === 0) {
+            return res.status(200).json({ message: "No hay mantenciones próximas a realizarse." });
+        }
+
+        const emailPromises = [];
+
         for (const mantencion of mantenciones) {
             if (!mantencion.usuarios) continue;
 
@@ -423,30 +439,50 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             const fechaFormateada = new Date(mantencion.fec_inicio).toLocaleDateString('es-ES');
 
             for (const usuario of usuarios) {
-                const { nombre, correo } = usuario;
+                const { nombre, correo, id: usuario_id } = usuario;
 
+                // Si el correo ya fue enviado, se salta
                 if (correosEnviados.has(correo)) continue;
                 correosEnviados.add(correo);
 
+                // Contenido del correo para el usuario
                 const contenido = `Mantención próxima a realizarse: Máquina: ${mantencion.codigo} Fecha: ${fechaFormateada} Descripción: ${mantencion.descripcion}`;
 
-                await saveAndEmitAlert(usuario.id, contenido, 'mantencion');
-
+                // Generar el contenido HTML para el correo
                 const htmlContent = generateEmailTemplate(
                     'Próxima Mantención Programada',
                     contenido,
                     `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`,
-                    `Acceder`
+                    'Acceder'
                 );
 
-                await sendEmail(
-                    correo,
-                    'Próxima Mantención Programada',
-                    contenido,
-                    htmlContent
+                // Agregar las promesas para enviar los correos
+                emailPromises.push(
+                    sendEmail(correo, 'Próxima Mantención Programada', contenido, htmlContent), // Enviar correo al usuario
+                    saveAndEmitAlert(usuario_id, contenido, 'mantencion') // Guardar y emitir la alerta para el usuario
+                );
+
+                // Enviar los correos a los cargos importantes
+                emailPromises.push(
+                    ...correosCargosImportantes.map(({ correo: correoCargo, id: cargoId }) => {
+                        const contenidoTelecom = `¡Aviso! La mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
+
+                        const htmlContentTelecom = generateEmailTemplate(
+                            'Próxima Mantención Programada',
+                            contenidoTelecom,
+                            `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`,
+                            'Acceder'
+                        );
+
+                        return sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoTelecom, htmlContentTelecom)
+                            .then(() => saveAndEmitAlert(cargoId, contenidoTelecom, 'mantencion'));
+                    })
                 );
             }
         }
+
+        // Ejecutar todas las promesas en paralelo
+        await Promise.all(emailPromises);
 
         res.status(200).json({ message: "Alertas de mantenciones enviadas correctamente" });
     } catch (error) {

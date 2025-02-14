@@ -93,8 +93,6 @@ export const sendVencimientoAlerts = async (req, res) => {
         `);
 
         // Recorre todos los registros obtenidos de la consulta
-        const emailPromises = [];
-
         for (const personal of rows) {
             const { nombre, apellido, ven_licencia, correo, usuario_id, rol } = personal;
 
@@ -148,21 +146,22 @@ export const sendVencimientoAlerts = async (req, res) => {
                 `Acceder`  // Texto del enlace en el correo
             );
 
-            // Enviar las alertas en paralelo usando Promise.all
-            emailPromises.push(
-                // Enviar el correo al usuario
-                sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
-                // Enviar los correos a los cargos importantes
-                ...correosCargosImportantes.map(({ correo: correoCargo }) =>
-                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom)
-                ),
-                // Guardar y emitir la alerta de vencimiento
-                saveAndEmitAlert(usuario_id, contenido, 'vencimiento')
-            );
-        }
+            // TODO: Revisar "timeouts"
+            // Enviar el correo al usuario
+            await sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent);
 
-        // Ejecutar todas las promesas de correo en paralelo
-        await Promise.all(emailPromises);
+            // Enviar los correos a los cargos importantes
+            for (const { correo: correoCargo } of correosCargosImportantes) {
+                await sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Esperar 0.5 segundos
+            }
+
+            // Guardar y emitir la alerta de vencimiento
+            await saveAndEmitAlert(usuario_id, contenido, 'vencimiento');
+
+            // Esperar 0.5 segundos antes de procesar el siguiente correo
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
 
         // Responder con un mensaje indicando que las alertas se enviaron correctamente
         res.status(200).json({ message: "Alertas enviadas correctamente." });
@@ -175,7 +174,6 @@ export const sendVencimientoAlerts = async (req, res) => {
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
-        // Obtener los correos de los cargos importantes
         const [correosCargosImportantes] = await pool.query(`
             SELECT DISTINCT u.id, u.correo
             FROM personal p
@@ -274,6 +272,9 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         }
 
         await Promise.all(emailPromises);
+
+        // Agregar un timeout de 500ms después de procesar todos los correos
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {

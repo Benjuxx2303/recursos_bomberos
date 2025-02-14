@@ -66,11 +66,16 @@ export const getAlertasByUsuario = async (req, res) => {
     }
 };
 
+// Función para crear un delay
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Función para enviar alertas de vencimiento de licencias
+// TODO: Pulir contenido visual del correo y que se vea más profesional y añadir enlace al sistema (botón acceder).
 export const sendVencimientoAlerts = async (req, res) => {
     try {
+        // Obtener los correos de los cargos importantes
         const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.correo, u.id
+            SELECT DISTINCT u.id, u.correo
             FROM personal p
             INNER JOIN usuario u ON p.id = u.personal_id
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
@@ -78,7 +83,7 @@ export const sendVencimientoAlerts = async (req, res) => {
             AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
         `);
 
-        // Crear un conjunto para almacenar los correos ya enviados, asegurando que no se repitan
+        // Crear un conjunto para almacenar los correos ya enviados
         const correosEnviados = new Set();
 
         // Consulta a la base de datos para obtener la información de personal y usuario con licencias a punto de vencer
@@ -92,6 +97,8 @@ export const sendVencimientoAlerts = async (req, res) => {
         `);
 
         // Recorre todos los registros obtenidos de la consulta
+        const emailPromises = [];
+
         for (const personal of rows) {
             const { nombre, apellido, ven_licencia, correo, usuario_id, rol } = personal;
 
@@ -131,41 +138,42 @@ export const sendVencimientoAlerts = async (req, res) => {
 
             // Generar el contenido HTML para el correo electrónico usando una plantilla
             const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia", 
-                contenido, 
-                `${process.env.FRONTEND_URL}`, 
-                `Acceder` 
+                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
+                contenido,  // Cuerpo del correo
+                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
+                `Acceder`  // Texto del enlace en el correo
             );
 
-            // Generar el contenido HTML para el correo de telecomunicaciones
+            // Generar el contenido HTML para el correo de TELECOM
             const htmlContentTelecom = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia", 
-                contenidoTelecom, 
-                `${process.env.FRONTEND_URL}`, 
-                `Acceder`
+                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
+                contenidoTelecom,  // Cuerpo del correo
+                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
+                `Acceder`  // Texto del enlace en el correo
             );
 
-            // Enviar los correos en paralelo
-            const correoPromises = [];
-
-            // Enviar el correo al usuario
-            correoPromises.push(
-                sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent)
-                    .then(() => saveAndEmitAlert(usuario_id, contenido, 'vencimiento'))
-            );
-
-            // Enviar el correo a los cargos importantes
-            for (const cargo of correosCargosImportantes) {
-                const { correo: correoCargo, id: idCargo } = cargo;
-                correoPromises.push(
+            // Agregar a las promesas de correo
+            emailPromises.push(
+                // Enviar el correo al usuario
+                sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
+                // Enviar los correos a los cargos importantes
+                ...correosCargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
                     sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoTelecom, htmlContentTelecom)
-                        .then(() => saveAndEmitAlert(idCargo, contenidoTelecom, 'vencimiento'))
-                );
-            }
+                        .then(() => {
+                            // Guardar alerta en la base de datos para cada cargo importante (TELECOM, Capitán, Teniente de Máquina)
+                            return saveAndEmitAlert(cargoId, contenidoTelecom, 'vencimiento');
+                        })
+                ),
+                // Guardar y emitir la alerta de vencimiento para el usuario
+                saveAndEmitAlert(usuario_id, contenido, 'vencimiento')
+            );
 
-            // Esperar a que todos los correos se envíen
-            await Promise.all(correoPromises);
+            // Aplicar un pequeño delay entre los envíos
+            await delay(200); // 200ms de retraso entre cada correo
         }
+
+        // Ejecutar todas las promesas de correo en paralelo
+        await Promise.all(emailPromises);
 
         // Responder con un mensaje indicando que las alertas se enviaron correctamente
         res.status(200).json({ message: "Alertas enviadas correctamente." });
@@ -174,6 +182,7 @@ export const sendVencimientoAlerts = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
+
 
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {

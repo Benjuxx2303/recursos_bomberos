@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-    asignarPermisosRol,
     createPermiso,
     deletePermiso,
     getCategorias,
@@ -27,6 +26,5 @@ router.delete(`${base_route}/:id`, checkPermission('deletePermiso'), deletePermi
 
 // Rutas de permisos por rol
 router.get(`${base_route}/rol/:rolId`, checkPermission('getPermiso'), getPermisosByRol);
-router.post(`${base_route}/rol/:rolId/asignar`, checkPermission('updatePermiso'), asignarPermisosRol);
 
 export default router;

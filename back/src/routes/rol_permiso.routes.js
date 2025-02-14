@@ -1,12 +1,13 @@
 import { Router } from "express";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-    getRolPermisos,
-    getRolPermisoById,
+    asignarPermisosRol,
     createRolPermiso,
     deleteRolPermiso,
+    getRolPermisoById,
+    getRolPermisos,
     updateRolPermiso
 } from "../controllers/rol_permisos.controllers.js";
-import { checkPermission } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
@@ -21,5 +22,7 @@ router.post(base_route, checkPermission('createRol_permiso'), createRolPermiso);
 router.delete(`${base_route}/:id`, checkPermission('deleteRol_permiso'), deleteRolPermiso); // Dar de baja rol_permiso
 
 router.patch(`${base_route}/:id`, checkPermission('updateRol_permiso'), updateRolPermiso); // Actualizar rol_permiso
+
+router.post(`${base_route}/:rolId/asignar`, checkPermission('updatePermiso'), asignarPermisosRol);
 
 export default router;

@@ -124,6 +124,60 @@ export const deleteRolPermiso = async (req, res) => {
     }
 };
 
+// Asignar permisos a un rol
+export const asignarPermisosRol = async (req, res) => {
+    const { rolId } = req.params;
+    const { permisoIds } = req.body;
+    
+    try {
+        const idNumber = parseInt(rolId);
+        if (isNaN(idNumber)) {
+            return res.status(400).json({
+                message: "ID de rol inválido"
+            });
+        }
+
+        if (!Array.isArray(permisoIds)) {
+            return res.status(400).json({
+                message: "permisoIds debe ser un array"
+            });
+        }
+
+        // Iniciar transacción
+        await pool.query("START TRANSACTION");
+
+        // Marcar como eliminados los permisos actuales del rol
+        await pool.query(
+            "UPDATE rol_permisos SET isDeleted = true WHERE rol_personal_id = ?",
+            [idNumber]
+        );
+
+        // Insertar nuevos permisos
+        for (const permisoId of permisoIds) {
+            await pool.query(
+                `INSERT INTO rol_permisos (rol_personal_id, permiso_id) 
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE isDeleted = false`,
+                [idNumber, permisoId]
+            );
+        }
+
+        // Confirmar transacción
+        await pool.query("COMMIT");
+
+        res.status(200).json({
+            message: "Permisos asignados correctamente"
+        });
+    } catch (error) {
+        // Revertir transacción en caso de error
+        await pool.query("ROLLBACK");
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
 // Actualizar rol_permiso
 export const updateRolPermiso = async (req, res) => {
     const { id } = req.params;

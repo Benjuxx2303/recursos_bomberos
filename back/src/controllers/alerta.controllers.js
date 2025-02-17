@@ -515,7 +515,7 @@ export const deleteOldAlerts = async () => {
     try {
         // Eliminar registros de la tabla "usuario_alerta"
         await pool.query(
-            'DELETE FROM usuario_alerta WHERE alertaId IN (SELECT id FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY))'
+            'DELETE FROM usuario_alerta WHERE alerta_id IN (SELECT id FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY))'
         );
         
         // Eliminar registros antiguos en la tabla "alerta"

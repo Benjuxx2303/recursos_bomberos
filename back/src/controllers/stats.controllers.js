@@ -13,7 +13,7 @@ export const getMaintenanceData = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    const companyFilter = companiaId ? 'AND m.compania_id = ?' : '';
+    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
     if (companiaId) params.push(companiaId);
 
     const machineFilter = maquinaId ? 'AND m.maquina_id = ?' : '';
@@ -32,6 +32,8 @@ export const getMaintenanceData = async (req, res) => {
       FROM
         mantencion m
       INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+      INNER JOIN bitacora b ON m.bitacora_id = b.id
+      INNER JOIN compania c ON b.compania_id = c.id
       WHERE
         m.isDeleted = 0
         ${dateFilter}
@@ -345,7 +347,7 @@ export const getCompanyData = async (req, res) => {
     const { startDate, endDate, companiaId } = req.query;
     const params = [];
 
-    const query = `
+    let query = `
       SELECT
         c.nombre AS compania,
         COALESCE(COUNT(DISTINCT CASE WHEN b.id IS NOT NULL THEN b.id END), 0) AS total_servicios,
@@ -358,9 +360,23 @@ export const getCompanyData = async (req, res) => {
       FROM
         compania c
       LEFT JOIN bitacora b ON c.id = b.compania_id AND b.isDeleted = 0
-        ${startDate && endDate ? 'AND b.fh_salida BETWEEN ? AND ?' : 
-          'AND (b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) OR b.fh_salida IS NULL)'}
-        ${companiaId ? 'AND b.compania_id = ?' : ''}
+    `;
+
+    // Condición para el rango de fechas
+    if (startDate && endDate) {
+      query += ' AND b.fh_salida BETWEEN ? AND ?';
+      params.push(startDate, endDate); // Agregar startDate y endDate a los parámetros
+    } else {
+      query += ' AND (b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) OR b.fh_salida IS NULL)';
+    }
+
+    // Condición para companiaId
+    if (companiaId) {
+      query += ' AND b.compania_id = ?';
+      params.push(companiaId); // Agregar companiaId a los parámetros
+    }
+
+    query += `
       WHERE
         c.isDeleted = 0
       GROUP BY
@@ -448,10 +464,29 @@ export const getDriverData = async (req, res) => {
 
 export const getSummaryData = async (req, res) => {
   try {
+    const { companiaId } = req.query;
+
+    // Validar que companiaId sea numérico
+    if (companiaId && isNaN(companiaId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El parámetro companiaId debe ser un número válido.'
+      });
+    }
+
+    const params = [];
+
+    // Si existe companiaId en los query params, lo agregamos a las consultas
+    if (companiaId) {
+      params.push(Number(companiaId));  // Convertir el valor a número para evitar problemas
+    }
+
     // Obtener mantenimientos pendientes y programados
     const [pendingMaintenance] = await pool.query(`
       SELECT COUNT(*) as total 
       FROM mantencion m
+      INNER JOIN bitacora b ON m.bitacora_id = b.id
+      INNER JOIN compania c ON b.compania_id = c.id
       WHERE m.isDeleted = 0 
       AND (
         m.estado_mantencion_id IN (
@@ -460,7 +495,8 @@ export const getSummaryData = async (req, res) => {
         )
         OR m.fec_inicio > CURRENT_DATE()
       )
-    `);
+      ${companiaId ? 'AND b.compania_id = ?' : ''}
+    `, params);
     const pendingMaintenanceTotal = pendingMaintenance[0] ? pendingMaintenance[0].total : 0;
 
     // Obtener servicios del mes actual
@@ -470,7 +506,8 @@ export const getSummaryData = async (req, res) => {
       WHERE b.isDeleted = 0
       AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
       AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
-    `);
+      ${companiaId ? 'AND b.compania_id = ?' : ''}
+    `, params);
     const servicesThisMonthTotal = servicesThisMonth[0] ? servicesThisMonth[0].total : 0;
 
     // Obtener consumo total de combustible del mes actual relacionado con bitácora
@@ -482,7 +519,8 @@ export const getSummaryData = async (req, res) => {
       AND b.isDeleted = 0
       AND MONTH(b.fh_salida) = MONTH(CURRENT_DATE())
       AND YEAR(b.fh_salida) = YEAR(CURRENT_DATE())
-    `);
+      ${companiaId ? 'AND b.compania_id = ?' : ''}
+    `, params);
     const fuelConsumptionTotal = fuelConsumption[0]?.total ?? 0;
 
     // Obtener total de compañías
@@ -490,7 +528,8 @@ export const getSummaryData = async (req, res) => {
       SELECT COUNT(*) as total
       FROM compania
       WHERE isDeleted = 0
-    `);
+      ${companiaId ? 'AND id = ?' : ''}
+    `, params);
     const totalCompaniesTotal = totalCompanies[0] ? totalCompanies[0].total : 0;
 
     // Obtener conductores activos (que han tenido servicios en el último mes)
@@ -501,7 +540,8 @@ export const getSummaryData = async (req, res) => {
       WHERE p.isDeleted = 0
       AND b.isDeleted = 0
       AND b.fh_salida >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
-    `);
+      ${companiaId ? 'AND b.compania_id = ?' : ''}
+    `, params);
     const activeDriversTotal = activeDrivers[0] ? activeDrivers[0].total : 0;
 
     const summaryData = {

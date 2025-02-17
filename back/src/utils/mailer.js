@@ -1,116 +1,94 @@
 import nodemailer from 'nodemailer';
 import {
-    GMAIL_PASS,
-    GMAIL_USER
+    SMTP_SERVICE,
+    SMTP_USER,
+    SMTP_PASS,
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_SECURE
 } from '../config.js';
 
-// Crear el transporter
 /**
- * Creates a transporter object using the default SMTP transport.
- * 
- * This transporter is configured to use Gmail as the email service.
- * Ensure that the environment variables `GMAIL_USER` and `GMAIL_PASS` are set in your .env file.
- * 
- * @constant {Object} transporter - The transporter object for sending emails.
- * @property {string} service - The email service to use (Gmail).
- * @property {Object} auth - The authentication object.
- * @property {string} auth.user - The Gmail user email address.
- * @property {string} auth.pass - The Gmail application-specific password.
+ * Crea un objeto transporter reutilizable para cualquier servicio SMTP configurado.
  */
-const transporter = nodemailer.createTransport({
-    service: 'gmail',  // Usamos Gmail como servicio de correo
-    auth: {
-        user: GMAIL_USER,  // Debes agregar este valor en tu .env
-        pass: GMAIL_PASS  // Usa una contraseña de aplicación para Gmail
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
-});
+const createTransporter = () => {
+    // Si se ha configurado un servicio SMTP, usa sus valores, si no, usa la configuración por defecto.
+    const transporter = nodemailer.createTransport({
+        service: SMTP_SERVICE,  // El servicio puede ser 'gmail', 'outlook', 'smtp' personalizado, etc.
+        host: SMTP_HOST,  // El host SMTP, si no es un servicio predeterminado.
+        port: SMTP_PORT,  // Puerto SMTP.
+        secure: SMTP_SECURE,  // Si se usa SSL/TLS.
+        auth: {
+            user: SMTP_USER,  // Usuario SMTP.
+            pass: SMTP_PASS   // Contraseña SMTP.
+        },
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
 
-// Función para enviar correos
+    return transporter;
+};
+
 /**
- * Sends an email using the configured transporter.
+ * Envía un correo electrónico utilizando la configuración SMTP proporcionada.
  *
- * @param {string} to - The recipient's email address.
- * @param {string} subject - The subject of the email.
- * @param {string} text - The plain text content of the email.
- * @param {string} html - The HTML content of the email.
- * @throws Will throw an error if the email could not be sent.
+ * @param {string} to - Dirección del destinatario.
+ * @param {string} subject - Asunto del correo.
+ * @param {string} text - Contenido del correo en texto plano.
+ * @param {string} html - Contenido del correo en HTML.
+ * @throws Error si el correo no puede ser enviado.
  */
 export const sendEmail = async (to, subject, text, html) => {
-    // console.log('\n=== Iniciando envío de correo ===');
-    // console.log('Destinatario:', to);
-    // console.log('Asunto:', subject);
-    
     // Verificar si ya se envió un correo similar en los últimos segundos
     if (global.lastEmailSent && global.lastEmailSent[to]) {
         const timeDiff = Date.now() - global.lastEmailSent[to].timestamp;
         if (timeDiff < 5000 && global.lastEmailSent[to].subject === subject) {
-            // console.log('Evitando envío duplicado de correo');
-            return null;
+            return null;  // Evitar el envío de correos duplicados.
         }
     }
-    
-    try {
-        // Crear el transporter
-        // console.log('Configurando transporter...');
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.GMAIL_USER,
-                pass: process.env.GMAIL_PASS
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
 
-        // console.log('Verificando configuración del transporter...');
+    try {
+        // Usamos la función para crear el transporter
+        const transporter = createTransporter();
+
+        // Verificar si la configuración del transporter es válida
         await transporter.verify();
-        // console.log('Transporter verificado exitosamente');
 
         // Configurar el correo
         const mailOptions = {
-            from: `"Cuerpo de Bomberos de Osorno" <${process.env.GMAIL_USER}>`,
+            from: `"Cuerpo de Bomberos de Osorno" <${SMTP_USER}>`,
             to,
             subject,
             text,
             html
         };
 
-        // console.log('Enviando correo...');
+        // Enviar el correo
         const info = await transporter.sendMail(mailOptions);
-        
-        // Registrar este envío
+
+        // Registrar el envío para evitar duplicados
         if (!global.lastEmailSent) global.lastEmailSent = {};
         global.lastEmailSent[to] = {
             timestamp: Date.now(),
             subject: subject
         };
-        
-        // console.log('Correo enviado exitosamente');
-        // console.log('ID del mensaje:', info.messageId);
-        
+
         return info;
     } catch (error) {
-        console.error('Error al enviar correo:');
-        console.error('Tipo de error:', error.name);
-        console.error('Mensaje:', error.message);
-        console.error('Stack:', error.stack);
+        console.error('Error al enviar correo:', error);
         throw error;
     }
 };
 
-
 /**
- * Generates an HTML email template.
+ * Genera una plantilla de correo electrónico en HTML.
  *
- * @param {string} title - The title of the email.
- * @param {string} content - The main content of the email.
- * @param {string} actionUrl - The URL for the action button.
- * @param {string} actionText - The text for the action button.
- * @returns {string} The generated HTML email template.
+ * @param {string} title - Título del correo.
+ * @param {string} content - Contenido principal del correo.
+ * @param {string} actionUrl - URL para la acción del botón.
+ * @param {string} actionText - Texto del botón de acción.
+ * @returns {string} Plantilla de correo HTML.
  */
 export const generateEmailTemplate = (title, content, actionUrl, actionText) => {
     return `

@@ -3,7 +3,7 @@ import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
-import { formatDateTime, validateDate, validateStartEndDate } from "../utils/validations.js";
+import { formatDateTime, validateDate } from "../utils/validations.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -909,8 +909,7 @@ export const downloadExcel = async (req, res) => {
 // Nueva función para aprobar/rechazar mantención
 export const toggleAprobacionMantencion = async (req, res) => {
   const { id } = req.params;
-  const { aprobada_por } = req.body;  // Usar aprobada_por en lugar de usuario_id
-  const errors = [];  // Para almacenar errores de validación
+  const { usuario_id } = req.body;
 
   try {
     // Verificar si la mantención existe
@@ -923,63 +922,32 @@ export const toggleAprobacionMantencion = async (req, res) => {
       return res.status(404).json({ message: "Mantención no encontrada" });
     }
 
-    // **Validación del campo aprobada_por** (si está presente)
-    let aprobada_por_nombre = null;
-    if (aprobada_por) {
-      // Validar que el ID de aprobada_por sea un número entero
-      if (isNaN(parseInt(aprobada_por))) errors.push("El ID de la persona que aprobó es inválido");
+    // Determinar el nuevo estado (toggle)
+    const nuevoEstado = mantencion.aprobada === 1 ? 0 : 1;
 
-      const aprobadaPorId = parseInt(aprobada_por);
+    // Actualizar el estado
+    const [result] = await pool.query(
+      `UPDATE mantencion 
+       SET aprobada = ?,
+           aprobada_por = ?,
+           fecha_aprobacion = ${nuevoEstado === 1 ? "NOW()" : "NULL"}
+       WHERE id = ?`,
+      [nuevoEstado, nuevoEstado === 1 ? usuario_id : null, id]
+    );
 
-      // Validar si el ID de aprobada_por existe y tiene un rol superior
-      const [aprobadaPorInfo] = await pool.query(
-        `SELECT p.id, p.rol_personal_id, CONCAT(p.nombre, ' ' ,p.apellido) AS nombre 
-         FROM personal p 
-         WHERE p.id = ? 
-         AND p.rol_personal_id IN (SELECT r.id FROM rol_personal r WHERE r.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán'))`,
-        [aprobadaPorId]
-      );
-
-      if (!aprobadaPorInfo.length) errors.push("La persona que aprobó no es válida o no tiene un rol superior");
-
-      if (aprobadaPorInfo.length) {
-        aprobada_por_nombre = aprobadaPorInfo[0].nombre;
-      }
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ message: "No se pudo actualizar la mantención" });
     }
 
-    // Si hay errores, devolver respuesta con los mensajes de error
-    if (errors.length) {
-      return res.status(400).json({ message: "Errores de validación", errors });
-    }
-
-    // **Si "aprobada_por" es válido, se actualiza la mantención con fecha de aprobación y aprobado=1**
-    if (aprobada_por && !errors.length) {
-      const [result] = await pool.query(
-        `UPDATE mantencion 
-         SET aprobada = 1, 
-             fecha_aprobacion = current_timestamp(), 
-             aprobada_por = ? 
-         WHERE id = ?`,
-        [aprobada_por, id]
-      );
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "No se pudo actualizar la mantención" });
-      }
-
-      return res.json({
-        message: "Mantención aprobada exitosamente",
-        aprobada: 1,
-        aprobada_por_nombre,
-      });
-    }
-
-    // Si no se pasa aprobada_por o no hay errores, devolver la mantención sin cambios
-    return res.json({
-      message: "Mantención no aprobada (sin cambios)",
-      aprobada: mantencion[0].aprobada,
+    res.json({
+      message:
+        nuevoEstado === 1
+          ? "Mantención aprobada exitosamente"
+          : "Mantención rechazada exitosamente",
+      aprobada: nuevoEstado,
     });
-
   } catch (error) {
     console.error("Error al aprobar/rechazar mantención:", error);
     return res.status(500).json({

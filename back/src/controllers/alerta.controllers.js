@@ -513,6 +513,12 @@ export const markAlertAsRead = async (req, res) => {
 // Función para eliminar alertas antiguas
 export const deleteOldAlerts = async () => {
     try {
+        // Eliminar registros de la tabla "usuario_alerta"
+        await pool.query(
+            'DELETE FROM usuario_alerta WHERE alerta_id IN (SELECT id FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY))'
+        );
+        
+        // Eliminar registros antiguos en la tabla "alerta"
         await pool.query(
             'DELETE FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)'
         );

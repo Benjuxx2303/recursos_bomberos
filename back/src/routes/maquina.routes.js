@@ -2,13 +2,13 @@ import { Router } from "express";
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-    getMaquinaById,
-    getMaquinasDetailsPage,
+    activarMaquinaPorPatente,
+    asignarConductores,
     createMaquina,
     deleteMaquina,
+    getMaquinaById,
+    getMaquinasDetailsPage,
     updateMaquina,
-    asignarConductores,
-    activarMaquinaPorPatente,
 } from "../controllers/maquina.controllers.js";
 
 // Configuración de multer
@@ -17,7 +17,10 @@ const upload = multer({ storage: storage });
 
 // Configuración de multer para los campos o "key" de imagen
 const uploadFields = upload.fields([
-    { name: 'imagen' }
+    { name: 'imagen' },
+    { name: 'img_rev_tecnica' },
+    { name: 'img_seguro' },
+    { name: 'img_permiso_circulacion' }
 ]);
 
 const router = Router();
@@ -37,8 +40,10 @@ router.delete(`${base_route}/:id`, checkPermission('deleteMaquina'), deleteMaqui
 router.patch(`${base_route}/:id`, checkPermission('updateMaquina'), uploadFields, updateMaquina); // actualizar la máquina
 router.get(`${base_route}/:id`, checkPermission('getMaquina'),getMaquinaById);
 
+/* // Asignar conductor/es  a una maquina 
+router.post(`${base_route}/:maquina_id/conductores`, checkPermission('updateMaquina'), asignarConductores);
+ */
 // Asignar conductor/es  a una maquina 
 router.post(`${base_route}/asignar-conductores`, checkPermission('createMaquina'), asignarConductores);
-
 
 export default router;

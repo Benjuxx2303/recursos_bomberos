@@ -202,6 +202,9 @@ export const getMaquinaById = async (req, res) => {
         c.nombre AS compania,
         p.nombre AS procedencia,
         m.img_url AS img_url,
+        m.img_rev_tecnica AS img_rev_tecnica,
+        m.img_seguro AS img_seguro,
+        m.img_permiso_circulacion AS img_permiso_circulacion,
         (
           SELECT GROUP_CONCAT(
             JSON_OBJECT(
@@ -264,7 +267,7 @@ export const createMaquina = async (req, res) => {
     nombre,
   } = req.body;
 
-  const errors = []; // Arreglo para almacenar errores
+  const errors = [];
 
   // Validación genérica para números y cadenas
   const validateField = (value, type, field) => {
@@ -328,19 +331,34 @@ export const createMaquina = async (req, res) => {
     errors.push({ field: 'patente', message: 'Ya existe una máquina con la patente proporcionada.' });
   }
 
-  // Manejo de imagen
+  // Manejo de imágenes
   let img_url = null;
-  if (req.files && req.files.imagen) {
-    const imagen = req.files.imagen[0];
-    try {
-      const imgData = await uploadFileToS3(imagen, "maquina");
-      if (imgData && imgData.Location) {
-        img_url = imgData.Location;
-      } else {
-        errors.push("No se pudo obtener la URL de la imagen");
+  let img_rev_tecnica = null;
+  let img_seguro = null;
+  let img_permiso_circulacion = null;
+
+  if (req.files) {
+    const uploadImage = async (file, prefix) => {
+      try {
+        const imgData = await uploadFileToS3(file, `maquina/${prefix}`);
+        return imgData?.Location || null;
+      } catch (error) {
+        errors.push(`Error al subir la imagen ${prefix}: ${error.message}`);
+        return null;
       }
-    } catch (error) {
-      errors.push("Error al subir la imagen", error.message);
+    };
+
+    if (req.files.imagen) {
+      img_url = await uploadImage(req.files.imagen[0], "perfil");
+    }
+    if (req.files.img_rev_tecnica) {
+      img_rev_tecnica = await uploadImage(req.files.img_rev_tecnica[0], "rev_tecnica");
+    }
+    if (req.files.img_seguro) {
+      img_seguro = await uploadImage(req.files.img_seguro[0], "seguro");
+    }
+    if (req.files.img_permiso_circulacion) {
+      img_permiso_circulacion = await uploadImage(req.files.img_permiso_circulacion[0], "permiso");
     }
   }
 
@@ -360,16 +378,24 @@ export const createMaquina = async (req, res) => {
       `INSERT INTO maquina (
         compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
         hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
-        ven_seg_auto, peso_kg, img_url, nombre, disponible, isDeleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 1, 0)`,
+        ven_seg_auto, peso_kg, img_url, nombre, disponible, isDeleted, img_rev_tecnica, img_seguro, img_permiso_circulacion
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, 
+        STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 1, 0, ?, ?, ?)`,
       [
         compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
         hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
-        ven_seg_auto, peso_kg, img_url, nombre
+        ven_seg_auto, peso_kg, img_url, nombre, img_rev_tecnica, img_seguro, img_permiso_circulacion
       ]
     );
 
-    res.status(201).json({ id: rows.insertId, ...req.body });
+    res.status(201).json({ 
+      id: rows.insertId, 
+      ...req.body, 
+      img_url,
+      img_rev_tecnica,
+      img_seguro,
+      img_permiso_circulacion
+    });
 
   } catch (error) {
     errors.push({ message: "Error interno del servidor", error: error.message });
@@ -425,6 +451,9 @@ export const updateMaquina = async (req, res) => {
     "peso_kg",
     "isDeleted",
     "img_url",
+    "img_rev_tecnica",
+    "img_seguro",
+    "img_permiso_circulacion"
   ];
 
   // Función para convertir fechas de dd-mm-yyyy a yyyy-mm-dd
@@ -444,17 +473,29 @@ export const updateMaquina = async (req, res) => {
       return res.status(400).json({ message: "ID inválido", errors: ["ID debe ser un número válido."] });
     }
 
-    // Manejar la carga de imágenes si existen
-    if (req.files && req.files.imagen) {
-      try {
-        const imgData = await uploadFileToS3(req.files.imagen[0], "maquina");
-        if (imgData && imgData.Location) {
-          updates.img_url = imgData.Location; // Guardar URL de la imagen
-        } else {
-          errors.push("No se pudo obtener la URL de la imagen.");
+    // Manejar la carga de imágenes
+    if (req.files) {
+      const uploadImage = async (file, prefix) => {
+        try {
+          const imgData = await uploadFileToS3(file, `maquina/${prefix}`);
+          return imgData?.Location || null;
+        } catch (error) {
+          errors.push(`Error al subir la imagen ${prefix}: ${error.message}`);
+          return null;
         }
-      } catch (error) {
-        errors.push(`Error al subir la imagen: ${error.message}`);
+      };
+
+      if (req.files.imagen) {
+        updates.img_url = await uploadImage(req.files.imagen[0], "perfil");
+      }
+      if (req.files.img_rev_tecnica) {
+        updates.img_rev_tecnica = await uploadImage(req.files.img_rev_tecnica[0], "rev_tecnica");
+      }
+      if (req.files.img_seguro) {
+        updates.img_seguro = await uploadImage(req.files.img_seguro[0], "seguro");
+      }
+      if (req.files.img_permiso_circulacion) {
+        updates.img_permiso_circulacion = await uploadImage(req.files.img_permiso_circulacion[0], "permiso");
       }
     }
 

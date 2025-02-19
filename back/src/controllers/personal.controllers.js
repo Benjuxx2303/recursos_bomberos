@@ -17,6 +17,7 @@ export const getPersonal = async (req, res) => {
             message: "Error interno del servidor",
             error: error.message
         });
+
     }
 };
 
@@ -151,6 +152,41 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             message: "Error interno del servidor",
             error: error.message
         });
+    }
+};
+
+
+
+export const getPersonalLowData = async (req, res) => {
+    try {
+        const { compania_id } = req.query;
+
+        let query = `
+            SELECT p.id, p.rut, p.nombre, p.apellido, 
+                   rp.nombre AS rol_personal, 
+                   c.nombre AS compania, 
+                   p.compania_id
+            FROM personal p
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            INNER JOIN compania c ON p.compania_id = c.id
+            WHERE p.isDeleted = 0
+        `;
+
+        const params = [];
+
+        if (compania_id) {
+            query += ' AND p.compania_id = ?';
+            params.push(compania_id);
+        }
+
+        query += ' ORDER BY p.id DESC';
+
+        const [rows] = await pool.query(query, params);
+
+        res.json(rows);
+    } catch (error) {
+        console.error('Error: ', error);
+        res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 
@@ -318,10 +354,10 @@ export const createPersonal = async (req, res) => {
         if (rut.length > 12) {
             errors.push('El RUT no puede tener más de 12 caracteres');
         }
-
-        if (!validateRUT(rut)) {
+   //descative temporalmente esta validacio
+ /*        if (!validateRUT(rut)) {
             errors.push('El RUT ingresado no es válido');
-        }
+        } */
 
         if (nombre.length > 50) {
             errors.push('El nombre no puede tener más de 50 caracteres');
@@ -837,6 +873,97 @@ export const updateUltimaFecServicio = async (req, res) => {
         res.status(500).json({
             message: "Error interno del servidor",
             error: error.message,
+        });
+    }
+};
+
+export const asignarMaquinas = async (req, res) => {
+    const { personal_id } = req.params;
+    const { maquinas } = req.body;
+    const errors = [];
+
+    try {
+        // Validar personal_id
+        const personalIdNumber = parseInt(personal_id);
+        if (isNaN(personalIdNumber)) {
+            return res.status(400).json({
+                message: "ID de personal inválido"
+            });
+        }
+
+        // Validar que el personal existe
+        const [personalExists] = await pool.query(
+            "SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0",
+            [personalIdNumber]
+        );
+        if (personalExists.length === 0) {
+            return res.status(404).json({
+                message: "Personal no encontrado o está eliminado"
+            });
+        }
+
+        // Validar el array de maquinas
+        if (!Array.isArray(maquinas)) {
+            return res.status(400).json({
+                message: "El campo maquinas debe ser un array"
+            });
+        }
+
+        // Iniciar transacción
+        await pool.query('START TRANSACTION');
+
+        // Marcar como eliminados los registros existentes
+        await pool.query(
+            "UPDATE conductor_maquina SET isDeleted = 1 WHERE personal_id = ?",
+            [personalIdNumber]
+        );
+
+        // Insertar nuevas asignaciones
+        for (const maquina_id of maquinas) {
+            const maquinaIdNumber = parseInt(maquina_id);
+            if (isNaN(maquinaIdNumber)) {
+                errors.push(`ID de máquina inválido: ${maquina_id}`);
+                continue;
+            }
+
+            // Verificar que la máquina existe
+            const [maquinaExists] = await pool.query(
+                "SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0",
+                [maquinaIdNumber]
+            );
+            if (maquinaExists.length === 0) {
+                errors.push(`Máquina con ID ${maquina_id} no encontrada o está eliminada`);
+                continue;
+            }
+
+            // Insertar nueva asignación
+            await pool.query(
+                `INSERT INTO conductor_maquina (personal_id, maquina_id, isDeleted) 
+                 VALUES (?, ?, 0)
+                 ON DUPLICATE KEY UPDATE isDeleted = 0`,
+                [personalIdNumber, maquinaIdNumber]
+            );
+        }
+
+        if (errors.length > 0) {
+            await pool.query('ROLLBACK');
+            return res.status(400).json({ errors });
+        }
+
+        await pool.query('COMMIT');
+
+        res.status(200).json({
+            message: "Máquinas asignadas correctamente",
+            personal_id: personalIdNumber,
+            maquinas_asignadas: maquinas
+        });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('error: ', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

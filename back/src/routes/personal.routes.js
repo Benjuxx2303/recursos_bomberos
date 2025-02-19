@@ -2,13 +2,15 @@ import { Router } from "express";
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
+    activatePersonal,
+    asignarMaquinas,
     createPersonal,
+    deactivatePersonal,
     downPersonal,
+    getPersonalLowData,
     getPersonalWithDetailsPage,
     getPersonalbyID,
     updatePersonal,
-    activatePersonal,
-    deactivatePersonal,
     updateUltimaFecServicio
 } from "../controllers/personal.controllers.js";
 
@@ -36,6 +38,7 @@ router.get(base_route, checkPermission('getPersonal'), getPersonalWithDetailsPag
 // id:          61
 // rut:         23904666-5
 
+router.get(`${base_route}/low-data`, checkPermission('getPersonal'), getPersonalLowData);
 router.patch(`${base_route}/activate`, checkPermission('updatePersonal'), activatePersonal);
 // http://{url}/api/personal/activate
 // QueryParams:
@@ -52,4 +55,8 @@ router.get(`${base_route}/:id`, checkPermission('getPersonal'), getPersonalbyID)
 router.post(base_route, checkPermission('createPersonal'), uploadFields, createPersonal); // Crear un nuevo personal
 router.delete(`${base_route}/:id`, checkPermission('deletePersonal'), downPersonal); // dar de baja un personal
 router.patch(`${base_route}/:id`, checkPermission('updatePersonal'), uploadFields, updatePersonal); // actualizar el personal
-export default router;
+
+// Agregar la ruta para asignar máquinas con middleware de autenticación
+router.post(`${base_route}/:personal_id/maquinas`, checkPermission('updatePersonal'), asignarMaquinas);
+
+export default router;  

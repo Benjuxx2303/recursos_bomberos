@@ -14,13 +14,13 @@ import {
 const createTransporter = () => {
     // Si se ha configurado un servicio SMTP, usa sus valores, si no, usa la configuración por defecto.
     const transporter = nodemailer.createTransport({
-        service: SMTP_SERVICE,  // El servicio puede ser 'gmail', 'outlook', 'smtp' personalizado, etc.
-        host: SMTP_HOST,  // El host SMTP, si no es un servicio predeterminado.
-        port: SMTP_PORT,  // Puerto SMTP.
-        secure: SMTP_SECURE,  // Si se usa SSL/TLS.
+        service: SMTP_SERVICE,  
+        host: SMTP_HOST,  
+        port: SMTP_PORT,  
+        secure: SMTP_SECURE,  
         auth: {
-            user: SMTP_USER,  // Usuario SMTP.
-            pass: SMTP_PASS   // Contraseña SMTP.
+            user: SMTP_USER,  
+            pass: SMTP_PASS   
         },
         tls: {
             rejectUnauthorized: false
@@ -32,15 +32,15 @@ const createTransporter = () => {
 
 /**
  * Envía un correo electrónico utilizando la configuración SMTP proporcionada.
- *
+ * 
  * @param {string} to - Dirección del destinatario.
  * @param {string} subject - Asunto del correo.
  * @param {string} text - Contenido del correo en texto plano.
  * @param {string} html - Contenido del correo en HTML.
+ * @param {Array} attachments - Lista de archivos adjuntos (opcional).
  * @throws Error si el correo no puede ser enviado.
  */
-export const sendEmail = async (to, subject, text, html) => {
-    // Verificar si ya se envió un correo similar en los últimos segundos
+export const sendEmail = async (to, subject, text, html, attachments = []) => {
     if (global.lastEmailSent && global.lastEmailSent[to]) {
         const timeDiff = Date.now() - global.lastEmailSent[to].timestamp;
         if (timeDiff < 5000 && global.lastEmailSent[to].subject === subject) {
@@ -55,13 +55,14 @@ export const sendEmail = async (to, subject, text, html) => {
         // Verificar si la configuración del transporter es válida
         await transporter.verify();
 
-        // Configurar el correo
+        // Configurar el correo con los archivos adjuntos
         const mailOptions = {
             from: `"Cuerpo de Bomberos de Osorno" <${SMTP_USER}>`,
             to,
             subject,
             text,
-            html
+            html,
+            attachments  // Se agregan los archivos adjuntos aquí
         };
 
         // Enviar el correo

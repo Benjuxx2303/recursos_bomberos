@@ -200,16 +200,15 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
                             emailConfig.buttonText
                         );
                         
+                        // Si hay archivos adjuntos, deben ser enviados como un array
+                        const attachments = emailConfig.attachments || [];
+
                         await sendEmail(
                             usuario.correo,
                             emailConfig.subject,
                             contenido,
                             htmlContent,
-                            [{
-                                filename: 'icono-osorno.png',
-                                path: './icono-osorno.png',
-                                cid: 'logo'
-                            }]
+                            attachments
                         );
                     } catch (emailError) {
                         console.error(`Error al enviar correo a ${usuario.correo}:`, emailError.message);
@@ -244,4 +243,4 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
         console.error('Error en createAndSendNotifications:', error);
         throw error;
     }
-}; 
+};

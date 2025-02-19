@@ -7,6 +7,7 @@ import {
     createPersonal,
     deactivatePersonal,
     downPersonal,
+    getPersonalLowData,
     getPersonalWithDetailsPage,
     getPersonalbyID,
     updatePersonal,
@@ -37,6 +38,7 @@ router.get(base_route, checkPermission('getPersonal'), getPersonalWithDetailsPag
 // id:          61
 // rut:         23904666-5
 
+router.get(`${base_route}/low-data`, checkPermission('getPersonal'), getPersonalLowData);
 router.patch(`${base_route}/activate`, checkPermission('updatePersonal'), activatePersonal);
 // http://{url}/api/personal/activate
 // QueryParams:

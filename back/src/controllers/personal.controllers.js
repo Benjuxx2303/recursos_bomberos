@@ -17,6 +17,7 @@ export const getPersonal = async (req, res) => {
             message: "Error interno del servidor",
             error: error.message
         });
+
     }
 };
 
@@ -151,6 +152,41 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             message: "Error interno del servidor",
             error: error.message
         });
+    }
+};
+
+
+
+export const getPersonalLowData = async (req, res) => {
+    try {
+        const { compania_id } = req.query;
+
+        let query = `
+            SELECT p.id, p.rut, p.nombre, p.apellido, 
+                   rp.nombre AS rol_personal, 
+                   c.nombre AS compania, 
+                   p.compania_id
+            FROM personal p
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            INNER JOIN compania c ON p.compania_id = c.id
+            WHERE p.isDeleted = 0
+        `;
+
+        const params = [];
+
+        if (compania_id) {
+            query += ' AND p.compania_id = ?';
+            params.push(compania_id);
+        }
+
+        query += ' ORDER BY p.id DESC';
+
+        const [rows] = await pool.query(query, params);
+
+        res.json(rows);
+    } catch (error) {
+        console.error('Error: ', error);
+        res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
 

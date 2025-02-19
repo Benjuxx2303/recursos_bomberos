@@ -319,7 +319,7 @@ export const getMaintenanceHistory = async (req, res) => {
       companiaId, 
       month, 
       type,
-      orden ,
+      orden,
       "maquina.patente": patente,
       "maquina.nombre": maquinaNombre,
       estado,
@@ -327,6 +327,11 @@ export const getMaintenanceHistory = async (req, res) => {
       "personal.apellido": personalApellido,
       "personal.rut": personalRut,
       "taller.nombre": tallerNombre,
+      "aprobador.nombre": aprobadorNombre,
+      "aprobador.apellido": aprobadorApellido,
+      "responsable.nombre": responsableNombre,
+      "responsable.apellido": responsableApellido,
+      aprobada,
       fechaInicio,
       fechaFin
     } = req.query;
@@ -336,7 +341,7 @@ export const getMaintenanceHistory = async (req, res) => {
     let whereConditions = ['m.isDeleted = 0'];
     let params = [];
 
-    // Filtros
+    // Filtros existentes
     if (companiaId) {
       whereConditions.push('c.id = ?');
       params.push(companiaId);
@@ -377,6 +382,28 @@ export const getMaintenanceHistory = async (req, res) => {
       whereConditions.push('t.nombre LIKE ?');
       params.push(`%${tallerNombre}%`);
     }
+
+    // Nuevos filtros
+    if (aprobadorNombre) {
+      whereConditions.push('p_apr.nombre LIKE ?');
+      params.push(`%${aprobadorNombre}%`);
+    }
+    if (aprobadorApellido) {
+      whereConditions.push('p_apr.apellido LIKE ?');
+      params.push(`%${aprobadorApellido}%`);
+    }
+    if (responsableNombre) {
+      whereConditions.push('p_resp.nombre LIKE ?');
+      params.push(`%${responsableNombre}%`);
+    }
+    if (responsableApellido) {
+      whereConditions.push('p_resp.apellido LIKE ?');
+      params.push(`%${responsableApellido}%`);
+    }
+    if (aprobada !== undefined) {
+      whereConditions.push('m.aprobada = ?');
+      params.push(aprobada);
+    }
     if (fechaInicio && fechaFin) {
       whereConditions.push('m.fec_inicio BETWEEN ? AND ?');
       params.push(fechaInicio, fechaFin);
@@ -386,7 +413,6 @@ export const getMaintenanceHistory = async (req, res) => {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
 
-    // Manejo del ordenamiento
     const orderByMap = {
       'fecha_asc': 'm.fec_inicio ASC',
       'fecha_desc': 'm.fec_inicio DESC',
@@ -405,7 +431,21 @@ export const getMaintenanceHistory = async (req, res) => {
         m.fec_termino,
         m.cost_ser,
         m.bitacora_id,
+        m.aprobada,
+        DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') as fecha_aprobacion,
+        m.aprobada_por,
+        m.personal_responsable_id,
         TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) as duracion_horas,
+        CASE 
+          WHEN em.nombre = 'Programada' THEN 
+            CASE
+              WHEN TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio), ' meses')
+              WHEN TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio), ' semanas')
+              WHEN TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio), ' días')
+              ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
+            END
+          ELSE NULL
+        END as tiempo_restante,
         maq.codigo as vehiculo,
         maq.img_url as 'maquina.img_url',
         maq.patente as 'maquina.patente',
@@ -416,7 +456,9 @@ export const getMaintenanceHistory = async (req, res) => {
         p.nombre as 'personal.nombre',
         p.apellido as 'personal.apellido',
         p.rut as 'personal.rut',
-        t.nombre as 'taller.nombre'
+        t.nombre as 'taller.nombre',
+        CONCAT(p_apr.nombre, ' ', p_apr.apellido) as 'aprobador_nombre',
+        CONCAT(p_resp.nombre, ' ', p_resp.apellido) as 'responsable_nombre'
       FROM mantencion m
       JOIN maquina maq ON m.maquina_id = maq.id
       JOIN compania c ON maq.compania_id = c.id
@@ -425,6 +467,8 @@ export const getMaintenanceHistory = async (req, res) => {
       JOIN taller t ON m.taller_id = t.id
       JOIN bitacora b ON m.bitacora_id = b.id
       JOIN personal p ON b.personal_id = p.id
+      LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
+      LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
       ${whereClause}
       ORDER BY ${orderBy}
       LIMIT ? OFFSET ?
@@ -440,6 +484,8 @@ export const getMaintenanceHistory = async (req, res) => {
       JOIN taller t ON m.taller_id = t.id
       JOIN bitacora b ON m.bitacora_id = b.id
       JOIN personal p ON b.personal_id = p.id
+      LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
+      LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
       ${whereClause}
     `;
 

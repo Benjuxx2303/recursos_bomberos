@@ -342,8 +342,8 @@ export const sendMantencionAlerts = async (req, res) => {
             correosEnviados.add(responsable_correo);
 
             const fechaMantencion = new Date(fec_inicio).toLocaleDateString("es-ES");
-            let contenido = `Hola ${responsable_nombre}, la mantención del vehículo ${codigo_maquina} (${descripcion}) está programada para el ${fechaMantencion}. Por favor, prepárate con anticipación.`;
-            let contenidoTelecom = `¡Aviso! La mantención del vehículo ${codigo_maquina} (${descripcion}) está programada para el ${fechaMantencion}. Por favor, coordinar recursos.`;
+            let contenido = `Hola ${responsable_nombre}, la mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion}. Por favor, prepárate con anticipación. Descripción: (${descripcion})`;
+            let contenidoTelecom = `¡Aviso! La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion}. Por favor, coordinar recursos. Descripción: (${descripcion}) `;
 
             const htmlContent = generateEmailTemplate(
                 "Recordatorio: Mantención Programada",

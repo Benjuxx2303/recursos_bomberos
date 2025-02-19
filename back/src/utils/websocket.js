@@ -83,6 +83,14 @@ export const initializeWebSocket = (server, corsOptions) => {
     return io;
 };
 
+/**
+ * Emits a notification to a specific user via WebSocket.
+ *
+ * @param {string} userId - The ID of the user to whom the notification will be sent.
+ * @param {Object} notification - The notification object to be sent.
+ * @returns {Promise<boolean>} - Returns true if the notification was emitted successfully.
+ * @throws {Error} - Throws an error if the WebSocket is not initialized or if there is an issue emitting the notification.
+ */
 export const emitNotification = async (userId, notification) => {
     try {
         console.log('\n=== Emitiendo notificación ===');

@@ -259,7 +259,17 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 CONCAT(p_resp.nombre, ' ', p_resp.apellido) AS 'responsable_nombre',
                 t.razon_social AS 'taller',
                 em.nombre AS 'estado_mantencion',
-                tm.nombre AS 'tipo_mantencion'
+                tm.nombre AS 'tipo_mantencion',
+                CASE 
+                  WHEN em.nombre = 'Programada' THEN 
+                    CASE
+                      WHEN TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio), ' meses')
+                      WHEN TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio), ' semanas')
+                      WHEN TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio), ' días')
+                      ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
+                    END
+                  ELSE NULL
+                END as tiempo_restante
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN compania c ON b.compania_id = c.id
@@ -311,6 +321,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
       estado_mantencion: row.estado_mantencion,
       tipo_mantencion: row.tipo_mantencion,
       tipo_mantencion_id: row.tipo_mantencion_id,
+      tiempo_restante: row.tiempo_restante,
     }));
 
     res.json(result);
@@ -917,7 +928,6 @@ export const downloadExcel = async (req, res) => {
     });
   }
 };
-
 // Nueva función para aprobar/rechazar mantención
 export const toggleAprobacionMantencion = async (req, res) => {
   const { id } = req.params;
@@ -937,6 +947,18 @@ export const toggleAprobacionMantencion = async (req, res) => {
     // Determinar el nuevo estado (toggle)
     const nuevoEstado = mantencion.aprobada === 1 ? 0 : 1;
 
+    // Obtener el personal_id correspondiente al usuario_id
+    const [personalInfo] = await pool.query(
+      "SELECT personal_id FROM usuario WHERE id = ?",
+      [usuario_id]
+    );
+
+    if (personalInfo.length === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const personal_id = personalInfo[0].personal_id;
+
     // Actualizar el estado
     const [result] = await pool.query(
       `UPDATE mantencion 
@@ -944,7 +966,7 @@ export const toggleAprobacionMantencion = async (req, res) => {
            aprobada_por = ?,
            fecha_aprobacion = ${nuevoEstado === 1 ? "NOW()" : "NULL"}
        WHERE id = ?`,
-      [nuevoEstado, nuevoEstado === 1 ? usuario_id : null, id]
+      [nuevoEstado, nuevoEstado === 1 ? personal_id : null, id]
     );
 
     if (result.affectedRows === 0) {

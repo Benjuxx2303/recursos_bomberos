@@ -4,6 +4,7 @@ import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
 import { formatDateTime, validateDate } from "../utils/validations.js";
+import { generatePDF } from "../utils/generatePDF.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -492,6 +493,24 @@ export const createMantencion = async (req, res) => {
       ]
     );
 
+    // Preparar los datos del PDF
+    const pdfData = [{
+      bitacora_id: bitacoraIdNumber,
+      maquina_id: maquinaIdNumber,
+      taller_id: tallerIdNumber,
+      estado_mantencion_id,
+      tipo_mantencion_id: tipoMantencionIdNumber,
+      fec_inicio: mysqlFecInicio,
+      fec_termino: mysqlFecTermino,
+      ord_trabajo,
+      n_factura,
+      cost_ser: costSerNumber,
+      aprobada_por: aprobada_por_nombre || null,
+    }];
+
+    // Generar el PDF
+    const pdfBuffer = await generatePDF(pdfData);
+
     // **Si "aprobada_por" es válido, se actualiza la mantención con fecha de aprobación y aprobado=1**
     if (aprobada_por && !errors.length) {
       await pool.query(
@@ -500,10 +519,12 @@ export const createMantencion = async (req, res) => {
       );
     }
 
-    // Enviar notificación
-    const usuarios = await getNotificationUsers({
-      compania_id, roles: ["TELECOM", "Teniente de Máquina", "Capitán"]
-    });
+    // Enviar notificación (con filtros)
+    // const usuarios = await getNotificationUsers({
+    //   compania_id, roles: ["TELECOM", "Teniente de Máquina", "Capitán"]
+    // });
+
+    const usuarios = await getNotificationUsers();
 
     if (usuarios.length > 0) {
       let contenido = `Nueva mantención registrada - ${codigo} - Orden de trabajo: ${ord_trabajo}\n`;
@@ -519,11 +540,18 @@ export const createMantencion = async (req, res) => {
       }
 
       await createAndSendNotifications({
-        contenido, tipo: "mantencion", usuarios,
+        contenido, 
+        tipo: "mantencion", 
+        usuarios,
         emailConfig: {
           subject: "Nueva Mantención Registrada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
           buttonText: "Ver Detalles",
+          attachments: [{
+            filename: `mantencion_${result.insertId}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }]
         },
       });
     }

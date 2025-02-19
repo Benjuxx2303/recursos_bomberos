@@ -419,7 +419,25 @@ export const getMaintenanceHistory = async (req, res) => {
       'duracion_asc': 'TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) ASC',
       'duracion_desc': 'TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) DESC',
       'costo_asc': 'm.cost_ser ASC',
-      'costo_desc': 'm.cost_ser DESC'
+      'costo_desc': 'm.cost_ser DESC',
+      'tipo_asc': 'tm.nombre ASC',
+      'tipo_desc': 'tm.nombre DESC',
+      'estado_asc': 'em.nombre ASC',
+      'estado_desc': 'em.nombre DESC',
+      'taller_asc': 't.nombre ASC',
+      'taller_desc': 't.nombre DESC',
+      'conductor_asc': 'p.nombre ASC',
+      'conductor_desc': 'p.nombre DESC',
+      'aprobador_asc': 'p_apr.nombre ASC',
+      'aprobador_desc': 'p_apr.nombre DESC',
+      'responsable_asc': 'p_resp.nombre ASC',
+      'responsable_desc': 'p_resp.nombre DESC',
+      'fecha_aprobacion_asc': 'm.fecha_aprobacion ASC',
+      'fecha_aprobacion_desc': 'm.fecha_aprobacion DESC',
+      'estado_aprobacion_asc': 'm.aprobada ASC',
+      'estado_aprobacion_desc': 'm.aprobada DESC',
+      'tiempo_restante_asc': 'tiempo_restante ASC',
+      'tiempo_restante_desc': 'tiempo_restante DESC'
     };
 
     const orderBy = orderByMap[orden] || 'm.fec_inicio DESC';
@@ -447,16 +465,20 @@ export const getMaintenanceHistory = async (req, res) => {
           ELSE NULL
         END as tiempo_restante,
         maq.codigo as vehiculo,
+        maq.id as 'maquina.id',
         maq.img_url as 'maquina.img_url',
         maq.patente as 'maquina.patente',
         maq.nombre as 'maquina.nombre',
         tm.nombre as tipo,
+        tm.id as 'tipo_mantencion.id',
         em.nombre as estado,
+        em.id as 'estado_mantencion.id',
         c.nombre as company,
         p.nombre as 'personal.nombre',
         p.apellido as 'personal.apellido',
         p.rut as 'personal.rut',
         t.nombre as 'taller.nombre',
+        t.id as 'taller.id',
         CONCAT(p_apr.nombre, ' ', p_apr.apellido) as 'aprobador_nombre',
         CONCAT(p_resp.nombre, ' ', p_resp.apellido) as 'responsable_nombre'
       FROM mantencion m

@@ -234,6 +234,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 c.nombre AS 'bitacora.compania',
                 CONCAT(p.rut) AS 'bitacora.conductor',
                 b.direccion AS 'bitacora.direccion',
+                b.maquina_id AS 'bitacora.maquina_id',
                 DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.h_salida',
                 DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.h_llegada',
                 b.km_salida AS 'bitacora.km_salida',
@@ -242,6 +243,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 b.hmetro_llegada AS 'bitacora.hmetro_llegada',
                 b.hbomba_salida AS 'bitacora.hbomba_salida',
                 b.hbomba_llegada AS 'bitacora.hbomba_llegada',
+                
                 b.obs AS 'bitacora.obs',
                 ma.img_url AS 'img_url',
                 ma.patente AS 'patente',    
@@ -295,6 +297,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
       "bitacora.compania": row["bitacora.compania"],
       "bitacora.conductor": row["bitacora.conductor"],
       "bitacora.direccion": row["bitacora.direccion"],
+      "bitacora.maquina_id": row["bitacora.maquina_id"],
       "bitacora.fh_salida": row["bitacora.fh_salida"],
       "bitacora.fh_llegada": row["bitacora.fh_llegada"],
       "bitacora.km_salida": row["bitacora.km_salida"],

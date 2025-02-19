@@ -231,8 +231,8 @@ export const getMantencionAllDetailsById = async (req, res) => {
             SELECT
                 m.id,
                 b.id AS 'bitacora.id',
-                c.nombre AS 'bitacora.compania', -- Nombre de la compañia
-                CONCAT(p.rut) AS 'bitacora.conductor', -- RUT del conductor
+                c.nombre AS 'bitacora.compania',
+                CONCAT(p.rut) AS 'bitacora.conductor',
                 b.direccion AS 'bitacora.direccion',
                 DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.h_salida',
                 DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.h_llegada',
@@ -252,6 +252,11 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 m.n_factura,
                 m.cost_ser,
                 m.aprobada,
+                DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') AS 'fecha_aprobacion',
+                m.aprobada_por,
+                m.personal_responsable_id,
+                CONCAT(p_apr.nombre, ' ', p_apr.apellido) AS 'aprobador_nombre',
+                CONCAT(p_resp.nombre, ' ', p_resp.apellido) AS 'responsable_nombre',
                 t.razon_social AS 'taller',
                 em.nombre AS 'estado_mantencion',
                 tm.nombre AS 'tipo_mantencion'
@@ -260,6 +265,8 @@ export const getMantencionAllDetailsById = async (req, res) => {
             INNER JOIN compania c ON b.compania_id = c.id
             INNER JOIN maquina ma ON m.maquina_id = ma.id
             LEFT JOIN personal p ON b.personal_id = p.id
+            LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
+            LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
             INNER JOIN taller t ON m.taller_id = t.id
             INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
@@ -294,6 +301,11 @@ export const getMantencionAllDetailsById = async (req, res) => {
       n_factura: row.n_factura,
       cost_ser: row.cost_ser,
       aprobada: row.aprobada,
+      fecha_aprobacion: row.fecha_aprobacion,
+      aprobada_por: row.aprobada_por,
+      personal_responsable_id: row.personal_responsable_id,
+      aprobador_nombre: row.aprobador_nombre,
+      responsable_nombre: row.responsable_nombre,
       taller: row.taller,
       img_url: row.img_url,
       estado_mantencion: row.estado_mantencion,

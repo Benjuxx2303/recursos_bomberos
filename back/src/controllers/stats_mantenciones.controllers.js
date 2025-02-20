@@ -319,7 +319,7 @@ export const getMaintenanceHistory = async (req, res) => {
       companiaId, 
       month, 
       type,
-      orden ,
+      orden,
       "maquina.patente": patente,
       "maquina.nombre": maquinaNombre,
       estado,
@@ -327,6 +327,11 @@ export const getMaintenanceHistory = async (req, res) => {
       "personal.apellido": personalApellido,
       "personal.rut": personalRut,
       "taller.nombre": tallerNombre,
+      "aprobador.nombre": aprobadorNombre,
+      "aprobador.apellido": aprobadorApellido,
+      "responsable.nombre": responsableNombre,
+      "responsable.apellido": responsableApellido,
+      aprobada,
       fechaInicio,
       fechaFin
     } = req.query;
@@ -336,7 +341,7 @@ export const getMaintenanceHistory = async (req, res) => {
     let whereConditions = ['m.isDeleted = 0'];
     let params = [];
 
-    // Filtros
+    // Filtros existentes
     if (companiaId) {
       whereConditions.push('c.id = ?');
       params.push(companiaId);
@@ -377,6 +382,28 @@ export const getMaintenanceHistory = async (req, res) => {
       whereConditions.push('t.nombre LIKE ?');
       params.push(`%${tallerNombre}%`);
     }
+
+    // Nuevos filtros
+    if (aprobadorNombre) {
+      whereConditions.push('p_apr.nombre LIKE ?');
+      params.push(`%${aprobadorNombre}%`);
+    }
+    if (aprobadorApellido) {
+      whereConditions.push('p_apr.apellido LIKE ?');
+      params.push(`%${aprobadorApellido}%`);
+    }
+    if (responsableNombre) {
+      whereConditions.push('p_resp.nombre LIKE ?');
+      params.push(`%${responsableNombre}%`);
+    }
+    if (responsableApellido) {
+      whereConditions.push('p_resp.apellido LIKE ?');
+      params.push(`%${responsableApellido}%`);
+    }
+    if (aprobada !== undefined) {
+      whereConditions.push('m.aprobada = ?');
+      params.push(aprobada);
+    }
     if (fechaInicio && fechaFin) {
       whereConditions.push('m.fec_inicio BETWEEN ? AND ?');
       params.push(fechaInicio, fechaFin);
@@ -386,14 +413,31 @@ export const getMaintenanceHistory = async (req, res) => {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
 
-    // Manejo del ordenamiento
     const orderByMap = {
       'fecha_asc': 'm.fec_inicio ASC',
       'fecha_desc': 'm.fec_inicio DESC',
       'duracion_asc': 'TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) ASC',
       'duracion_desc': 'TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) DESC',
       'costo_asc': 'm.cost_ser ASC',
-      'costo_desc': 'm.cost_ser DESC'
+      'costo_desc': 'm.cost_ser DESC',
+      'tipo_asc': 'tm.nombre ASC',
+      'tipo_desc': 'tm.nombre DESC',
+      'estado_asc': 'em.nombre ASC',
+      'estado_desc': 'em.nombre DESC',
+      'taller_asc': 't.nombre ASC',
+      'taller_desc': 't.nombre DESC',
+      'conductor_asc': 'p.nombre ASC',
+      'conductor_desc': 'p.nombre DESC',
+      'aprobador_asc': 'p_apr.nombre ASC',
+      'aprobador_desc': 'p_apr.nombre DESC',
+      'responsable_asc': 'p_resp.nombre ASC',
+      'responsable_desc': 'p_resp.nombre DESC',
+      'fecha_aprobacion_asc': 'm.fecha_aprobacion ASC',
+      'fecha_aprobacion_desc': 'm.fecha_aprobacion DESC',
+      'estado_aprobacion_asc': 'm.aprobada ASC',
+      'estado_aprobacion_desc': 'm.aprobada DESC',
+      'tiempo_restante_asc': 'tiempo_restante ASC',
+      'tiempo_restante_desc': 'tiempo_restante DESC'
     };
 
     const orderBy = orderByMap[orden] || 'm.fec_inicio DESC';
@@ -405,18 +449,38 @@ export const getMaintenanceHistory = async (req, res) => {
         m.fec_termino,
         m.cost_ser,
         m.bitacora_id,
+        m.aprobada,
+        DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') as fecha_aprobacion,
+        m.aprobada_por,
+        m.personal_responsable_id,
         TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) as duracion_horas,
+        CASE 
+          WHEN em.nombre = 'Programada' THEN 
+            CASE
+              WHEN TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio), ' meses')
+              WHEN TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio), ' semanas')
+              WHEN TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio), ' días')
+              ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
+            END
+          ELSE NULL
+        END as tiempo_restante,
         maq.codigo as vehiculo,
+        maq.id as 'maquina.id',
         maq.img_url as 'maquina.img_url',
         maq.patente as 'maquina.patente',
         maq.nombre as 'maquina.nombre',
         tm.nombre as tipo,
+        tm.id as 'tipo_mantencion.id',
         em.nombre as estado,
+        em.id as 'estado_mantencion.id',
         c.nombre as company,
         p.nombre as 'personal.nombre',
         p.apellido as 'personal.apellido',
         p.rut as 'personal.rut',
-        t.nombre as 'taller.nombre'
+        t.nombre as 'taller.nombre',
+        t.id as 'taller.id',
+        CONCAT(p_apr.nombre, ' ', p_apr.apellido) as 'aprobador_nombre',
+        CONCAT(p_resp.nombre, ' ', p_resp.apellido) as 'responsable_nombre'
       FROM mantencion m
       JOIN maquina maq ON m.maquina_id = maq.id
       JOIN compania c ON maq.compania_id = c.id
@@ -425,6 +489,8 @@ export const getMaintenanceHistory = async (req, res) => {
       JOIN taller t ON m.taller_id = t.id
       JOIN bitacora b ON m.bitacora_id = b.id
       JOIN personal p ON b.personal_id = p.id
+      LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
+      LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
       ${whereClause}
       ORDER BY ${orderBy}
       LIMIT ? OFFSET ?
@@ -440,6 +506,8 @@ export const getMaintenanceHistory = async (req, res) => {
       JOIN taller t ON m.taller_id = t.id
       JOIN bitacora b ON m.bitacora_id = b.id
       JOIN personal p ON b.personal_id = p.id
+      LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
+      LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
       ${whereClause}
     `;
 

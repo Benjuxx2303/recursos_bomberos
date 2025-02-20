@@ -1,10 +1,10 @@
 import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
+import { generatePDF } from "../utils/generatePDF.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
 import { formatDateTime, validateDate } from "../utils/validations.js";
-import { generatePDF } from "../utils/generatePDF.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -235,6 +235,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 c.nombre AS 'bitacora.compania',
                 CONCAT(p.rut) AS 'bitacora.conductor',
                 b.direccion AS 'bitacora.direccion',
+                b.maquina_id AS 'bitacora.maquina_id',
                 DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'bitacora.h_salida',
                 DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'bitacora.h_llegada',
                 b.km_salida AS 'bitacora.km_salida',
@@ -243,6 +244,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 b.hmetro_llegada AS 'bitacora.hmetro_llegada',
                 b.hbomba_salida AS 'bitacora.hbomba_salida',
                 b.hbomba_llegada AS 'bitacora.hbomba_llegada',
+                
                 b.obs AS 'bitacora.obs',
                 ma.img_url AS 'img_url',
                 ma.patente AS 'patente',    
@@ -260,7 +262,17 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 CONCAT(p_resp.nombre, ' ', p_resp.apellido) AS 'responsable_nombre',
                 t.razon_social AS 'taller',
                 em.nombre AS 'estado_mantencion',
-                tm.nombre AS 'tipo_mantencion'
+                tm.nombre AS 'tipo_mantencion',
+                CASE 
+                  WHEN em.nombre = 'Programada' THEN 
+                    CASE
+                      WHEN TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio), ' meses')
+                      WHEN TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio), ' semanas')
+                      WHEN TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio), ' días')
+                      ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
+                    END
+                  ELSE NULL
+                END as tiempo_restante
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN compania c ON b.compania_id = c.id
@@ -286,6 +298,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
       "bitacora.compania": row["bitacora.compania"],
       "bitacora.conductor": row["bitacora.conductor"],
       "bitacora.direccion": row["bitacora.direccion"],
+      "bitacora.maquina_id": row["bitacora.maquina_id"],
       "bitacora.fh_salida": row["bitacora.fh_salida"],
       "bitacora.fh_llegada": row["bitacora.fh_llegada"],
       "bitacora.km_salida": row["bitacora.km_salida"],
@@ -312,6 +325,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
       estado_mantencion: row.estado_mantencion,
       tipo_mantencion: row.tipo_mantencion,
       tipo_mantencion_id: row.tipo_mantencion_id,
+      tiempo_restante: row.tiempo_restante,
     }));
 
     res.json(result);
@@ -945,7 +959,6 @@ export const downloadExcel = async (req, res) => {
     });
   }
 };
-
 // Nueva función para aprobar/rechazar mantención
 export const toggleAprobacionMantencion = async (req, res) => {
   const { id } = req.params;
@@ -965,6 +978,18 @@ export const toggleAprobacionMantencion = async (req, res) => {
     // Determinar el nuevo estado (toggle)
     const nuevoEstado = mantencion.aprobada === 1 ? 0 : 1;
 
+    // Obtener el personal_id correspondiente al usuario_id
+    const [personalInfo] = await pool.query(
+      "SELECT personal_id FROM usuario WHERE id = ?",
+      [usuario_id]
+    );
+
+    if (personalInfo.length === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const personal_id = personalInfo[0].personal_id;
+
     // Actualizar el estado
     const [result] = await pool.query(
       `UPDATE mantencion 
@@ -972,7 +997,7 @@ export const toggleAprobacionMantencion = async (req, res) => {
            aprobada_por = ?,
            fecha_aprobacion = ${nuevoEstado === 1 ? "NOW()" : "NULL"}
        WHERE id = ?`,
-      [nuevoEstado, nuevoEstado === 1 ? usuario_id : null, id]
+      [nuevoEstado, nuevoEstado === 1 ? personal_id : null, id]
     );
 
     if (result.affectedRows === 0) {
@@ -1179,3 +1204,33 @@ export const createMantencionPeriodica = async (req, res) => {
     });
   }
 };
+// Nueva función para cambiar el estado de una mantención a 'EnProceso'
+export const enProceso = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Obtener el ID del estado 'EnProceso'
+    const [estadoEnProceso] = await pool.query(
+      "SELECT id FROM estado_mantencion WHERE nombre = 'En Proceso' AND isDeleted = 0"
+    );
+
+    if (estadoEnProceso.length === 0) {
+      return res.status(400).json({ message: "El estado 'EnProceso' no existe" });
+    }
+
+    // Actualizar el estado de la mantención
+    await pool.query(
+      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      [estadoEnProceso[0].id, id]
+    );
+
+    res.json({ message: "Estado de mantención actualizado a 'EnProceso'" });
+  } catch (error) {
+    console.error("Error al actualizar estado de mantención:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};
+

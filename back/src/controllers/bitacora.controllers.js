@@ -542,7 +542,7 @@ export const updateBitacora = async (req, res) => {
     }
 };
 
-// TODO: Pulir función
+// TODO: Pulir función. NO TESTEADO
 export const endServicio = async (req, res) => {
     const { id } = req.params;
     let { 
@@ -551,8 +551,8 @@ export const endServicio = async (req, res) => {
         km_llegada, 
         hmetro_llegada, 
         hbomba_llegada, 
-        obs } = 
-    req.body;
+        obs 
+    } = req.body;
 
     const errors = [];
 
@@ -560,9 +560,9 @@ export const endServicio = async (req, res) => {
         // Validaciones de formato
         if (f_llegada && h_llegada) {
             const error = validateDate(f_llegada, h_llegada);
-            if (error === false) errors.push("Fecha y hora de salida inválida.");
+            if (error === false) errors.push("Fecha y hora de llegada inválida.");
         } else {
-            errors.push("Fecha y Hora de llegada son requeridos.")
+            errors.push("Fecha y Hora de llegada son requeridos.");
         }
 
         if (isNaN(km_llegada) || km_llegada < 0) errors.push("Km llegada debe ser un número válido y positivo.");
@@ -573,7 +573,7 @@ export const endServicio = async (req, res) => {
 
         // Verificar existencia de la bitácora
         const [bitacora] = await pool.query(
-            "SELECT personal_id, maquina_id FROM bitacora WHERE id = ? AND isDeleted = 0",
+            "SELECT personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida FROM bitacora WHERE id = ? AND isDeleted = 0",
             [id]
         );
 
@@ -581,7 +581,12 @@ export const endServicio = async (req, res) => {
             return res.status(404).json({ message: "Bitácora no encontrada o eliminada." });
         }
 
-        const { personal_id, maquina_id } = bitacora[0];
+        const { personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida } = bitacora[0];
+
+        // Comparar los datos de salida con los de llegada
+        if (km_salida > km_llegada) errors.push("Km llegada no puede ser menor a los datos de salida.");
+        if (hmetro_salida > hmetro_llegada) errors.push("Hmetro llegada no puede ser menor a los datos de salida.");
+        if (hbomba_salida > hbomba_llegada) errors.push("Hbomba llegada no puede ser menor a los datos de salida."); 
 
         // Transformar la fecha y hora a formato MySQL
         const mysqlFechaHora = formatDateTime(f_llegada, h_llegada); // Modificado: Uso de formatDateTime
@@ -591,14 +596,14 @@ export const endServicio = async (req, res) => {
             return res.status(400).json({ message: "Fecha y hora de llegada no son válidas." });
         }
 
-        // Actualizar datos en la bitácora (Eliminada la instrucción STR_TO_DATE)
+        // Actualizar datos en la bitácora
         await pool.query(
             `UPDATE bitacora SET 
-                fh_llegada = ?,  // Modificado: eliminada la función STR_TO_DATE y se usa el valor transformado
+                fh_llegada = ?,
                 km_llegada = ?, 
                 hmetro_llegada = ?, 
                 hbomba_llegada = ?, 
-                obs = ?
+                obs = ? 
             WHERE id = ?`,
             [mysqlFechaHora, km_llegada, hmetro_llegada, hbomba_llegada, obs || null, id]
         );
@@ -606,6 +611,40 @@ export const endServicio = async (req, res) => {
         // Actualizar disponibilidad de personal y máquina
         await pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]);
         await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
+
+        // Traer datos actuales de la máquina
+        const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
+        const { kmetraje_maquina, hmetro_motor_maquina, hmetro_bomba_maquina } = maquina[0];
+
+        // Revisar si la máquina tiene bomba
+        const [isBomba] = await pool.query(`SELECT 1 FROM maquina WHERE id = ? AND bomba = 1 AND isDeleted = 0`, [maquina_id]);
+        const hasBomba = isBomba.length > 0;
+
+        // Comparar los datos de llegada con los de la máquina
+        let hmetro_bomba_new = null;
+        let hmetro_motor_new = null;
+        let kmetraje_new = null;
+
+        if (hasBomba && hmetro_llegada > hmetro_bomba_maquina) {
+            hmetro_bomba_new = hmetro_llegada;
+        }
+
+        if (km_llegada > kmetraje_maquina) {
+            kmetraje_new = km_llegada;
+        }
+
+        if (hmetro_llegada > hmetro_motor_maquina) {
+            hmetro_motor_new = hmetro_llegada;
+        }
+
+        // Actualizar los datos de la máquina
+        await pool.query(`UPDATE maquina SET
+            hmetro_bomba = ?,
+            hmetro_motor = ?,
+            kmetraje = ?
+            WHERE id = ?`, 
+            [hmetro_bomba_new, hmetro_motor_new, kmetraje_new, maquina_id]
+        );
 
         res.json({ message: "Bitácora finalizada correctamente." });
     } catch (error) {

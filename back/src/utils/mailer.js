@@ -14,13 +14,13 @@ import {
 const createTransporter = () => {
     // Si se ha configurado un servicio SMTP, usa sus valores, si no, usa la configuración por defecto.
     const transporter = nodemailer.createTransport({
-        service: SMTP_SERVICE,  
-        host: SMTP_HOST,  
-        port: SMTP_PORT,  
-        secure: SMTP_SECURE,  
+        service: SMTP_SERVICE,
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
         auth: {
-            user: SMTP_USER,  
-            pass: SMTP_PASS   
+            user: SMTP_USER,
+            pass: SMTP_PASS
         },
         tls: {
             rejectUnauthorized: false
@@ -31,8 +31,71 @@ const createTransporter = () => {
 };
 
 /**
+ * Función para generar un delay (pausa) en milisegundos.
+ * @param {number} ms - Milisegundos a esperar.
+ * @returns {Promise}
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Función que intenta enviar un correo con reintentos automáticos si hay fallos temporales.
+ * @param {string} to - Dirección del destinatario.
+ * @param {string} subject - Asunto del correo.
+ * @param {string} text - Contenido en texto plano.
+ * @param {string} html - Contenido en HTML.
+ * @param {Array} attachments - Lista de archivos adjuntos.
+ * @param {number} retries - Número máximo de intentos.
+ * @param {number} delayMs - Tiempo de espera inicial entre intentos (se duplica en cada intento fallido).
+ */
+const retrySendEmail = async (to, subject, text, html, attachments = [], retries = 5, delayMs = 5000) => {
+    let consecutive454Errors = 0;  // Contador de errores 454 seguidos
+
+    for (let i = 0; i < retries; i++) {
+        try {
+            const transporter = createTransporter();
+            await transporter.verify();
+
+            const mailOptions = {
+                from: `"Cuerpo de Bomberos de Osorno" <${SMTP_USER}>`,
+                to,
+                subject,
+                text,
+                html,
+                attachments
+            };
+
+            const info = await transporter.sendMail(mailOptions);
+            console.log(`✅ Correo enviado a ${to} exitosamente.`);
+            return info;
+
+        } catch (error) {
+            const smtpCode = error.responseCode || null;
+
+            if (smtpCode === 454) {
+                consecutive454Errors++;
+                console.warn(`🚨 [ALERTA] Demasiados intentos de inicio de sesión para ${to}. Esperando 15 minutos antes de reintentar...`);
+
+                if (consecutive454Errors >= 3) {
+                    console.error(`❌ [ERROR CRÍTICO] Intentos fallidos de inicio de sesión repetidos 3 veces para ${to}. Deteniendo reintentos.`);
+                    throw error;
+                }
+
+                await delay(900000); // Esperar 15 minutos antes de reintentar
+            } else if (smtpCode && [421, 450, 500].includes(smtpCode)) {
+                console.warn(`⚠️ [REINTENTO] Error SMTP ${smtpCode} al enviar correo a ${to}: ${error.message}. Reintentando en ${delayMs}ms...`);
+                await delay(delayMs);
+                delayMs *= 2; // Aumentar el tiempo de espera en cada intento (exponential backoff)
+            } else {
+                console.error(`❌ [FALLO DEFINITIVO] No se pudo enviar el correo a ${to}.\n🆔 Código de error: ${smtpCode}\n📌 Detalle: ${error.message}`);
+                throw error;
+            }
+        }
+    }
+};
+
+/**
  * Envía un correo electrónico utilizando la configuración SMTP proporcionada.
- * 
+ *
  * @param {string} to - Dirección del destinatario.
  * @param {string} subject - Asunto del correo.
  * @param {string} text - Contenido del correo en texto plano.
@@ -44,42 +107,19 @@ export const sendEmail = async (to, subject, text, html, attachments = []) => {
     if (global.lastEmailSent && global.lastEmailSent[to]) {
         const timeDiff = Date.now() - global.lastEmailSent[to].timestamp;
         if (timeDiff < 5000 && global.lastEmailSent[to].subject === subject) {
-            return null;  // Evitar el envío de correos duplicados.
+            console.log(`⏳ [INFO] Correo a ${to} ya fue enviado recientemente. Se omite el reenvío.`);
+            return null;  // Evita envíos duplicados en menos de 5s.
         }
     }
 
-    try {
-        // Usamos la función para crear el transporter
-        const transporter = createTransporter();
+    // Usa la función con reintentos en lugar de enviar directamente
+    const info = await retrySendEmail(to, subject, text, html, attachments);
 
-        // Verificar si la configuración del transporter es válida
-        await transporter.verify();
+    // Registrar el envío para evitar duplicados
+    if (!global.lastEmailSent) global.lastEmailSent = {};
+    global.lastEmailSent[to] = { timestamp: Date.now(), subject: subject };
 
-        // Configurar el correo con los archivos adjuntos
-        const mailOptions = {
-            from: `"Cuerpo de Bomberos de Osorno" <${SMTP_USER}>`,
-            to,
-            subject,
-            text,
-            html,
-            attachments  // Se agregan los archivos adjuntos aquí
-        };
-
-        // Enviar el correo
-        const info = await transporter.sendMail(mailOptions);
-
-        // Registrar el envío para evitar duplicados
-        if (!global.lastEmailSent) global.lastEmailSent = {};
-        global.lastEmailSent[to] = {
-            timestamp: Date.now(),
-            subject: subject
-        };
-
-        return info;
-    } catch (error) {
-        console.error('Error al enviar correo:', error);
-        throw error;
-    }
+    return info;
 };
 
 /**

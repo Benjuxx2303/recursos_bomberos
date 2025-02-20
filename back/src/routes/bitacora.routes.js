@@ -5,7 +5,6 @@ import {
   deleteBitacora,
   getBitacora,
   getBitacoraById, // habilitado
-  getBitacoraPage,
   getLastBitacora,
   updateBitacora,
   startServicio,
@@ -16,8 +15,7 @@ const router = Router();
 
 const base_route = "/bitacora";
 
-// router.get(base_route, getBitacora);
-router.get(base_route, checkPermission('getBitacora'), getBitacoraPage); // paginado
+router.get(base_route, checkPermission('getBitacora'), getBitacora); // paginado
 router.get(`${base_route}/search`, checkPermission('getBitacora'), getBitacora); // nueva ruta de búsqueda
 // http://{url}/api/bitacora
 // QueryParams:

@@ -1,10 +1,10 @@
 import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
+import { generatePDF } from "../utils/generatePDF.js";
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
 import { formatDateTime, validateDate } from "../utils/validations.js";
-import { generatePDF } from "../utils/generatePDF.js";
 
 // TODO: Combinar "getMantencionesAllDetails" y "getMantencionesAllDetailsSearch" en una sola función
 
@@ -1204,3 +1204,33 @@ export const createMantencionPeriodica = async (req, res) => {
     });
   }
 };
+// Nueva función para cambiar el estado de una mantención a 'EnProceso'
+export const enProceso = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Obtener el ID del estado 'EnProceso'
+    const [estadoEnProceso] = await pool.query(
+      "SELECT id FROM estado_mantencion WHERE nombre = 'En Proceso' AND isDeleted = 0"
+    );
+
+    if (estadoEnProceso.length === 0) {
+      return res.status(400).json({ message: "El estado 'EnProceso' no existe" });
+    }
+
+    // Actualizar el estado de la mantención
+    await pool.query(
+      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      [estadoEnProceso[0].id, id]
+    );
+
+    res.json({ message: "Estado de mantención actualizado a 'EnProceso'" });
+  } catch (error) {
+    console.error("Error al actualizar estado de mantención:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};
+

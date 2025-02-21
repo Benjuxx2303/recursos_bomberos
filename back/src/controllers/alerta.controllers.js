@@ -30,6 +30,15 @@ const alertaYaEnviada = async (usuario_id, tipo) => {
     return rows[0].count > 0;
 };
 
+const cargosImportantes = `
+    SELECT DISTINCT u.id, u.correo
+    FROM personal p
+    INNER JOIN usuario u ON p.id = u.personal_id
+    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+    WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
+    AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
+`;
+
 // Función para obtener alertas por usuario
 export const getAlertasByUsuario = async (req, res) => {
     const { usuario_id } = req.params;
@@ -74,14 +83,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 export const sendVencimientoAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
-        const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.id, u.correo
-            FROM personal p
-            INNER JOIN usuario u ON p.id = u.personal_id
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-            AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
-        `);
+        const [correosCargosImportantes] = await pool.query(cargosImportantes);
 
         // Crear un conjunto para almacenar los correos ya enviados
         const correosEnviados = new Set();
@@ -187,14 +189,7 @@ export const sendVencimientoAlerts = async (req, res) => {
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
-        const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.id, u.correo
-            FROM personal p
-            INNER JOIN usuario u ON p.id = u.personal_id
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-            AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
-        `);
+        const [correosCargosImportantes] = await pool.query(cargosImportantes);
 
         const correosEnviados = new Set();
         const [rows] = await pool.query(`
@@ -300,14 +295,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 export const sendMantencionAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
-        const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.id, u.correo
-            FROM personal p
-            INNER JOIN usuario u ON p.id = u.personal_id
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-            AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
-        `);
+        const [correosCargosImportantes] = await pool.query(cargosImportantes);
 
         const correosEnviados = new Set();
         const [rows] = await pool.query(`
@@ -371,14 +359,7 @@ export const sendMantencionAlerts = async (req, res) => {
 export const sendProximaMantencionAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
-        const [correosCargosImportantes] = await pool.query(`
-            SELECT DISTINCT u.id, u.correo
-            FROM personal p
-            INNER JOIN usuario u ON p.id = u.personal_id
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-            AND rp.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán')
-        `);
+        const [correosCargosImportantes] = await pool.query(cargosImportantes);
 
         // Crear un conjunto para evitar envíos duplicados
         const correosEnviados = new Set();

@@ -243,8 +243,12 @@ export const loginUser = async (req, res) => {
         const [imageRows] = await pool.query("SELECT img_url FROM personal WHERE id = ?", [user.personal_id]);
         const img_url = imageRows[0]?.img_url || null;
 
+        //Obtener rol_personal_id del usuario
+        const [rol_personal_idRows] = await pool.query("SELECT rol_personal_id FROM personal WHERE id = ?", [user.personal_id]);
+        const rol_personal_id = rol_personal_idRows[0]?.rol_personal_id || null;
+
         // obtener permisos del usuario
-        const [permisosRows]= await pool.query(
+ /*        const [permisosRows]= await pool.query(
             `
             SELECT 
                 JSON_ARRAYAGG(
@@ -268,7 +272,7 @@ export const loginUser = async (req, res) => {
             ;
             `, [user.personal_id]
         )
-        const permisos = permisosRows[0]?.permisos || null;
+        const permisos = permisosRows[0]?.permisos || null; */
         // ----------------------------
 
         // JSON Web Token
@@ -281,7 +285,7 @@ export const loginUser = async (req, res) => {
             rol_personal: rol,
             compania: company,
             img_url: img_url,
-            permisos: permisos,
+            rol_personal_id: rol_personal_id,
         }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 5 días de duración para desarrollo
 
         // Enviar el token y la información del usuario.
@@ -297,7 +301,7 @@ export const loginUser = async (req, res) => {
                 rol: rol,
                 compania: company,
                 img_url: img_url,
-                permisos: permisos,
+                rol_personal_id: rol_personal_id,
             }
         });
     } catch (error) {

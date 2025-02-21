@@ -27,10 +27,25 @@ export const getBitacora = async (req, res) => {
                    b.direccion, 
                    b.km_salida, 
                    b.km_llegada, 
+                   CASE 
+                       WHEN b.km_llegada > b.km_salida AND b.km_salida IS NOT NULL AND b.km_llegada IS NOT NULL 
+                       THEN b.km_llegada - b.km_salida 
+                       ELSE NULL 
+                   END AS "km_recorrido",
                    b.hmetro_salida, 
                    b.hmetro_llegada, 
+                   CASE 
+                       WHEN b.hmetro_llegada > b.hmetro_salida AND b.hmetro_salida IS NOT NULL AND b.hmetro_llegada IS NOT NULL 
+                       THEN b.hmetro_llegada - b.hmetro_salida 
+                       ELSE NULL 
+                   END AS "hmetro_recorrido",
                    b.hbomba_salida, 
                    b.hbomba_llegada, 
+                   CASE 
+                       WHEN b.hbomba_llegada > b.hbomba_salida AND b.hbomba_salida IS NOT NULL AND b.hbomba_llegada IS NOT NULL 
+                       THEN b.hbomba_llegada - b.hbomba_salida 
+                       ELSE NULL 
+                   END AS "hbomba_recorrido",
                    b.obs 
             FROM bitacora b 
             INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
@@ -39,7 +54,8 @@ export const getBitacora = async (req, res) => {
             INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
             INNER JOIN modelo mo ON m.modelo_id = mo.id
             INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
-            WHERE b.isDeleted = 0`;
+            WHERE b.isDeleted = 0
+            `;
 
         const params = [];
 
@@ -153,7 +169,7 @@ export const createBitacora = async (req, res) => {
         compania_id, // obligatorio
         maquina_id, // obligatorio
         clave_id, // obligatorio
-        personal_id, 
+        personal_id, // obligatorio
         direccion,
         f_salida,
         h_salida,
@@ -542,6 +558,92 @@ export const updateBitacora = async (req, res) => {
     }
 };
 
+// TODO: Testear función.
+/* Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora, kilometraje, etc.), 
+verificando la disponibilidad de la máquina y el personal, y actualizando la bitácora y la disponibilidad en la base de datos.
+*/
+export const startServicio = async (req, res) => {
+    const { id } = req.params;
+    const { 
+        f_salida, 
+        h_salida, 
+        // km_salida, 
+        // hmetro_salida, 
+        // hbomba_salida 
+    } = req.body;
+
+    const errors = [];
+
+    try {
+        // Validaciones de formato
+        if (f_salida && h_salida) {
+            const error = validateDate(f_salida, h_salida);
+            if (error === false) errors.push("Fecha y hora de salida inválida.");
+        } else {
+            errors.push("Fecha y Hora de salida son requeridos.");
+        }
+
+        if (errors.length > 0) return res.status(400).json({ errors });
+
+        // Verificar existencia de la bitácora y obtener personal_id y maquina_id
+        const [bitacora] = await pool.query(
+            "SELECT personal_id, maquina_id FROM bitacora WHERE id = ? AND isDeleted = 0",
+            [id]
+        );
+
+        if (bitacora.length === 0) return res.status(404).json({ message: "Bitácora no encontrada o eliminada." });
+        
+        // obtener datos 'personal_id' y 'maquina_id' de la bitacora
+        const { personal_id, maquina_id } = bitacora[0];
+
+        const[maquina] = await pool.query("SELECT hmetro_bomba, hmetro_motor, kmetraje FROM maquina WHERE id = ?", [maquina_id]);
+
+        // obtener datos de la maquina
+        const { hmetro_bomba, hmetro_motor, kmetraje } = maquina[0];
+
+        // Verificar disponibilidad de máquina y personal en una sola consulta
+        const query = `
+            SELECT
+                (SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0) AS maquinaDisponible,
+                (SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0) AS personalDisponible
+        `;
+
+        const [result] = await pool.query(query, [maquina_id, personal_id]);
+
+        // Verificar la disponibilidad de la máquina
+        if (!result[0]?.maquinaDisponible || result[0].maquinaDisponible !== 1) errors.push("La máquina no está disponible.");
+        
+        // Verificar la disponibilidad del personal
+        if (personal_id !== null && (!result[0]?.personalDisponible || result[0].personalDisponible !== 1)) errors.push("El personal no está disponible.");
+
+        if (errors.length > 0) return res.status(400).json({ errors });
+
+        // Transformar la fecha y hora a formato MySQL
+        const mysqlFechaHora = formatDateTime(f_salida, h_salida); // Modificado: Uso de formatDateTime
+
+        // Si la fecha/hora no es válida, devolver error
+        if (!mysqlFechaHora) return res.status(400).json({ message: "Fecha y hora de salida no son válidas." });
+
+        // Actualizar datos en la bitácora
+        await pool.query(
+            `UPDATE bitacora SET 
+                fh_salida = ?,
+                km_salida = ?, 
+                hmetro_salida = ?, 
+                hbomba_salida = ?
+            WHERE id = ?`,
+            [mysqlFechaHora, kmetraje, hmetro_motor, hmetro_bomba, id]
+        );
+
+        // Actualizar disponibilidad de personal y máquina
+        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquina_id]);
+        if (personal_id) await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personal_id]);
+        res.json({ message: "Bitácora iniciada correctamente." });
+    } catch (error) {
+        return res.status(500).json({ message: "Error al iniciar el servicio", error: error.message });
+    }
+};
+
 // TODO: Pulir función. NO TESTEADO
 export const endServicio = async (req, res) => {
     const { id } = req.params;
@@ -596,6 +698,35 @@ export const endServicio = async (req, res) => {
             return res.status(400).json({ message: "Fecha y hora de llegada no son válidas." });
         }
 
+        // Traer datos actuales de la máquina
+        const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
+        const { kmetraje_maquina, hmetro_motor_maquina, hmetro_bomba_maquina } = maquina[0];
+        
+        // Revisar si la máquina tiene bomba
+        const [isBomba] = await pool.query(`SELECT 1 FROM maquina WHERE id = ? AND bomba = 1 AND isDeleted = 0`, [maquina_id]);
+        const hasBomba = isBomba.length > 0;
+        
+        // Comparar los datos de llegada con los de la máquina
+        let hmetro_bomba_new
+        let hmetro_motor_new
+        let kmetraje_new
+        
+        if (hasBomba && hmetro_llegada > hmetro_bomba_maquina) {
+            hmetro_bomba_new = hmetro_llegada;
+        }
+        
+        if (km_llegada > kmetraje_maquina) {
+            kmetraje_new = km_llegada;
+        }
+        
+        if (hmetro_llegada > hmetro_motor_maquina) {
+            hmetro_motor_new = hmetro_llegada;
+        }
+
+        console.log(hbomba_llegada, hmetro_llegada, km_llegada)
+        // TODO: estos datos estan llegando nulos 
+        console.log(hmetro_bomba_new, hmetro_motor_new, kmetraje_new);
+        
         // Actualizar datos en la bitácora
         await pool.query(
             `UPDATE bitacora SET 
@@ -608,35 +739,6 @@ export const endServicio = async (req, res) => {
             [mysqlFechaHora, km_llegada, hmetro_llegada, hbomba_llegada, obs || null, id]
         );
 
-        // Actualizar disponibilidad de personal y máquina
-        await pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]);
-        await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
-
-        // Traer datos actuales de la máquina
-        const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
-        const { kmetraje_maquina, hmetro_motor_maquina, hmetro_bomba_maquina } = maquina[0];
-
-        // Revisar si la máquina tiene bomba
-        const [isBomba] = await pool.query(`SELECT 1 FROM maquina WHERE id = ? AND bomba = 1 AND isDeleted = 0`, [maquina_id]);
-        const hasBomba = isBomba.length > 0;
-
-        // Comparar los datos de llegada con los de la máquina
-        let hmetro_bomba_new = null;
-        let hmetro_motor_new = null;
-        let kmetraje_new = null;
-
-        if (hasBomba && hmetro_llegada > hmetro_bomba_maquina) {
-            hmetro_bomba_new = hmetro_llegada;
-        }
-
-        if (km_llegada > kmetraje_maquina) {
-            kmetraje_new = km_llegada;
-        }
-
-        if (hmetro_llegada > hmetro_motor_maquina) {
-            hmetro_motor_new = hmetro_llegada;
-        }
-
         // Actualizar los datos de la máquina
         await pool.query(`UPDATE maquina SET
             hmetro_bomba = ?,
@@ -646,101 +748,12 @@ export const endServicio = async (req, res) => {
             [hmetro_bomba_new, hmetro_motor_new, kmetraje_new, maquina_id]
         );
 
+        // Actualizar disponibilidad de personal y máquina
+        await pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]);
+        await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
+        
         res.json({ message: "Bitácora finalizada correctamente." });
     } catch (error) {
         return res.status(500).json({ message: "Error en la finalización del servicio", error: error.message });
-    }
-};
-
-// Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora, kilometraje, etc.), 
-// verificando la disponibilidad de la máquina y el personal, y actualizando la bitácora y la disponibilidad en la base de datos.
-export const startServicio = async (req, res) => {
-    const { id } = req.params;
-    const { 
-        f_salida, 
-        h_salida, 
-        km_salida, 
-        hmetro_salida, 
-        hbomba_salida 
-    } = req.body;
-
-    const errors = [];
-
-    try {
-        // Validaciones de formato
-        if (f_salida && h_salida) {
-            const error = validateDate(f_salida, h_salida);
-            if (error === false) errors.push("Fecha y hora de salida inválida.");
-        } else {
-            errors.push("Fecha y Hora de salida son requeridos.");
-        }
-
-        if (isNaN(km_salida) || km_salida < 0) errors.push("Km salida debe ser un número válido y positivo.");
-        if (isNaN(hmetro_salida) || hmetro_salida < 0) errors.push("Hmetro salida debe ser un número válido y positivo.");
-        if (isNaN(hbomba_salida) || hbomba_salida < 0) errors.push("Hbomba salida debe ser un número válido y positivo.");
-
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Verificar existencia de la bitácora y obtener personal_id y maquina_id
-        const [bitacora] = await pool.query(
-            "SELECT personal_id, maquina_id FROM bitacora WHERE id = ? AND isDeleted = 0",
-            [id]
-        );
-
-        if (bitacora.length === 0) {
-            return res.status(404).json({ message: "Bitácora no encontrada o eliminada." });
-        }
-
-        const { personal_id, maquina_id } = bitacora[0];
-
-        // Verificar disponibilidad de máquina y personal en una sola consulta
-        const query = `
-            SELECT
-                (SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0) AS maquinaDisponible,
-                (SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0) AS personalDisponible
-        `;
-
-        const [result] = await pool.query(query, [maquina_id, personal_id]);
-
-        // Verificar la disponibilidad de la máquina
-        if (!result[0]?.maquinaDisponible || result[0].maquinaDisponible !== 1) {
-            errors.push("La máquina no está disponible.");
-        }
-
-        // Verificar la disponibilidad del personal
-        if (personal_id !== null && (!result[0]?.personalDisponible || result[0].personalDisponible !== 1)) {
-            errors.push("El personal no está disponible.");
-        }
-
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Transformar la fecha y hora a formato MySQL
-        const mysqlFechaHora = formatDateTime(f_salida, h_salida); // Modificado: Uso de formatDateTime
-
-        // Si la fecha/hora no es válida, devolver error
-        if (!mysqlFechaHora) {
-            return res.status(400).json({ message: "Fecha y hora de salida no son válidas." });
-        }
-
-        // Actualizar datos en la bitácora (Eliminada la instrucción STR_TO_DATE)
-        await pool.query(
-            `UPDATE bitacora SET 
-                fh_salida = ?,  // Modificado: eliminada la función STR_TO_DATE y se usa el valor transformado
-                km_salida = ?, 
-                hmetro_salida = ?, 
-                hbomba_salida = ?
-            WHERE id = ?`,
-            [mysqlFechaHora, km_salida, hmetro_salida, hbomba_salida, id]
-        );
-
-        // Actualizar disponibilidad de personal y máquina
-        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquina_id]);
-        if (personal_id) {
-            await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personal_id]);
-        }
-
-        res.json({ message: "Bitácora iniciada correctamente." });
-    } catch (error) {
-        return res.status(500).json({ message: "Error al iniciar el servicio", error: error.message });
     }
 };

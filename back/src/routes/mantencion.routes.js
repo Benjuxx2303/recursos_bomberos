@@ -2,13 +2,14 @@ import { Router } from "express";
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
+  aprobarMantencion,
   createMantencion,
   createMantencionPeriodica,
   deleteMantencion,
   downloadExcel,
   getMantencionAllDetailsById,
   getMantencionesAllDetailsSearch,
-  toggleAprobacionMantencion,
+  rechazarMantencion,
   updateMaintenanceStatus,
   updateMantencion
 } from "../controllers/mantencion.controllers.js";
@@ -56,7 +57,10 @@ router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMa
 router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);
 
 // Nueva ruta para aprobar/rechazar mantenciones
-router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion'), toggleAprobacionMantencion);
+router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion'), aprobarMantencion);
+
+// Nueva ruta para rechazar mantenciones
+router.patch(`${base_route}/:id/rechazar`, checkPermission('updateMantencion'), rechazarMantencion);
 
 router.patch(`${base_route}/:id/status`, checkPermission('updateMantencion'), updateMaintenanceStatus);
 

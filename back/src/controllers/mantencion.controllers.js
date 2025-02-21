@@ -174,6 +174,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fec_termino',
                 m.ord_trabajo,
                 m.n_factura,
+                m.img_url as img_factura,
                 m.cost_ser,
                 m.aprobada,
                 DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') AS 'fecha_aprobacion',
@@ -234,6 +235,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
       fec_termino: row.fec_termino,
       ord_trabajo: row.ord_trabajo,
       n_factura: row.n_factura,
+      img_factura: row.img_factura,
       cost_ser: row.cost_ser,
       aprobada: row.aprobada,
       fecha_aprobacion: row.fecha_aprobacion,
@@ -880,8 +882,8 @@ export const downloadExcel = async (req, res) => {
     });
   }
 };
-// Nueva función para aprobar/rechazar mantención
-export const toggleAprobacionMantencion = async (req, res) => {
+// Nueva función para aprobar mantención
+export const aprobarMantencion = async (req, res) => {
   const { id } = req.params;
   const { usuario_id } = req.body;
 
@@ -896,9 +898,6 @@ export const toggleAprobacionMantencion = async (req, res) => {
       return res.status(404).json({ message: "Mantención no encontrada" });
     }
 
-    // Determinar el nuevo estado (toggle)
-    const nuevoEstado = mantencion.aprobada === 1 ? 0 : 1;
-
     // Obtener el personal_id correspondiente al usuario_id
     const [personalInfo] = await pool.query(
       "SELECT personal_id FROM usuario WHERE id = ?",
@@ -911,14 +910,14 @@ export const toggleAprobacionMantencion = async (req, res) => {
 
     const personal_id = personalInfo[0].personal_id;
 
-    // Actualizar el estado
+    // Actualizar el estado a aprobado
     const [result] = await pool.query(
       `UPDATE mantencion 
-       SET aprobada = ?,
+       SET aprobada = 1,
            aprobada_por = ?,
-           fecha_aprobacion = ${nuevoEstado === 1 ? "NOW()" : "NULL"}
+           fecha_aprobacion = NOW()
        WHERE id = ?`,
-      [nuevoEstado, nuevoEstado === 1 ? personal_id : null, id]
+      [personal_id, id]
     );
 
     if (result.affectedRows === 0) {
@@ -928,14 +927,53 @@ export const toggleAprobacionMantencion = async (req, res) => {
     }
 
     res.json({
-      message:
-        nuevoEstado === 1
-          ? "Mantención aprobada exitosamente"
-          : "Mantención rechazada exitosamente",
-      aprobada: nuevoEstado,
+      message: "Mantención aprobada exitosamente",
+      aprobada: 1,
     });
   } catch (error) {
-    console.error("Error al aprobar/rechazar mantención:", error);
+    console.error("Error al aprobar mantención:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};
+
+// Nueva función para rechazar mantención
+export const rechazarMantencion = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar si la mantención existe
+    const [mantencion] = await pool.query(
+      "SELECT aprobada FROM mantencion WHERE id = ? AND isDeleted = 0",
+      [id]
+    );
+
+    if (mantencion.length === 0) {
+      return res.status(404).json({ message: "Mantención no encontrada" });
+    }
+
+    // Actualizar el estado a rechazado
+    const [result] = await pool.query(
+      `UPDATE mantencion 
+       SET aprobada = 0
+       WHERE id = ?`,
+      [id]
+    );
+// se podria eventualmente ,poder modificar la fecha de aprobacion y usarla como fecha de rechazo asi como el aprobador/rechazador
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ message: "No se pudo actualizar la mantención" });
+    }
+
+    res.json({
+      message: "Mantención rechazada exitosamente",
+      aprobada: 0,
+    });
+  } catch (error) {
+    console.error("Error al rechazar mantención:", error);
     return res.status(500).json({
       message: "Error interno del servidor",
       error: error.message,

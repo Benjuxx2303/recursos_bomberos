@@ -400,9 +400,11 @@ export const getMaintenanceHistory = async (req, res) => {
       whereConditions.push('p_resp.apellido LIKE ?');
       params.push(`%${responsableApellido}%`);
     }
-    if (aprobada !== undefined) {
+    if (aprobada !== undefined && aprobada !== null) {
       whereConditions.push('m.aprobada = ?');
-      params.push(aprobada);
+      params.push(aprobada ? 1 : 0);
+    } else if (aprobada === null) {
+      whereConditions.push('m.aprobada IS NULL');
     }
     if (fechaInicio && fechaFin) {
       whereConditions.push('m.fec_inicio BETWEEN ? AND ?');

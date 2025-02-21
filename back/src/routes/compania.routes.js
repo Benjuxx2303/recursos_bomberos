@@ -21,7 +21,6 @@ const uploadFields = upload.fields([
 const router = Router();
 const base_route = '/compania';
 
-// router.get(base_route, getCompanias);
 router.get(base_route, getCompaniasPage); // paginado
 // http://{url}/api/compania
 // QueryParams:

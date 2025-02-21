@@ -1,26 +1,5 @@
 import { pool } from "../db.js";
 
-// Obtener todos los detalles de mantención con joins
-export const getDetallesMantencion = async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT dm.*, 
-                   m.ord_trabajo, 
-                   s.descripcion AS servicio
-            FROM detalle_mantencion dm
-            INNER JOIN mantencion m ON dm.mantencion_id = m.id
-            INNER JOIN servicio s ON dm.servicio_id = s.id
-            WHERE dm.isDeleted = 0
-        `);
-        res.json(rows);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
 // Paginación
 export const getDetallesMantencionPage = async (req, res) => {
     try {

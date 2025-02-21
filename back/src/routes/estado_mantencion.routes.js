@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-    // getEstadosMantencion,
     getEstadosMantencionPage,
     getEstadoMantencionById,
     createEstadoMantencion,
@@ -13,7 +12,6 @@ const router = Router();
 
 const base_route = "/estado_mantencion"; 
 
-// router.get(base_route, getEstadosMantencion);
 router.get(base_route, checkPermission('getEstado_mantencion'), getEstadosMantencionPage); // paginado
 // http://{url}/api/estado_mantencion
 // QueryParams:

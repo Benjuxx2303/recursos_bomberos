@@ -5,49 +5,6 @@ import {
 import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
 import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
 
-// Obtener todas las cargas de combustible
-export const getCargasCombustible = async (req, res) => {
-    try {
-        const query = `
-            SELECT cc.id, cc.bitacora_id, cc.litros, cc.valor_mon, cc.img_url, cc.isDeleted,
-                   b.compania_id, c.nombre as compania, 
-                   p.rut as conductor_rut, p.nombre as conductor_nombre, p.apellido as conductor_apellido,
-                   b.direccion, 
-                   DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') as h_salida,
-                   DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') as h_llegada
-            FROM carga_combustible cc
-            INNER JOIN bitacora b ON cc.bitacora_id = b.id
-            INNER JOIN compania c ON b.compania_id = c.id
-            LEFT JOIN personal p ON b.personal_id = p.id
-            WHERE cc.isDeleted = 0
-        `;
-        
-        const [rows] = await pool.query(query);
-        const result = rows.map(row => ({
-            id: row.id,
-            bitacora: {
-                id: row.bitacora_id,
-                compania: row.compania,
-                conductor_rut: row.conductor_rut,
-                conductor_nombre: row.conductor_nombre,
-                conductor_apellido: row.conductor_apellido,
-                direccion: row.direccion,
-                h_salida: row.h_salida,
-                h_llegada: row.h_llegada,
-            },
-            litros: row.litros,
-            valor_mon: row.valor_mon,
-            img_url: row.img_url,
-        }));
-        res.json(result);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
 // con parámetros de búsqueda 
 // Paginacion
 export const getCargaCombustibleDetailsSearch = async (req, res) => {

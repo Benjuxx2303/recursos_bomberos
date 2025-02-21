@@ -4,18 +4,6 @@ import {
   uploadFileToS3
 } from '../utils/fileUpload.js';
 
-// Obtener todas las máquinas
-export const getMaquinas = async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM maquina WHERE isDeleted = 0");
-    res.json(rows);
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Error interno del servidor", error: error.message });
-  }
-};
-
 // Obtener detalles de las máquinas
 export const getMaquinasDetails = async (req, res) => {
   try {

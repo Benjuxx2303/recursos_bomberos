@@ -1,7 +1,6 @@
 import { Router } from "express";
 import {
     getDivision,
-    // getDivisiones,
     getDivisionesPage,
     createDivision,
     deleteDivision,
@@ -13,7 +12,6 @@ const router = Router();
 
 const base_route = '/division';
 
-// router.get(base_route, getDivisiones);
 router.get(base_route, checkPermission('getDivision'), getDivisionesPage); // paginado
 // http://{url}/api/division
 // QueryParams:

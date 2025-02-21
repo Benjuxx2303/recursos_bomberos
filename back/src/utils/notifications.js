@@ -97,10 +97,22 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
             throw new Error(`Usuario no encontrado o inactivo: ${usuario_id}`);
         }
 
-        // Crear la alerta con el usuario_id registrado en la tabla alerta
+        // Verificar si ya existe una alerta con un contenido similar
+        const [existingAlert] = await pool.query(
+            'SELECT id FROM alerta WHERE contenido LIKE ? LIMIT 1',
+            [`%${contenido}%`] // Busca si hay alertas con contenido similar
+        );
+
+        // Si existe una alerta similar, omitir la inserción
+        if (existingAlert.length > 0) {
+            console.log(`Alerta duplicada encontrada. No se insertará.`);
+            return null; // No se crea la alerta
+        }
+
+        // Crear la alerta sin relacionar directamente con usuario_id
         const [result] = await pool.query(
-            'INSERT INTO alerta (contenido, tipo, createdAt, usuario_id, isRead) VALUES (?, ?, NOW(), ?, false)',
-            [contenido, tipo, usuario_id]
+            'INSERT INTO alerta (contenido, tipo, createdAt, isRead) VALUES (?, ?, NOW(), false)',
+            [contenido, tipo]
         );
 
         // Crear relación usuario-alerta

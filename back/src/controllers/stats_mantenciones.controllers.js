@@ -312,6 +312,7 @@ export const getMaintenanceByCompany = async (req, res) => {
 
 // Obtener historial de mantenciones
 export const getMaintenanceHistory = async (req, res) => {
+
   try {
     const { 
       page = 1, 
@@ -400,15 +401,25 @@ export const getMaintenanceHistory = async (req, res) => {
       whereConditions.push('p_resp.apellido LIKE ?');
       params.push(`%${responsableApellido}%`);
     }
-    if (aprobada !== undefined && aprobada !== null) {
-      whereConditions.push('m.aprobada = ?');
-      params.push(aprobada ? 1 : 0);
-    } else if (aprobada === null) {
-      whereConditions.push('m.aprobada IS NULL');
+    if (aprobada !== undefined) {
+      if (aprobada === 'null') {
+        whereConditions.push('m.aprobada IS NULL');
+      } else {
+        whereConditions.push('m.aprobada = ?');
+        params.push(parseInt(aprobada));
+      }
     }
-    if (fechaInicio && fechaFin) {
-      whereConditions.push('m.fec_inicio BETWEEN ? AND ?');
-      params.push(fechaInicio, fechaFin);
+    if (fechaInicio || fechaFin) {
+      if (fechaInicio && fechaFin) {
+        whereConditions.push('m.fec_inicio BETWEEN ? AND ?');
+        params.push(fechaInicio, fechaFin);
+      } else if (fechaInicio) {
+        whereConditions.push('m.fec_inicio >= ?');
+        params.push(fechaInicio);
+      } else if (fechaFin) {
+        whereConditions.push('m.fec_inicio <= ?');
+        params.push(fechaFin);
+      }
     }
 
     const whereClause = whereConditions.length 
@@ -428,21 +439,25 @@ export const getMaintenanceHistory = async (req, res) => {
       'estado_desc': 'em.nombre DESC',
       'taller_asc': 't.nombre ASC',
       'taller_desc': 't.nombre DESC',
-      'conductor_asc': 'p.nombre ASC',
-      'conductor_desc': 'p.nombre DESC',
-      'aprobador_asc': 'p_apr.nombre ASC',
-      'aprobador_desc': 'p_apr.nombre DESC',
-      'responsable_asc': 'p_resp.nombre ASC',
-      'responsable_desc': 'p_resp.nombre DESC',
-      'fecha_aprobacion_asc': 'm.fecha_aprobacion ASC',
-      'fecha_aprobacion_desc': 'm.fecha_aprobacion DESC',
-      'estado_aprobacion_asc': 'm.aprobada ASC',
-      'estado_aprobacion_desc': 'm.aprobada DESC',
-      'tiempo_restante_asc': 'tiempo_restante ASC',
-      'tiempo_restante_desc': 'tiempo_restante DESC'
+      'conductor_asc': 'CONCAT(p.nombre, " ", p.apellido) ASC',
+      'conductor_desc': 'CONCAT(p.nombre, " ", p.apellido) DESC',
+      'aprobador_asc': 'CONCAT(p_apr.nombre, " ", p_apr.apellido) ASC',
+      'aprobador_desc': 'CONCAT(p_apr.nombre, " ", p_apr.apellido) DESC',
+      'responsable_asc': 'CONCAT(p_resp.nombre, " ", p_resp.apellido) ASC',
+      'responsable_desc': 'CONCAT(p_resp.nombre, " ", p_resp.apellido) DESC',
+      'fecha_aprobacion_asc': 'COALESCE(m.fecha_aprobacion, "9999-12-31") ASC',
+      'fecha_aprobacion_desc': 'COALESCE(m.fecha_aprobacion, "9999-12-31") DESC',
+      'estado_aprobacion_asc': 'COALESCE(m.aprobada, 2) ASC',
+      'estado_aprobacion_desc': 'COALESCE(m.aprobada, 2) DESC',
+      'tiempo_restante_asc': 'tiempo_restante ASC NULLS LAST',
+      'tiempo_restante_desc': 'tiempo_restante DESC NULLS LAST'
     };
 
-    const orderBy = orderByMap[orden] || 'm.fec_inicio DESC';
+    const orderBy = orderByMap[orden];
+    if (!orderBy && orden) {
+      throw new Error(`Orden no válido: ${orden}`);
+    }
+    const finalOrderBy = orderBy || 'm.fec_inicio DESC';
 
     const query = `
       SELECT 
@@ -456,16 +471,16 @@ export const getMaintenanceHistory = async (req, res) => {
         m.aprobada_por,
         m.personal_responsable_id,
         TIMESTAMPDIFF(HOUR, m.fec_inicio, COALESCE(m.fec_termino, NOW())) as duracion_horas,
-        CASE 
-          WHEN em.nombre = 'Programada' THEN 
-            CASE
-              WHEN TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio), ' meses')
-              WHEN TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio), ' semanas')
-              WHEN TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio), ' días')
-              ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
-            END
-          ELSE NULL
-        END as tiempo_restante,
+CASE 
+  WHEN em.nombre = 'Programada' AND m.fec_inicio IS NOT NULL THEN 
+    CASE
+      WHEN TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(MONTH, NOW(), m.fec_inicio), ' meses')
+      WHEN TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(WEEK, NOW(), m.fec_inicio), ' semanas')
+      WHEN TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio) > 0 THEN CONCAT(TIMESTAMPDIFF(DAY, NOW(), m.fec_inicio), ' días')
+      ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
+    END
+  ELSE NULL
+END as tiempo_restante,
         maq.codigo as vehiculo,
         maq.id as 'maquina.id',
         maq.img_url as 'maquina.img_url',
@@ -494,7 +509,7 @@ export const getMaintenanceHistory = async (req, res) => {
       LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
       LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
       ${whereClause}
-      ORDER BY ${orderBy}
+      ORDER BY ${finalOrderBy}
       LIMIT ? OFFSET ?
     `;
 
@@ -517,8 +532,9 @@ export const getMaintenanceHistory = async (req, res) => {
     const [totalCount] = await pool.query(countQuery, params);
 
     res.json({
-      data: records,
-      total: totalCount[0].total
+      total: totalCount[0].total,
+      data: records
+  
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

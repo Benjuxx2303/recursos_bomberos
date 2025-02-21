@@ -3,10 +3,12 @@ import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
   aprobarMantencion,
+  completarMantencion,
   createMantencion,
   createMantencionPeriodica,
   deleteMantencion,
   downloadExcel,
+  enProceso,
   getMantencionAllDetailsById,
   getMantencionesAllDetailsSearch,
   rechazarMantencion,
@@ -55,6 +57,12 @@ router.get(`${base_route}/:id`, checkPermission('getMantencion'), getMantencionA
 router.post(`${base_route}/old`, checkPermission('createMantencion'), uploadFields,createMantencion);
 router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMantencion);
 router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);
+
+//mantencion en proceso
+router.patch(`${base_route}/:id/proceso`, checkPermission('updateMantencion'), enProceso);
+
+//mantencion completada
+router.patch(`${base_route}/:id/completar`, checkPermission('updateMantencion'), completarMantencion);
 
 // Nueva ruta para aprobar/rechazar mantenciones
 router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion'), aprobarMantencion);

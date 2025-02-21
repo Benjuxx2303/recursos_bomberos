@@ -354,6 +354,7 @@ export const createMantencion = async (req, res) => {
       cost_ser,
       // aprobada,
       aprobada_por, // **Nuevo campo opcional**
+      descripcion,
     } = req.body;
 
     console.log(typeof fec_termino)
@@ -480,7 +481,8 @@ export const createMantencion = async (req, res) => {
           n_factura, 
           cost_ser, 
           isDeleted,
-          img_url
+          img_url,
+          descripcion
         ) VALUES (
          ?, 
          ?, 
@@ -505,7 +507,8 @@ export const createMantencion = async (req, res) => {
         ord_trabajo, 
         n_factura || null, 
         costSerNumber || null,
-        img_url || null
+        img_url || null,
+        descripcion || null
       ]
     );
 
@@ -522,6 +525,7 @@ export const createMantencion = async (req, res) => {
       n_factura,
       cost_ser: costSerNumber,
       aprobada_por: aprobada_por_nombre || null,
+      descripcion: descripcion || null
     }];
 
     // Generar el PDF
@@ -1271,4 +1275,34 @@ export const enProceso = async (req, res) => {
     });
   }
 };
+
+export const completarMantencion = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Obtener el ID del estado 'Completada'
+    const [estadoCompletada] = await pool.query(
+      "SELECT id FROM estado_mantencion WHERE nombre = 'Completada' AND isDeleted = 0"
+    );
+
+    if (estadoCompletada.length === 0) {
+      return res.status(400).json({ message: "El estado 'Completada' no existe" });
+    }
+
+    // Actualizar el estado de la mantención
+    await pool.query(
+      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      [estadoCompletada[0].id, id]
+    );
+
+    res.json({ message: "Mantención completada exitosamente" });
+  } catch (error) {
+    console.error("Error al completar mantención:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};
+
 

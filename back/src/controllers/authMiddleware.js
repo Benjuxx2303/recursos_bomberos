@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { SECRET_JWT_KEY } from "../config.js"; // Asegúrate de importar tu clave secreta
+import { pool } from "../db.js";
 
 // Middleware para verificar el rol del usuario
 export const checkRole = (allowedRoles) => {
@@ -35,7 +36,7 @@ export const checkRole = (allowedRoles) => {
 
 // Middleware para verificar permisos específicos
 export const checkPermission = (requiredPermission) => {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         const token = req.headers.authorization?.split(' ')[1];
 
         if (!token) {
@@ -45,26 +46,43 @@ export const checkPermission = (requiredPermission) => {
         try {
             const decoded = jwt.verify(token, SECRET_JWT_KEY);
             
-            // Si el rol del usuario es "admin", se permite el acceso sin necesidad de comprobar permisos
+            // Si el rol del usuario es "TELECOM", se permite el acceso sin necesidad de comprobar permisos
             if (decoded.rol_personal === 'TELECOM') {
-                return next(); // El admin tiene acceso automático, continuar
+                return next();
             }
 
-            // Verificar si el usuario tiene el permiso requerido
-            const hasPermission = decoded.permisos.some(permission => permission.nombre === requiredPermission);
+            try {
+                // Obtener los permisos del rol desde la base de datos usando la misma consulta que getPermisosByRol
+                const [permisos] = await pool.query(`
+                    SELECT p.*, c.nombre as categoria_nombre 
+                    FROM permiso p
+                    LEFT JOIN categoria c ON p.categoria_id = c.id
+                    INNER JOIN rol_permisos rp ON p.id = rp.permiso_id
+                    WHERE rp.rol_personal_id = ? 
+                    AND (p.isDeleted IS NULL OR p.isDeleted = false)
+                    AND (rp.isDeleted IS NULL OR rp.isDeleted = false)
+                `, [decoded.rol_personal_id]);
 
-            if (!hasPermission) {
-                return res.status(403).json({ error: 'Permiso insuficiente' });
+                // Verificar si el usuario tiene el permiso requerido
+                const hasPermission = permisos.some(permiso => 
+                    permiso.nombre === requiredPermission
+                );
+
+                if (!hasPermission) {
+                    return res.status(403).json({ error: 'Permiso insuficiente' });
+                }
+
+                req.user = decoded; // Guarda la información del usuario en la petición
+                next(); // Permiso válido, continuar
+            } catch (dbError) {
+                console.error('Error al verificar permisos:', dbError);
+                return res.status(500).json({ error: 'Error al verificar permisos' });
             }
-
-            req.user = decoded; // Guarda la información del usuario en la petición
-            next(); // Permiso válido, continuar
-        } catch (err) {
+        } catch (jwtError) {
             return res.status(403).json({ error: 'Token inválido' });
         }
     };
 };
-
 
 // Función para refrescar el token de acceso
 export const refreshAccessToken = (req, res) => {
@@ -77,7 +95,7 @@ export const refreshAccessToken = (req, res) => {
     try {
         const decoded = jwt.verify(refreshToken, SECRET_JWT_KEY);
         const newAccessToken = jwt.sign(
-            { id: decoded.id, rol_personal: decoded.rol_personal, permisos: decoded.permisos },
+            { id: decoded.id, rol_personal: decoded.rol_personal },
             SECRET_JWT_KEY,
             { expiresIn: '15m' } // El nuevo token de acceso expira en 15 minutos
         );

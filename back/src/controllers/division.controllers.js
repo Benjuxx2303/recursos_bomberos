@@ -1,18 +1,5 @@
 import { pool } from "../db.js";
 
-// Obtener todas las divisiones (solo activas)
-export const getDivisiones = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM division WHERE isDeleted = 0');
-        res.json(rows);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
 // paginacion 
 export const getDivisionesPage = async (req, res) => {
     try {

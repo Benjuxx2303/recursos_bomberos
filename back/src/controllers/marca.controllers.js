@@ -1,18 +1,5 @@
 import { pool } from "../db.js";
 
-// Devuelve todas las marcas
-export const getMarcas = async (req, res) => {
-    try {
-        const [rows] = await pool.query("SELECT * FROM marca");
-        res.json(rows);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
 // Devuelve todas las marcas con paginación opcional
 export const getMarcasPage = async (req, res) => {
     try {

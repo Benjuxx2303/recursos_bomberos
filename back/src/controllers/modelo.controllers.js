@@ -1,6 +1,8 @@
 import { pool } from "../db.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 
+// TODO: Combinar "getModelos" y "getModelosPage" en una sola función
+
 // Devuelve todos los modelos
 export const getModelos = async (req, res) => {
   try {

@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-    // getDetallesMantencion,
     getDetallesMantencionPage,
     getDetalleMantencion,
     createDetalleMantencion,
@@ -15,7 +14,6 @@ const router = Router();
 const base_route = '/detalle_mantencion';
 
 // Obtener todos los detalles de mantención
-// router.get(base_route, getDetallesMantencion);
 router.get(base_route, checkPermission('getDetalle_mantencion'), getDetallesMantencionPage); // paginado
 // http://{url}/api/detalle_mantencion
 // QueryParams:

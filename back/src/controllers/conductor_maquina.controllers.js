@@ -2,15 +2,6 @@ import { pool } from "../db.js";
 
 // TODO: falta validacion de rol si es conductor
 
-export const getConductorMaquina = async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT * FROM conductor_maquina WHERE isDeleted = 0");
-    res.json(rows);
-  } catch (error) {
-    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
-  }
-};
-
 // paginacion
 export const getConductorMaquinaPage = async (req, res) => {
   try {

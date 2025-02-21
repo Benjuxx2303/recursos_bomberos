@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { 
-    // getConductorMaquina,
     getConductorMaquinaPage,
     getConductorMaquinaById,
     createConductorMaquina,
@@ -13,7 +12,6 @@ const router = Router();
 
 const base_route = '/conductor_maquina'
 
-// router.get(base_route, getConductorMaquina);
 router.get(base_route, checkPermission('getConductor_maquina'), getConductorMaquinaPage); // paginado
 // http://{url}/api/conductor_maquina
 // QueryParams:

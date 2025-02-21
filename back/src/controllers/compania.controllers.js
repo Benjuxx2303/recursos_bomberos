@@ -6,18 +6,6 @@ import {
 } from "../utils/fileUpload.js";
 import { checkIfExists } from "../utils/queries.js";
 
-export const getCompanias = async(req, res)=>{
-    try {
-        const [rows] = await pool.query('SELECT * FROM compania WHERE isDeleted = 0');
-        res.json(rows);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        })
-    }
-};
-
 // paginado
 export const getCompaniasPage = async (req, res) => {
     try {

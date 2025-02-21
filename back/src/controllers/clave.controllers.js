@@ -1,18 +1,5 @@
 import { pool } from "../db.js";
 
-// Obtener todas las claves
-export const getClaves = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM clave WHERE isDeleted = 0');
-        res.json(rows);
-    } catch (error) {
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message,
-        });
-    }
-};
-
 export const getClavesPage = async (req, res) => {
     try {
         // Obtener los parámetros opcionales para paginación

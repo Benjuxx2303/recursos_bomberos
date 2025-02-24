@@ -11,6 +11,7 @@ import {
     getMaquinasDetailsPage,
     updateMaquina,
     verificarEstadoMantencion,
+    verificarEstadoPermisoCirculacion,
 } from "../controllers/maquina.controllers.js";
 
 // Configuración de multer
@@ -35,6 +36,16 @@ cron.schedule('0 6 * * *', async () => {
     }
 });
 
+// Programar la verificación de estado de permiso de circulación todos los días a las 7:00 AM
+cron.schedule('0 7 * * *', async () => {
+    try {
+        await verificarEstadoPermisoCirculacion();
+        console.log('Verificación de estado de permiso de circulación completada.');
+    } catch (error) {
+        console.error('Error al programar la verificación de permiso de circulación:', error);
+    }
+});
+
 const router = Router();
 
 const base_route = '/maquina'
@@ -46,6 +57,16 @@ router.get(`${base_route}/verificar-mantencion`, async (req, res) => {
         res.status(200).json({ message: 'Verificación de estado de mantención completada.' });
     } catch (error) {
         res.status(500).json({ message: 'Error al verificar estado de mantención.', error: error.message });
+    }
+});
+
+// Endpoint para ejecutar la verificación manualmente
+router.get(`${base_route}/verificar-permiso-circulacion`, async (req, res) => {
+    try {
+        await verificarEstadoPermisoCirculacion();
+        res.status(200).json({ message: 'Verificación de estado de permiso de circulación completada.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al verificar estado de permiso de circulación.', error: error.message });
     }
 });
 
@@ -64,8 +85,9 @@ router.get(`${base_route}/:id`, checkPermission('getMaquina'),getMaquinaById);
 
 /* // Asignar conductor/es  a una maquina 
 router.post(`${base_route}/:maquina_id/conductores`, checkPermission('updateMaquina'), asignarConductores);
- */
+*/
 // Asignar conductor/es  a una maquina 
 router.post(`${base_route}/asignar-conductores`, checkPermission('createMaquina'), asignarConductores);
+
 
 export default router;

@@ -686,3 +686,28 @@ export const verificarEstadoMantencion = async () => {
     console.error("Error al verificar estado de mantención:", error);
   }
 };
+
+// Verificar estado de permiso de circulación
+export const verificarEstadoPermisoCirculacion = async () => {
+  try {
+    const [rows] = await pool.query("SELECT id, ven_permiso_circulacion FROM maquina WHERE isDeleted = 0");
+    const hoy = new Date();
+
+    for (const maquina of rows) {
+      const fechaPermisoCirculacion = maquina.ven_permiso_circulacion ? new Date(maquina.ven_permiso_circulacion) : null;
+      
+      // Verificar si la fecha de permiso de circulación es válida (no es null)
+      if (fechaPermisoCirculacion && fechaPermisoCirculacion <= hoy) {
+        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquina.id]);
+        console.log(`Máquina con ID ${maquina.id} marcada como Fuera de Servicio.`);
+      } else if (!fechaPermisoCirculacion) {
+        // Si la fecha de permiso es null, manejar el caso como corresponda
+        console.log(`Máquina con ID ${maquina.id} no tiene permiso de circulación asignado.`);
+        // Aquí puedes agregar cualquier lógica adicional, por ejemplo, marcarla como fuera de servicio o ignorarla
+        // await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquina.id]); // Si lo deseas
+      }
+    }
+  } catch (error) {
+    console.error("Error al verificar estado de permiso de circulación:", error);
+  }
+};

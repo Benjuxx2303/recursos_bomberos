@@ -1,6 +1,7 @@
 import { pool } from "../db.js";
 import { validateDate, validateFloat, validateStartEndDate, formatDateTime} from "../utils/validations.js";
 import { checkIfDeletedById, checkIfDeletedByField, checkIfExists } from '../utils/queries.js';
+import { km } from "date-fns/locale";
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -700,7 +701,13 @@ export const endServicio = async (req, res) => {
 
         // Traer datos actuales de la máquina
         const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
-        const { kmetraje_maquina, hmetro_motor_maquina, hmetro_bomba_maquina } = maquina[0];
+        const { kmetraje, hmetro_motor, hmetro_bomba } = maquina[0];
+
+        // console.log({
+        //     kmetraje,
+        //     hmetro_motor,
+        //     hmetro_bomba
+        // }) // datos maquina (actual)
         
         // Revisar si la máquina tiene bomba
         const [isBomba] = await pool.query(`SELECT 1 FROM maquina WHERE id = ? AND bomba = 1 AND isDeleted = 0`, [maquina_id]);
@@ -711,21 +718,35 @@ export const endServicio = async (req, res) => {
         let hmetro_motor_new
         let kmetraje_new
         
-        if (hasBomba && hmetro_llegada > hmetro_bomba_maquina) {
+        if (hasBomba && hmetro_llegada > hmetro_bomba) {
             hmetro_bomba_new = hmetro_llegada;
         }
         
-        if (km_llegada > kmetraje_maquina) {
+        if (km_llegada > kmetraje) {
             kmetraje_new = km_llegada;
         }
         
-        if (hmetro_llegada > hmetro_motor_maquina) {
+        if (hmetro_llegada > hmetro_motor) {
             hmetro_motor_new = hmetro_llegada;
         }
 
-        console.log(hbomba_llegada, hmetro_llegada, km_llegada)
-        // TODO: estos datos estan llegando nulos 
-        console.log(hmetro_bomba_new, hmetro_motor_new, kmetraje_new);
+        // console.log(hbomba_llegada, hmetro_llegada, km_llegada)
+        // console.log(hmetro_bomba_new, hmetro_motor_new, kmetraje_new); // TODO: estos datos estan llegando nulos 
+
+        // console.log({
+        //     mysqlFechaHora,
+        //     km_llegada,
+        //     hmetro_llegada,
+        //     hbomba_llegada,
+        //     obs,
+        // }) // datos de bitacora
+
+        // console.log({
+        //     hmetro_bomba_new,
+        //     hmetro_motor_new,
+        //     kmetraje_new,
+        //     maquina_id
+        // }) // datos a actualizar de maquina
         
         // Actualizar datos en la bitácora
         await pool.query(

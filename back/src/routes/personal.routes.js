@@ -1,4 +1,5 @@
 import { Router } from "express";
+import cron from 'node-cron';
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
@@ -11,7 +12,8 @@ import {
     getPersonalWithDetailsPage,
     getPersonalbyID,
     updatePersonal,
-    updateUltimaFecServicio
+    updateUltimaFecServicio,
+    verificarVencimientoLicencia,
 } from "../controllers/personal.controllers.js";
 
 // Configuración de multer
@@ -24,10 +26,30 @@ const uploadFields = upload.fields([
     { name: 'imgLicencia' }
 ]);
 
+// Programar la verificación de vencimiento de licencia todos los días a las 8:00 AM
+cron.schedule('0 8 * * *', async () => {
+    try {
+        await verificarVencimientoLicencia();
+        console.log('Verificación de vencimiento de licencia completada.');
+    } catch (error) {
+        console.error('Error al programar la verificación de licencia:', error);
+    }
+});
+
 // TODO: Resto de rutas: busqueda con LIKE (sql)
 
 const router = Router();
 const base_route = '/personal';
+
+// Endpoint para ejecutar la verificación manualmente
+router.get(`${base_route}/verificar-licencia`, async (req, res) => {
+    try {
+        await verificarVencimientoLicencia();
+        res.status(200).json({ message: 'Verificación de vencimiento de licencia completada.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al verificar vencimiento de licencia.', error: error.message });
+    }
+});
 
 router.get(`${base_route}/update-last-service-date`, checkPermission('getPersonal'), updateUltimaFecServicio);
 

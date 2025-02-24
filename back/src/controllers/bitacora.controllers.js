@@ -575,17 +575,14 @@ export const updateBitacora = async (req, res) => {
 };
 
 // TODO: Testear función.
-/* Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora, kilometraje, etc.), 
+/* Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora), 
 verificando la disponibilidad de la máquina y el personal, y actualizando la bitácora y la disponibilidad en la base de datos.
 */
 export const startServicio = async (req, res) => {
     const { id } = req.params;
     const { 
         f_salida, 
-        h_salida, 
-        // km_salida, 
-        // hmetro_salida, 
-        // hbomba_salida 
+        h_salida
     } = req.body;
 
     const errors = [];
@@ -660,7 +657,6 @@ export const startServicio = async (req, res) => {
     }
 };
 
-// TODO: Pulir función. NO TESTEADO
 export const endServicio = async (req, res) => {
     const { id } = req.params;
     let { 
@@ -787,6 +783,9 @@ export const endServicio = async (req, res) => {
         // Actualizar disponibilidad de personal y máquina
         await pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]);
         await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
+        
+        // actualizar la ultima fecha de servicio del personal
+        await pool.query("UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?", [mysqlFechaHora, personal_id]);
         
         res.json({ message: "Bitácora finalizada correctamente." });
     } catch (error) {

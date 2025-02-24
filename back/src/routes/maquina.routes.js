@@ -1,4 +1,5 @@
 import { Router } from "express";
+import cron from 'node-cron';
 import multer from 'multer';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
@@ -9,6 +10,7 @@ import {
     getMaquinaById,
     getMaquinasDetailsPage,
     updateMaquina,
+    verificarEstadoMantencion,
 } from "../controllers/maquina.controllers.js";
 
 // Configuración de multer
@@ -23,9 +25,29 @@ const uploadFields = upload.fields([
     { name: 'img_permiso_circulacion' }
 ]);
 
+// Programar la verificación de estado de mantención todos los días a las 6:00 AM
+cron.schedule('0 6 * * *', async () => {
+    try {
+        await verificarEstadoMantencion();
+        console.log('Verificación de estado de mantención completada.');
+    } catch (error) {
+        console.error('Error al programar la verificación de mantención:', error);
+    }
+});
+
 const router = Router();
 
 const base_route = '/maquina'
+
+// Endpoint para ejecutar la verificación manualmente
+router.get(`${base_route}/verificar-mantencion`, async (req, res) => {
+    try {
+        await verificarEstadoMantencion();
+        res.status(200).json({ message: 'Verificación de estado de mantención completada.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al verificar estado de mantención.', error: error.message });
+    }
+});
 
 // router.get(base_route, getMaquinasDetails);
 router.get(base_route, checkPermission('getMaquina'), getMaquinasDetailsPage); // paginado

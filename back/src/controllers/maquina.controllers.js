@@ -664,3 +664,25 @@ export const activarMaquinaPorPatente = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
+
+// Verificar estado de mantención
+export const verificarEstadoMantencion = async () => {
+  try {
+    const [rows] = await pool.query("SELECT id, ven_rev_tec FROM maquina WHERE isDeleted = 0");
+    const hoy = new Date();
+
+    for (const maquina of rows) {
+      const fechaRevTec = new Date(maquina.ven_rev_tec);
+      
+      // Comparar la fecha de revisión técnica con la fecha actual
+      if (fechaRevTec <= hoy) {
+        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquina.id]);
+        console.log(`Máquina con ID ${maquina.id} marcada como no disponible.`);
+      }
+
+      // TODO: Envíar correo a los maquinistas y altos mandos. (Por si acaso o si es que)
+    }
+  } catch (error) {
+    console.error("Error al verificar estado de mantención:", error);
+  }
+};

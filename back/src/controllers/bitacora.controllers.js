@@ -137,10 +137,25 @@ export const getBitacoraById = async (req, res) => {
                     b.direccion, 
                     b.km_salida, 
                     b.km_llegada, 
+                    CASE 
+                        WHEN b.km_llegada > b.km_salida AND b.km_salida IS NOT NULL AND b.km_llegada IS NOT NULL 
+                        THEN b.km_llegada - b.km_salida 
+                        ELSE NULL 
+                    END AS "km_recorrido",
                     b.hmetro_salida, 
                     b.hmetro_llegada, 
+                    CASE 
+                        WHEN b.hmetro_llegada > b.hmetro_salida AND b.hmetro_salida IS NOT NULL AND b.hmetro_llegada IS NOT NULL 
+                        THEN b.hmetro_llegada - b.hmetro_salida 
+                        ELSE NULL 
+                    END AS "hmetro_recorrido",
                     b.hbomba_salida, 
                     b.hbomba_llegada, 
+                    CASE 
+                        WHEN b.hbomba_llegada > b.hbomba_salida AND b.hbomba_salida IS NOT NULL AND b.hbomba_llegada IS NOT NULL 
+                        THEN b.hbomba_llegada - b.hbomba_salida 
+                        ELSE NULL 
+                    END AS "hbomba_recorrido",
                     b.obs 
              FROM bitacora b 
              INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0

@@ -40,6 +40,7 @@ export const checkPermission = (requiredPermission) => {
         const token = req.headers.authorization?.split(' ')[1];
 
         if (!token) {
+            console.log('Acceso denegado: Token no proporcionado');
             return res.status(403).json({ error: 'Acceso denegado' });
         }
 
@@ -48,6 +49,7 @@ export const checkPermission = (requiredPermission) => {
             
             // Si el rol del usuario es "TELECOM", se permite el acceso sin necesidad de comprobar permisos
             if (decoded.rol_personal === 'TELECOM') {
+                console.log('Acceso permitido: Rol TELECOM');
                 return next();
             }
 
@@ -69,9 +71,11 @@ export const checkPermission = (requiredPermission) => {
                 );
 
                 if (!hasPermission) {
+                    console.log(`Acceso denegado: Permiso insuficiente para ${requiredPermission}`);
                     return res.status(403).json({ error: 'Permiso insuficiente' });
                 }
 
+                console.log(`Acceso permitido: Permiso ${requiredPermission} válido`);
                 req.user = decoded; // Guarda la información del usuario en la petición
                 next(); // Permiso válido, continuar
             } catch (dbError) {
@@ -79,6 +83,7 @@ export const checkPermission = (requiredPermission) => {
                 return res.status(500).json({ error: 'Error al verificar permisos' });
             }
         } catch (jwtError) {
+            console.log('Acceso denegado: Token inválido');
             return res.status(403).json({ error: 'Token inválido' });
         }
     };

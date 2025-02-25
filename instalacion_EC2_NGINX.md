@@ -27,7 +27,7 @@ Instalacion NodeJS y NPM version 12
 sudo apt-get install nodejs npm -y
 ```
 
-Instalacion NVM para instalar la version LTS de node o la version 20 del tutorial
+Instalacion NVM para instalar la version LTS de node a su version mas actual- a fecha de hoy node -v 22.14.0
 ```
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt-get install -y nodejs

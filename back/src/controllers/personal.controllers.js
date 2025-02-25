@@ -155,8 +155,6 @@ export const getPersonalWithDetailsPage = async (req, res) => {
     }
 };
 
-
-
 export const getPersonalLowData = async (req, res) => {
     try {
         const { compania_id } = req.query;
@@ -189,7 +187,6 @@ export const getPersonalLowData = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
-
 
 // Personal por id
 export const getPersonalbyID = async (req, res) => {
@@ -251,7 +248,6 @@ export const getPersonalbyID = async (req, res) => {
         });
     }
 };
-
 
 export const createPersonal = async (req, res) => {
     let {
@@ -448,7 +444,6 @@ export const createPersonal = async (req, res) => {
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
-
 
 // Dar de baja
 export const downPersonal = async (req, res) => {
@@ -965,5 +960,31 @@ export const asignarMaquinas = async (req, res) => {
             message: "Error interno del servidor",
             error: error.message
         });
+    }
+};
+
+// Verificar vencimiento de licencia de conducir
+export const verificarVencimientoLicencia = async () => {
+    try {
+      const [rows] = await pool.query("SELECT id, ven_licencia FROM personal WHERE isDeleted = 0");
+      const hoy = new Date();
+  
+      for (const personal of rows) {
+        // Verificar si la fecha de vencimiento de la licencia es nula
+        if (!personal.ven_licencia) {
+          console.log(`Licencia con ID ${personal.id} no tiene vencimiento registrado. Omitido.`);
+          continue; // Omitir esta iteración si la fecha es nula
+        }
+
+        const fechaLicencia = new Date(personal.ven_licencia);
+        
+        // Comparar la fecha de licencia con la fecha actual
+        if (fechaLicencia <= hoy) {
+          await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personal.id]);
+          console.log(`Personal con ID ${personal.id} marcado como no disponible.`);
+        }
+      }
+    } catch (error) {
+      console.error("Error al verificar vencimiento de licencia:", error);
     }
 };

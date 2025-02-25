@@ -1,6 +1,7 @@
 import { pool } from "../db.js";
 import { validateDate, validateFloat, validateStartEndDate, formatDateTime} from "../utils/validations.js";
 import { checkIfDeletedById, checkIfDeletedByField, checkIfExists } from '../utils/queries.js';
+import { km } from "date-fns/locale";
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -136,10 +137,25 @@ export const getBitacoraById = async (req, res) => {
                     b.direccion, 
                     b.km_salida, 
                     b.km_llegada, 
+                    CASE 
+                        WHEN b.km_llegada > b.km_salida AND b.km_salida IS NOT NULL AND b.km_llegada IS NOT NULL 
+                        THEN b.km_llegada - b.km_salida 
+                        ELSE NULL 
+                    END AS "km_recorrido",
                     b.hmetro_salida, 
                     b.hmetro_llegada, 
+                    CASE 
+                        WHEN b.hmetro_llegada > b.hmetro_salida AND b.hmetro_salida IS NOT NULL AND b.hmetro_llegada IS NOT NULL 
+                        THEN b.hmetro_llegada - b.hmetro_salida 
+                        ELSE NULL 
+                    END AS "hmetro_recorrido",
                     b.hbomba_salida, 
                     b.hbomba_llegada, 
+                    CASE 
+                        WHEN b.hbomba_llegada > b.hbomba_salida AND b.hbomba_salida IS NOT NULL AND b.hbomba_llegada IS NOT NULL 
+                        THEN b.hbomba_llegada - b.hbomba_salida 
+                        ELSE NULL 
+                    END AS "hbomba_recorrido",
                     b.obs 
              FROM bitacora b 
              INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
@@ -559,17 +575,14 @@ export const updateBitacora = async (req, res) => {
 };
 
 // TODO: Testear función.
-/* Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora, kilometraje, etc.), 
+/* Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora), 
 verificando la disponibilidad de la máquina y el personal, y actualizando la bitácora y la disponibilidad en la base de datos.
 */
 export const startServicio = async (req, res) => {
     const { id } = req.params;
     const { 
         f_salida, 
-        h_salida, 
-        // km_salida, 
-        // hmetro_salida, 
-        // hbomba_salida 
+        h_salida
     } = req.body;
 
     const errors = [];
@@ -644,7 +657,6 @@ export const startServicio = async (req, res) => {
     }
 };
 
-// TODO: Pulir función. NO TESTEADO
 export const endServicio = async (req, res) => {
     const { id } = req.params;
     let { 
@@ -700,7 +712,13 @@ export const endServicio = async (req, res) => {
 
         // Traer datos actuales de la máquina
         const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
-        const { kmetraje_maquina, hmetro_motor_maquina, hmetro_bomba_maquina } = maquina[0];
+        const { kmetraje, hmetro_motor, hmetro_bomba } = maquina[0];
+
+        // console.log({
+        //     kmetraje,
+        //     hmetro_motor,
+        //     hmetro_bomba
+        // }) // datos maquina (actual)
         
         // Revisar si la máquina tiene bomba
         const [isBomba] = await pool.query(`SELECT 1 FROM maquina WHERE id = ? AND bomba = 1 AND isDeleted = 0`, [maquina_id]);
@@ -711,21 +729,35 @@ export const endServicio = async (req, res) => {
         let hmetro_motor_new
         let kmetraje_new
         
-        if (hasBomba && hmetro_llegada > hmetro_bomba_maquina) {
+        if (hasBomba && hmetro_llegada > hmetro_bomba) {
             hmetro_bomba_new = hmetro_llegada;
         }
         
-        if (km_llegada > kmetraje_maquina) {
+        if (km_llegada > kmetraje) {
             kmetraje_new = km_llegada;
         }
         
-        if (hmetro_llegada > hmetro_motor_maquina) {
+        if (hmetro_llegada > hmetro_motor) {
             hmetro_motor_new = hmetro_llegada;
         }
 
-        console.log(hbomba_llegada, hmetro_llegada, km_llegada)
-        // TODO: estos datos estan llegando nulos 
-        console.log(hmetro_bomba_new, hmetro_motor_new, kmetraje_new);
+        // console.log(hbomba_llegada, hmetro_llegada, km_llegada)
+        // console.log(hmetro_bomba_new, hmetro_motor_new, kmetraje_new); // TODO: estos datos estan llegando nulos 
+
+        // console.log({
+        //     mysqlFechaHora,
+        //     km_llegada,
+        //     hmetro_llegada,
+        //     hbomba_llegada,
+        //     obs,
+        // }) // datos de bitacora
+
+        // console.log({
+        //     hmetro_bomba_new,
+        //     hmetro_motor_new,
+        //     kmetraje_new,
+        //     maquina_id
+        // }) // datos a actualizar de maquina
         
         // Actualizar datos en la bitácora
         await pool.query(
@@ -751,6 +783,9 @@ export const endServicio = async (req, res) => {
         // Actualizar disponibilidad de personal y máquina
         await pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]);
         await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
+        
+        // actualizar la ultima fecha de servicio del personal
+        await pool.query("UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?", [mysqlFechaHora, personal_id]);
         
         res.json({ message: "Bitácora finalizada correctamente." });
     } catch (error) {

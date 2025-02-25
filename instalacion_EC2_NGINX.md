@@ -29,7 +29,8 @@ sudo apt-get install nodejs npm -y
 
 Instalacion NVM para instalar la version LTS de node o la version 20 del tutorial
 ```
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
 ```
 Activar NVM
 ```

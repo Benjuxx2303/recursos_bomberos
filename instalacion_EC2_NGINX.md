@@ -27,19 +27,12 @@ Instalacion NodeJS y NPM version 12
 sudo apt-get install nodejs npm -y
 ```
 
-Instalacion NVM para instalar la version LTS de node a su version mas actual- a fecha de hoy node -v 22.14.0
+Actualizar la version LTS de node a su version mas actual- a fecha de hoy node -v 22.14.0
 ```
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
-Activar NVM
-```
-. ~/.nvm/nvm.sh
-```
-Instalacion de version especifica de node con NVM
-```
-nvm install 20
-```
+
 Clonar repositorio
 ```
 git clone [repo].git

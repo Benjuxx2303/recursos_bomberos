@@ -146,14 +146,26 @@ export const asignarPermisosRol = async (req, res) => {
         // Iniciar transacción
         await pool.query("START TRANSACTION");
 
-        // Marcar como eliminados los permisos actuales del rol
-        await pool.query(
-            "UPDATE rol_permisos SET isDeleted = true WHERE rol_personal_id = ?",
+        // Obtener permisos actuales
+        const [permisosActuales] = await pool.query(
+            "SELECT permiso_id FROM rol_permisos WHERE rol_personal_id = ? AND isDeleted = false",
             [idNumber]
         );
 
-        // Insertar nuevos permisos
-        for (const permisoId of permisoIds) {
+        const permisosActualesIds = permisosActuales.map(p => p.permiso_id);
+        const permisosNuevos = permisoIds.filter(id => !permisosActualesIds.includes(id));
+        const permisosBorrados = permisosActualesIds.filter(id => !permisoIds.includes(id));
+
+        // Marcar como eliminados los permisos que ya no están en la lista
+        if (permisosBorrados.length > 0) {
+            await pool.query(
+                "UPDATE rol_permisos SET isDeleted = true WHERE rol_personal_id = ? AND permiso_id IN (?)",
+                [idNumber, permisosBorrados]
+            );
+        }
+
+        // Insertar solo los permisos nuevos
+        for (const permisoId of permisosNuevos) {
             await pool.query(
                 `INSERT INTO rol_permisos (rol_personal_id, permiso_id) 
                  VALUES (?, ?)
@@ -166,7 +178,11 @@ export const asignarPermisosRol = async (req, res) => {
         await pool.query("COMMIT");
 
         res.status(200).json({
-            message: "Permisos asignados correctamente"
+            message: "Permisos actualizados correctamente",
+            cambios: {
+                agregados: permisosNuevos.length,
+                eliminados: permisosBorrados.length
+            }
         });
     } catch (error) {
         // Revertir transacción en caso de error

@@ -183,8 +183,10 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 CONCAT(p_apr.nombre, ' ', p_apr.apellido) AS 'aprobador_nombre',
                 CONCAT(p_resp.nombre, ' ', p_resp.apellido) AS 'responsable_nombre',
                 t.razon_social AS 'taller',
+                t.id AS 'taller_id',
                 em.nombre AS 'estado_mantencion',
                 tm.nombre AS 'tipo_mantencion',
+                tm.id AS 'tipo_mantencion_id',
                 CASE 
                   WHEN em.nombre = 'Programada' THEN 
                     CASE
@@ -194,7 +196,8 @@ export const getMantencionAllDetailsById = async (req, res) => {
                       ELSE CONCAT(TIMESTAMPDIFF(HOUR, NOW(), m.fec_inicio), ' horas')
                     END
                   ELSE NULL
-                END as tiempo_restante
+                END as tiempo_restante,
+                m.descripcion
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN compania c ON b.compania_id = c.id
@@ -244,11 +247,13 @@ export const getMantencionAllDetailsById = async (req, res) => {
       aprobador_nombre: row.aprobador_nombre,
       responsable_nombre: row.responsable_nombre,
       taller: row.taller,
+      taller_id: row.taller_id,
       img_url: row.img_url,
       estado_mantencion: row.estado_mantencion,
       tipo_mantencion: row.tipo_mantencion,
       tipo_mantencion_id: row.tipo_mantencion_id,
       tiempo_restante: row.tiempo_restante,
+      descripcion: row.descripcion,
     }));
 
     res.json(result);
@@ -555,6 +560,9 @@ export const updateMantencion = async (req, res) => {
     isDeleted,
     fec_inicio, // Nueva columna
     fec_termino,
+    descripcion,
+    personal_responsable_id,
+    
   } = req.body;
 
   const errors = []; // Array para capturar los errores
@@ -576,6 +584,7 @@ export const updateMantencion = async (req, res) => {
       { field: "taller_id", table: "taller" },
       { field: "estado_mantencion_id", table: "estado_mantencion" },
       { field: "tipo_mantencion_id", table: "tipo_mantencion" },
+      { field: "personal_responsable_id", table: "personal" },
     ];
 
     const updates = {};

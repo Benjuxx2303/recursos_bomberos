@@ -2,33 +2,27 @@ import { pool } from "../db.js";
 
 export const getClavesPage = async (req, res) => {
     try {
-        // Obtener los parámetros opcionales para paginación
-        const page = parseInt(req.query.page) || 1; // Página actual, por defecto es la primera
-        const pageSize = parseInt(req.query.pageSize) || 50; // Tamaño de página, por defecto son 10 
-        // registros
+        const page = req.query.page ? parseInt(req.query.page) : null;
+        const pageSize = req.query.pageSize ? parseInt(req.query.pageSize) : 50;
         const search = req.query.search || '';
 
-        // Si no se proporciona "page", devolver todos los datos sin paginación
-        if (!req.query.page) {
-            const [rows] = await pool.query('SELECT * FROM clave WHERE isDeleted = 0');
-            return res.json(rows); // Devuelve todos los registros sin paginación
-        }
+        let query = 'SELECT * FROM clave WHERE isDeleted = 0';
+        const params = [];
 
-        // Si se proporciona "page", se aplica paginación
-        const offset = (page - 1) * pageSize; // Calcular el offset
+        // Agregar búsqueda si existe
         if (search) {
             query += " AND (nombre LIKE ? OR descripcion LIKE ?)";
             params.push(`%${search}%`, `%${search}%`);
         }
-        // Consulta paginada
-        const query = `
-            SELECT * 
-            FROM clave 
-            WHERE isDeleted = 0
-            LIMIT ? OFFSET ?
-        `;
-        
-        const [rows] = await pool.query(query, [pageSize, offset]);
+
+        // Agregar paginación solo si se especifica page
+        if (page !== null) {
+            const offset = (page - 1) * pageSize;
+            query += ' LIMIT ? OFFSET ?';
+            params.push(pageSize, offset);
+        }
+
+        const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (error) {
         console.error('Error: ', error);

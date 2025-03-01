@@ -584,7 +584,7 @@ export const startServicio = async (req, res) => {
         maquina_id,
         f_salida, 
         h_salida,
-        km_salida,
+        km_salida ,
         hmetro_salida,
         hbomba_salida,
         direccion,

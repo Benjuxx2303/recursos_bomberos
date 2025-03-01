@@ -3,12 +3,12 @@ import { checkPermission } from "../controllers/authMiddleware.js";
 import {
   createBitacora,
   deleteBitacora,
+  endServicio,
   getBitacora,
   getBitacoraById, // habilitado
   getLastBitacora,
-  updateBitacora,
   startServicio,
-  endServicio,
+  updateBitacora,
 } from "../controllers/bitacora.controllers.js";
 
 const router = Router();
@@ -29,7 +29,7 @@ router.post(base_route, checkPermission('createBitacora'), createBitacora);
 router.delete(`${base_route}/:id`, checkPermission('deleteBitacora'),deleteBitacora);
 
 router.patch(`${base_route}/:id`, checkPermission('updateBitacora'),updateBitacora);
-router.patch(`${base_route}/:id/start`, checkPermission('updateBitacora'), startServicio);
+router.post(`${base_route}/start`, checkPermission('updateBitacora'), startServicio);
 router.patch(`${base_route}/:id/end`, checkPermission('updateBitacora'), endServicio);
 
 export default router;

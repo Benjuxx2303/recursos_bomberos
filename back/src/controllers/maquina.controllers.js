@@ -67,7 +67,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
     const search = req.query.search || '';
-    let { disponible, modelo_id, compania_id, codigo, patente, procedencia_id } = req.query;
+    let { disponible, modelo_id, compania_id, codigo, patente, procedencia_id, personal_id } = req.query;
 
     let query = `
       SELECT
@@ -99,9 +99,16 @@ export const getMaquinasDetailsPage = async (req, res) => {
       INNER JOIN marca ma ON mo.marca_id = ma.id
       INNER JOIN compania c ON m.compania_id = c.id
       INNER JOIN procedencia p ON m.procedencia_id = p.id
+      INNER JOIN conductor_maquina cm ON m.id = cm.maquina_id
       WHERE m.isDeleted = 0
     `;
     const params = [];
+
+    if (personal_id) {
+      query += " AND cm.personal_id = ?";
+      params.push(personal_id);
+    }
+
     if (search) {
       query += " AND (m.patente LIKE ? OR m.codigo LIKE ? OR m.nombre LIKE ?)";
       params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
@@ -137,8 +144,11 @@ export const getMaquinasDetailsPage = async (req, res) => {
       const formattedRows = rows.map(formatDates);
       return res.json(formattedRows);
     }
-
-    const [countResult] = await pool.query("SELECT COUNT(*) as total FROM maquina WHERE isDeleted = 0");
+    let countQuery = "SELECT COUNT(*) as total FROM maquina m INNER JOIN conductor_maquina cm ON m.id = cm.maquina_id WHERE m.isDeleted = 0";
+    if (personal_id) {
+        countQuery += " AND cm.personal_id = ?";
+    } 
+    const [countResult] = await pool.query(countQuery, params);
     const totalRecords = countResult[0].total;
     const totalPages = Math.ceil(totalRecords / pageSize);
 

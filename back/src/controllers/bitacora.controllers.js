@@ -128,6 +128,9 @@ export const getBitacoraById = async (req, res) => {
             `SELECT b.id, 
                     c.nombre AS compania,
                     p.rut AS 'rut_conductor',
+                    b.personal_id , 
+                    b.maquina_id,
+                    b.clave_id,
                     m.patente AS 'patente_maquina',
                     tm.nombre AS tipo_maquina, 
                     DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
@@ -135,7 +138,7 @@ export const getBitacoraById = async (req, res) => {
                     cl.nombre AS clave, 
                     b.direccion, 
                     b.km_salida, 
-                    b.km_llegada, 
+                    b.km_llegada,
                     CASE 
                         WHEN b.km_llegada > b.km_salida AND b.km_salida IS NOT NULL AND b.km_llegada IS NOT NULL 
                         THEN b.km_llegada - b.km_salida 

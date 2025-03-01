@@ -578,141 +578,177 @@ export const updateBitacora = async (req, res) => {
 verificando la disponibilidad de la máquina y el personal, y actualizando la bitácora y la disponibilidad en la base de datos.
 */
 export const startServicio = async (req, res) => {
-    const { 
-        compania_id,
-        personal_id,
-        maquina_id,
-        f_salida, 
-        h_salida,
-        km_salida ,
-        hmetro_salida,
-        hbomba_salida,
-        direccion,
-        clave_id,
-        obs
-    } = req.body;
-
-    const errors = [];
-
     try {
+        console.log("Datos recibidos:", req.body);
+        const { 
+            compania_id,
+            personal_id,
+            maquina_id,
+            f_salida, 
+            h_salida,
+            km_salida,
+            hmetro_salida,
+            hbomba_salida,
+            direccion,
+            clave_id,
+            obs
+        } = req.body;
+
+        const errors = [];
+
         // Validar campos obligatorios
-        if (!compania_id) errors.push("El ID de compañía es obligatorio.");
-        if (!personal_id) errors.push("El ID de personal es obligatorio.");
-        if (!maquina_id) errors.push("El ID de máquina es obligatorio.");
-        if (!clave_id) errors.push("El ID de clave es obligatorio.");
+        try {
+            if (!compania_id) errors.push("El ID de compañía es obligatorio.");
+            if (!personal_id) errors.push("El ID de personal es obligatorio.");
+            if (!maquina_id) errors.push("El ID de máquina es obligatorio.");
+            if (!clave_id) errors.push("El ID de clave es obligatorio.");
 
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Convertir IDs a números
-        const companiaIdNum = parseInt(compania_id);
-        const personalIdNum = parseInt(personal_id);
-        const maquinaIdNum = parseInt(maquina_id);
-        const claveIdNum = parseInt(clave_id);
-
-        // Verificar que los IDs sean válidos
-        if (isNaN(companiaIdNum)) errors.push("ID de compañía inválido.");
-        if (isNaN(personalIdNum)) errors.push("ID de personal inválido.");
-        if (isNaN(maquinaIdNum)) errors.push("ID de máquina inválido.");
-        if (isNaN(claveIdNum)) errors.push("ID de clave inválido.");
-
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Verificar existencia de las entidades
-        await checkIfDeletedById(pool, companiaIdNum, "compania", errors);
-        await checkIfDeletedById(pool, personalIdNum, "personal", errors);
-        await checkIfDeletedById(pool, maquinaIdNum, "maquina", errors);
-        await checkIfDeletedById(pool, claveIdNum, "clave", errors);
-
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Obtener datos de la máquina
-        const [maquina] = await pool.query(
-            "SELECT bomba, kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0",
-            [maquinaIdNum]
-        );
-
-        if (maquina.length === 0) return res.status(404).json({ message: "Máquina no encontrada o eliminada." });
-        
-        const { bomba, kmetraje, hmetro_motor, hmetro_bomba } = maquina[0];
-
-        // Verificar disponibilidad de máquina y personal en una sola consulta
-        const query = `
-            SELECT
-                (SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0) AS maquinaDisponible,
-                (SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0) AS personalDisponible
-        `;
-
-        const [result] = await pool.query(query, [maquinaIdNum, personalIdNum]);
-
-        // Verificar la disponibilidad de la máquina
-        if (!result[0]?.maquinaDisponible || result[0].maquinaDisponible !== 1) errors.push("La máquina no está disponible.");
-        
-        // Verificar la disponibilidad del personal
-        if (!result[0]?.personalDisponible || result[0].personalDisponible !== 1) errors.push("El personal no está disponible.");
-
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Determinar valores para km_salida, hmetro_salida, hbomba_salida
-        const kmSalidaFinal = km_salida !== undefined ? parseFloat(km_salida) : kmetraje;
-        const hmetroSalidaFinal = hmetro_salida !== undefined ? parseFloat(hmetro_salida) : hmetro_motor;
-        // Solo usar hmetro_bomba si la máquina tiene bomba
-        const hbombaSalidaFinal = bomba === 1 ? (hbomba_salida !== undefined ? parseFloat(hbomba_salida) : hmetro_bomba) : null;
-
-        // Preparar fecha y hora
-        let fhSalida;
-        if (f_salida && h_salida) {
-            const error = validateDate(f_salida, h_salida);
-            if (error === false) errors.push("Fecha y hora de salida inválida.");
-            else fhSalida = formatDateTime(f_salida, h_salida);
-        } else {
-            // Si no se proporciona fecha y hora, usar la actual
-            const now = new Date();
-            fhSalida = now.toISOString().slice(0, 19).replace('T', ' ');
+            if (errors.length > 0) {
+                console.log("Errores en campos obligatorios:", errors);
+                return res.status(400).json({ errors });
+            }
+        } catch (validationError) {
+            console.error("Error en validación de campos:", validationError);
+            return res.status(400).json({ message: "Error en validación de campos", error: validationError.message });
         }
 
-        if (errors.length > 0) return res.status(400).json({ errors });
+        // Convertir y validar IDs
+        try {
+            const companiaIdNum = parseInt(compania_id);
+            const personalIdNum = parseInt(personal_id);
+            const maquinaIdNum = parseInt(maquina_id);
+            const claveIdNum = parseInt(clave_id);
 
-        // Insertar nueva bitácora
-        const [result2] = await pool.query(
-            `INSERT INTO bitacora (
-                compania_id, 
-                personal_id, 
-                maquina_id, 
-                clave_id,
-                direccion, 
-                fh_salida, 
-                km_salida, 
-                hmetro_salida, 
-                hbomba_salida, 
-                obs,
-                enCurso,
-                isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                companiaIdNum,
-                personalIdNum,
-                maquinaIdNum,
-                claveIdNum,
-                direccion || null,
-                fhSalida,
-                kmSalidaFinal,
-                hmetroSalidaFinal,
-                hbombaSalidaFinal,
-                obs || null,
-                1, // enCurso = 1
-                0  // isDeleted = 0
-            ]
-        );
+            if (isNaN(companiaIdNum)) errors.push("ID de compañía inválido.");
+            if (isNaN(personalIdNum)) errors.push("ID de personal inválido.");
+            if (isNaN(maquinaIdNum)) errors.push("ID de máquina inválido.");
+            if (isNaN(claveIdNum)) errors.push("ID de clave inválido.");
 
-        // Actualizar disponibilidad de personal y máquina
-        await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNum]);
-        await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNum]);
+            if (errors.length > 0) {
+                console.log("Errores en conversión de IDs:", errors);
+                return res.status(400).json({ errors });
+            }
 
-        res.status(201).json({ 
-            id: result2.insertId,
-            message: "Servicio iniciado correctamente." 
-        });
+            // Verificar existencia de entidades
+            try {
+                await checkIfDeletedById(pool, companiaIdNum, "compania", errors);
+                await checkIfDeletedById(pool, personalIdNum, "personal", errors);
+                await checkIfDeletedById(pool, maquinaIdNum, "maquina", errors);
+                await checkIfDeletedById(pool, claveIdNum, "clave", errors);
+
+                if (errors.length > 0) {
+                    console.log("Errores en verificación de existencia:", errors);
+                    return res.status(400).json({ errors });
+                }
+
+                // Obtener datos de la máquina
+                try {
+                    const [maquina] = await pool.query(
+                        "SELECT bomba, kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0",
+                        [maquinaIdNum]
+                    );
+
+                    if (maquina.length === 0) {
+                        console.log("Máquina no encontrada:", maquinaIdNum);
+                        return res.status(404).json({ message: "Máquina no encontrada o eliminada." });
+                    }
+
+                    const { bomba, kmetraje, hmetro_motor, hmetro_bomba } = maquina[0];
+
+                    // Verificar disponibilidad
+                    try {
+                        const query = `
+                            SELECT
+                                (SELECT disponible FROM maquina WHERE id = ? AND isDeleted = 0) AS maquinaDisponible,
+                                (SELECT disponible FROM personal WHERE id = ? AND isDeleted = 0) AS personalDisponible
+                        `;
+
+                        const [result] = await pool.query(query, [maquinaIdNum, personalIdNum]);
+
+                        if (!result[0]?.maquinaDisponible || result[0].maquinaDisponible !== 1) {
+                            console.log("Máquina no disponible:", maquinaIdNum);
+                            errors.push("La máquina no está disponible.");
+                        }
+                        if (!result[0]?.personalDisponible || result[0].personalDisponible !== 1) {
+                            console.log("Personal no disponible:", personalIdNum);
+                            errors.push("El personal no está disponible.");
+                        }
+
+                        if (errors.length > 0) return res.status(400).json({ errors });
+
+                        // Procesar valores numéricos
+                        try {
+                            const kmSalidaFinal = km_salida !== undefined ? parseFloat(km_salida) : kmetraje;
+                            const hmetroSalidaFinal = hmetro_salida !== undefined ? parseFloat(hmetro_salida) : hmetro_motor;
+                            const hbombaSalidaFinal = bomba === 1 ? (hbomba_salida !== undefined ? parseFloat(hbomba_salida) : hmetro_bomba) : null;
+
+                            if (kmSalidaFinal !== undefined && isNaN(kmSalidaFinal)) {
+                                console.log("Error en km_salida:", km_salida);
+                                return res.status(400).json({ message: "Valor inválido para kilómetros de salida" });
+                            }
+
+                            // Validar fecha y hora
+                            let fhSalida;
+                            try {
+                                if (f_salida && h_salida) {
+                                    const error = validateDate(f_salida, h_salida);
+                                    if (error === false) {
+                                        console.log("Fecha/hora inválida:", { f_salida, h_salida });
+                                        return res.status(400).json({ message: "Fecha y hora de salida inválida" });
+                                    }
+                                    fhSalida = formatDateTime(f_salida, h_salida);
+                                } else {
+                                    fhSalida = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                                }
+
+                                // Insertar bitácora
+                                const [result2] = await pool.query(
+                                    `INSERT INTO bitacora (
+                                        compania_id, personal_id, maquina_id, clave_id,
+                                        direccion, fh_salida, km_salida, hmetro_salida, 
+                                        hbomba_salida, obs, enCurso, isDeleted
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                    [
+                                        companiaIdNum, personalIdNum, maquinaIdNum, claveIdNum,
+                                        direccion || null, fhSalida, kmSalidaFinal, hmetroSalidaFinal,
+                                        hbombaSalidaFinal, obs || null, 1, 0
+                                    ]
+                                );
+
+                                // Actualizar disponibilidad
+                                await pool.query("UPDATE maquina SET disponible = 0 WHERE id = ?", [maquinaIdNum]);
+                                await pool.query("UPDATE personal SET disponible = 0 WHERE id = ?", [personalIdNum]);
+
+                                res.status(201).json({ 
+                                    id: result2.insertId,
+                                    message: "Servicio iniciado correctamente." 
+                                });
+                            } catch (dateError) {
+                                console.error("Error procesando fecha/hora:", dateError);
+                                return res.status(400).json({ message: "Error procesando fecha y hora", error: dateError.message });
+                            }
+                        } catch (numericError) {
+                            console.error("Error procesando valores numéricos:", numericError);
+                            return res.status(400).json({ message: "Error procesando valores numéricos", error: numericError.message });
+                        }
+                    } catch (disponibilidadError) {
+                        console.error("Error verificando disponibilidad:", disponibilidadError);
+                        return res.status(500).json({ message: "Error verificando disponibilidad", error: disponibilidadError.message });
+                    }
+                } catch (maquinaError) {
+                    console.error("Error obteniendo datos de máquina:", maquinaError);
+                    return res.status(500).json({ message: "Error obteniendo datos de máquina", error: maquinaError.message });
+                }
+            } catch (existenciaError) {
+                console.error("Error verificando existencia de entidades:", existenciaError);
+                return res.status(500).json({ message: "Error verificando existencia de entidades", error: existenciaError.message });
+            }
+        } catch (idError) {
+            console.error("Error procesando IDs:", idError);
+            return res.status(400).json({ message: "Error procesando IDs", error: idError.message });
+        }
     } catch (error) {
+        console.error("Error general en startServicio:", error);
         return res.status(500).json({ message: "Error al iniciar el servicio", error: error.message });
     }
 };

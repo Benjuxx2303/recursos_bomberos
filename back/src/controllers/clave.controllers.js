@@ -4,7 +4,9 @@ export const getClavesPage = async (req, res) => {
     try {
         // Obtener los parámetros opcionales para paginación
         const page = parseInt(req.query.page) || 1; // Página actual, por defecto es la primera
-        const pageSize = parseInt(req.query.pageSize) || 10; // Tamaño de página, por defecto son 10 registros
+        const pageSize = parseInt(req.query.pageSize) || 50; // Tamaño de página, por defecto son 10 
+        // registros
+        const search = req.query.search || '';
 
         // Si no se proporciona "page", devolver todos los datos sin paginación
         if (!req.query.page) {
@@ -14,7 +16,10 @@ export const getClavesPage = async (req, res) => {
 
         // Si se proporciona "page", se aplica paginación
         const offset = (page - 1) * pageSize; // Calcular el offset
-
+        if (search) {
+            query += " AND (nombre LIKE ? OR descripcion LIKE ?)";
+            params.push(`%${search}%`, `%${search}%`);
+        }
         // Consulta paginada
         const query = `
             SELECT * 

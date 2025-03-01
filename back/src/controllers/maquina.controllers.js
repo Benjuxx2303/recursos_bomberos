@@ -66,7 +66,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
 
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
-
+    const search = req.query.search || '';
     let { disponible, modelo_id, compania_id, codigo, patente, procedencia_id } = req.query;
 
     let query = `
@@ -102,7 +102,10 @@ export const getMaquinasDetailsPage = async (req, res) => {
       WHERE m.isDeleted = 0
     `;
     const params = [];
-
+    if (search) {
+      query += " AND (m.patente LIKE ? OR m.codigo LIKE ? OR m.nombre LIKE ?)";
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
     if (disponible !== undefined) {
       query += " AND m.disponible = ?";
       params.push(disponible);

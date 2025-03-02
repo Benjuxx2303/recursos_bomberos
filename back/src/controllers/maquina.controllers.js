@@ -70,7 +70,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
     let { disponible, modelo_id, compania_id, codigo, patente, procedencia_id, personal_id } = req.query;
 
     let query = `
-      SELECT
+      SELECT DISTINCT
         m.*,
         tm.nombre AS tipo_maquina,
         c.id AS compania_id,
@@ -90,7 +90,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
             )
           )
           FROM conductor_maquina cm
-          JOIN personal per ON cm.personal_id = per.id
+          LEFT JOIN personal per ON cm.personal_id = per.id
           WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND per.isDeleted = 0
         ) as conductores
       FROM maquina m
@@ -99,7 +99,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
       INNER JOIN marca ma ON mo.marca_id = ma.id
       INNER JOIN compania c ON m.compania_id = c.id
       INNER JOIN procedencia p ON m.procedencia_id = p.id
-      INNER JOIN conductor_maquina cm ON m.id = cm.maquina_id
+      LEFT JOIN conductor_maquina cm ON m.id = cm.maquina_id
       WHERE m.isDeleted = 0
     `;
     const params = [];

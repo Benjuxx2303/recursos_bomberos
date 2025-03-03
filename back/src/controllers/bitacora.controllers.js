@@ -754,7 +754,7 @@ export const startServicio = async (req, res) => {
 
 export const endServicio = async (req, res) => {
     const { id } = req.params;
-    const { 
+    let { 
         f_llegada, 
         h_llegada, 
         km_llegada, 
@@ -773,7 +773,7 @@ export const endServicio = async (req, res) => {
             [id]
         );
 
-        if (!bitacora.length) {
+        if (bitacora.length === 0) {
             return res.status(404).json({ message: "Bitácora no encontrada o eliminada." });
         }
 
@@ -785,69 +785,92 @@ export const endServicio = async (req, res) => {
         }
 
         // Preparar fecha y hora de llegada
-        const mysqlFechaHora = (f_llegada && h_llegada && validateDate(f_llegada, h_llegada))
-            ? formatDateTime(f_llegada, h_llegada)
-            : new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-        if (!mysqlFechaHora) {
-            errors.push("Fecha y hora de llegada inválida.");
+        let mysqlFechaHora;
+        if (f_llegada && h_llegada) {
+            const error = validateDate(f_llegada, h_llegada);
+            if (error === false) errors.push("Fecha y hora de llegada inválida.");
+            else mysqlFechaHora = formatDateTime(f_llegada, h_llegada);
+        } else {
+            // Si no se proporciona fecha y hora, usar la actual
+            const now = new Date();
+            mysqlFechaHora = now.toISOString().slice(0, 19).replace('T', ' ');
         }
 
-        // Validar km_llegada, hmetro_llegada, hbomba_llegada
-        const validateInput = (value, name, minValue) => {
-            if (value !== undefined) {
-                const parsedValue = parseFloat(value);
-                if (isNaN(parsedValue) || parsedValue < 0) {
-                    errors.push(`${name} debe ser un número válido y positivo.`);
-                } else if (minValue !== null && parsedValue < minValue) {
-                    errors.push(`${name} no puede ser menor a los datos de salida.`);
-                }
-                return parsedValue;
-            }
-            return undefined;
-        };
+        // Si hay errores en la fecha, devolver error
+        if (errors.length > 0) return res.status(400).json({ errors });
 
-        const km_llegada_valid = validateInput(km_llegada, "Km llegada", km_salida);
-        const hmetro_llegada_valid = validateInput(hmetro_llegada, "Hmetro llegada", hmetro_salida);
-        const hbomba_llegada_valid = validateInput(hbomba_llegada, "Hbomba llegada", hbomba_salida);
+        // Validar km_llegada, hmetro_llegada, hbomba_llegada si se proporcionan
+        if (km_llegada !== undefined) {
+            km_llegada = parseFloat(km_llegada);
+            if (isNaN(km_llegada) || km_llegada < 0) errors.push("Km llegada debe ser un número válido y positivo.");
+            // Comparar con km_salida solo si ambos están definidos
+            if (km_salida !== null && km_llegada < km_salida) errors.push("Km llegada no puede ser menor a los datos de salida.");
+        }
+
+        if (hmetro_llegada !== undefined) {
+            hmetro_llegada = parseFloat(hmetro_llegada);
+            if (isNaN(hmetro_llegada) || hmetro_llegada < 0) errors.push("Hmetro llegada debe ser un número válido y positivo.");
+            // Comparar con hmetro_salida solo si ambos están definidos
+            if (hmetro_salida !== null && hmetro_llegada < hmetro_salida) errors.push("Hmetro llegada no puede ser menor a los datos de salida.");
+        }
+
+        if (hbomba_llegada !== undefined) {
+            hbomba_llegada = parseFloat(hbomba_llegada);
+            if (isNaN(hbomba_llegada) || hbomba_llegada < 0) errors.push("Hbomba llegada debe ser un número válido y positivo.");
+            // Comparar con hbomba_salida solo si ambos están definidos y la máquina tiene bomba
+            if (hbomba_salida !== null && hbomba_llegada < hbomba_salida) errors.push("Hbomba llegada no puede ser menor a los datos de salida.");
+        }
 
         if (errors.length > 0) return res.status(400).json({ errors });
 
         // Traer datos actuales de la máquina
         const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
         
-        if (!maquina.length) {
+        if (maquina.length === 0) {
             return res.status(404).json({ message: "Máquina no encontrada o eliminada." });
         }
         
         const { kmetraje, hmetro_motor, hmetro_bomba } = maquina[0];
-
+        
         // Revisar si la máquina tiene bomba
         const [isBomba] = await pool.query(`SELECT 1 FROM maquina WHERE id = ? AND bomba = 1 AND isDeleted = 0`, [maquina_id]);
         const hasBomba = isBomba.length > 0;
-
+        
         // Comparar los datos de llegada con los de la máquina
-        const hmetro_bomba_new = hasBomba && hbomba_llegada_valid > hmetro_bomba ? hbomba_llegada_valid : hmetro_bomba;
-        const kmetraje_new = km_llegada_valid > kmetraje ? km_llegada_valid : kmetraje;
-        const hmetro_motor_new = hmetro_llegada_valid > hmetro_motor ? hmetro_llegada_valid : hmetro_motor;
-
+        let hmetro_bomba_new = hmetro_bomba;
+        let hmetro_motor_new = hmetro_motor;
+        let kmetraje_new = kmetraje;
+        
+        // Solo actualizar si se proporcionaron los valores
+        if (hasBomba && hbomba_llegada !== undefined && hbomba_llegada > hmetro_bomba) {
+            hmetro_bomba_new = hbomba_llegada;
+        }
+        
+        if (km_llegada !== undefined && km_llegada > kmetraje) {
+            kmetraje_new = km_llegada;
+        }
+        
+        if (hmetro_llegada !== undefined && hmetro_llegada > hmetro_motor) {
+            hmetro_motor_new = hmetro_llegada;
+        }
+        
         // Actualizar datos en la bitácora
         const updateFields = ['fh_llegada = ?', 'enCurso = 0'];
         const updateValues = [mysqlFechaHora];
-
-        if (km_llegada_valid !== undefined) {
+        
+        if (km_llegada !== undefined) {
             updateFields.push('km_llegada = ?');
-            updateValues.push(km_llegada_valid);
+            updateValues.push(km_llegada);
         }
         
-        if (hmetro_llegada_valid !== undefined) {
+        if (hmetro_llegada !== undefined) {
             updateFields.push('hmetro_llegada = ?');
-            updateValues.push(hmetro_llegada_valid);
+            updateValues.push(hmetro_llegada);
         }
         
-        if (hbomba_llegada_valid !== undefined) {
+        if (hbomba_llegada !== undefined) {
             updateFields.push('hbomba_llegada = ?');
-            updateValues.push(hbomba_llegada_valid);
+            updateValues.push(hbomba_llegada);
         }
         
         if (obs !== undefined) {
@@ -878,11 +901,11 @@ export const endServicio = async (req, res) => {
         );
 
         // Actualizar disponibilidad de personal y máquina
-        await Promise.all([
-            pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]),
-            pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]),
-            pool.query("UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?", [mysqlFechaHora, personal_id])
-        ]);
+        await pool.query("UPDATE personal SET disponible = 1 WHERE id = ?", [personal_id]);
+        await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
+        
+        // Actualizar la ultima fecha de servicio del personal
+        await pool.query("UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?", [mysqlFechaHora, personal_id]);
         
         res.json({ message: "Servicio finalizado correctamente." });
     } catch (error) {

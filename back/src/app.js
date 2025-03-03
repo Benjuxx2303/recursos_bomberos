@@ -39,7 +39,8 @@ const httpServer = createServer(app);
 
 // Configuración CORS
 const corsOptions = {
-    origin: JSON.parse(process.env.CORS_ORIGINS),
+    // origin: JSON.parse(process.env.CORS_ORIGINS),
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],

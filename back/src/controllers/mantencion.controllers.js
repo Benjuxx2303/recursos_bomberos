@@ -1236,3 +1236,31 @@ export const completarMantencion = async (req, res) => {
 };
 
 
+// nueva ruta para enviar a evaluacion
+export const enviarAEvaluacion = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Obtener el ID del estado 'Completada'
+    const [estadoEvaluacion] = await pool.query(
+      "SELECT id FROM estado_mantencion WHERE nombre = 'Evaluacion' AND isDeleted = 0"
+    );
+
+    if (estadoEvaluacion.length === 0) {
+      return res.status(400).json({ message: "El estado 'Evaluacion' no existe" });
+    }
+    // Actualizar el estado de la mantención
+    await pool.query(
+      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      [estadoEvaluacion[0].id, id]
+    );
+
+    res.json({ message: "Mantención enviada a evaluacion exitosamente" });
+  } catch (error) {
+    console.error("Error al enviar a evaluacion:", error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};

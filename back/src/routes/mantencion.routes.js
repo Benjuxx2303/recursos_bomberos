@@ -9,6 +9,7 @@ import {
   deleteMantencion,
   downloadExcel,
   enProceso,
+  enviarAEvaluacion,
   getMantencionAllDetailsById,
   getMantencionesAllDetailsSearch,
   rechazarMantencion,
@@ -59,7 +60,7 @@ router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMa
 router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);
 
 //mantencion en proceso
-router.patch(`${base_route}/:id/proceso`, checkPermission('updateMantencion'), enProceso);
+router.patch(`${base_route}/:id/en-proceso`, checkPermission('updateMantencion'), enProceso);
 
 //mantencion completada
 router.patch(`${base_route}/:id/completar`, checkPermission('updateMantencion'), completarMantencion);
@@ -69,6 +70,8 @@ router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion')
 
 // Nueva ruta para rechazar mantenciones
 router.patch(`${base_route}/:id/rechazar`, checkPermission('updateMantencion'), rechazarMantencion);
+// Nueva ruta para enviar a evaluacion
+router.patch(`${base_route}/:id/evaluacion`, checkPermission('updateMantencion'), enviarAEvaluacion);
 
 router.patch(`${base_route}/:id/status`, checkPermission('updateMantencion'), updateMaintenanceStatus);
 

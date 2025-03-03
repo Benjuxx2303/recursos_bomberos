@@ -623,3 +623,184 @@ export const verifyEmail = async (req, res) => {
         return res.status(400).json({ message: "Token inválido o expirado" });
     }
 };
+
+// Crear usuario (solo para usuarios autorizados)
+export const createUser = async (req, res) => {
+    let { username, personal_id } = req.body;
+    let errors = [];
+
+    try {
+        // Obtener información del personal
+        const [personalInfo] = await pool.query(
+            `SELECT 
+                p.nombre, 
+                p.apellido, 
+                p.correo,
+                c.nombre as compania_nombre
+            FROM personal p
+            LEFT JOIN compania c ON p.compania_id = c.id
+            WHERE p.id = ? AND p.isDeleted = 0`,
+            [personal_id]
+        );
+
+        if (personalInfo.length === 0) {
+            return res.status(404).json({ message: "Personal no encontrado" });
+        }
+
+        const { nombre, apellido, correo, compania_nombre } = personalInfo[0];
+
+        // Si no se proporciona username, generarlo automáticamente
+        if (!username) {
+            const companiaInitials = compania_nombre ? compania_nombre.split(' ').map(word => word[0]).join('') : '';
+            const nombreInitial = nombre ? nombre[0] : '';
+            const apellidoInitial = apellido ? apellido[0] : '';
+            username = `${companiaInitials}${nombreInitial}${apellidoInitial}`.toLowerCase();
+            
+            // Verificar si el username generado ya existe y añadir número si es necesario
+            let counter = 1;
+            let tempUsername = username;
+            while (true) {
+                const [exists] = await pool.query("SELECT id FROM usuario WHERE username = ?", [tempUsername]);
+                if (exists.length === 0) break;
+                tempUsername = `${username}${counter}`;
+                counter++;
+            }
+            username = tempUsername;
+        }
+
+        // Validar username
+        validateUsername(username, errors);
+
+        // Generar contraseña provisional aleatoria
+        const provisionalPassword = Math.random().toString(36).slice(-8);
+        
+        // Encriptar la contraseña
+        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
+        const hashedPassword = await bcrypt.hash(provisionalPassword, salt);
+
+        // Crear el usuario
+        const [result] = await pool.query(
+            "INSERT INTO usuario (username, correo, contrasena, personal_id, isDeleted, isVerified) VALUES (?, ?, ?, ?, 0, 1)",
+            [username, correo, hashedPassword, personal_id]
+        );
+
+        // Crear token para cambio de contraseña
+        const changePasswordToken = jwt.sign(
+            { 
+                userId: result.insertId,
+                email: correo,
+                type: 'password-change'
+            },
+            SECRET_JWT_KEY,
+            { expiresIn: '24h' }
+        );
+
+        // Generar enlace para cambiar la contraseña
+        const changePasswordLink = `${process.env.FRONTEND_URL}/cambiar-contrasena?token=${changePasswordToken}`;
+
+        // Generar contenido HTML para el correo
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #e53e3e;">Cuenta Creada - Bomberos</h2>
+                <p>Hola ${nombre} ${apellido},</p>
+                <p>Se ha creado una cuenta para ti en el sistema. Tus credenciales son:</p>
+                <ul>
+                    <li>Usuario: ${username}</li>
+                    <li>Contraseña provisional: ${provisionalPassword}</li>
+                </ul>
+                <p>Por seguridad, debes cambiar tu contraseña usando el siguiente enlace:</p>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
+                    <tr>
+                        <td align="center">
+                            <a href="${changePasswordLink}" 
+                               style="background-color: #e53e3e; 
+                                      color: #ffffff; 
+                                      display: inline-block; 
+                                      padding: 12px 24px; 
+                                      text-decoration: none; 
+                                      border-radius: 5px;
+                                      font-weight: bold;">
+                                Cambiar Contraseña
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+                <p>O copia y pega el siguiente enlace en tu navegador:</p>
+                <p style="word-break: break-all; color: #2563eb;">${changePasswordLink}</p>
+                <p style="color: #666;">Este enlace expirará en 24 horas por razones de seguridad.</p>
+                <hr style="margin: 20px 0; border: 1px solid #eee;">
+                <p style="font-size: 12px; color: #999;">Este es un correo automático, por favor no respondas a este mensaje.</p>
+            </div>
+        `;
+
+        // Enviar correo con las credenciales
+        await sendEmail(
+            correo,
+            'Cuenta Creada - Bomberos',
+            `Se ha creado tu cuenta. Usuario: ${username}, Contraseña: ${provisionalPassword}. Cambia tu contraseña en: ${changePasswordLink}`,
+            htmlContent
+        );
+
+        res.status(201).json({
+            message: 'Usuario creado exitosamente. Se han enviado las credenciales por correo.',
+            userId: result.insertId,
+        });
+
+    } catch (error) {
+        console.error('Error al crear usuario:', error);
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
+// Cambiar contraseña (para usuarios nuevos)
+export const changePassword = async (req, res) => {
+    const { token, contrasena } = req.body;
+    let errors = [];
+
+    try {
+        if (!token || !contrasena) {
+            return res.status(400).json({ message: "Token y contraseña son requeridos" });
+        }
+
+        // Validar contraseña
+        validatePassword(contrasena.trim(), errors);
+
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Verificar el token
+        const decoded = jwt.verify(token, SECRET_JWT_KEY);
+
+        // Verificar que sea un token de cambio de contraseña
+        if (decoded.type !== 'password-change') {
+            return res.status(400).json({ message: "Token inválido" });
+        }
+
+        // Encriptar la nueva contraseña
+        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
+        const hashedPassword = await bcrypt.hash(contrasena.trim(), salt);
+
+        // Actualizar la contraseña
+        const [result] = await pool.query(
+            "UPDATE usuario SET contrasena = ? WHERE id = ? AND isDeleted = 0",
+            [hashedPassword, decoded.userId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        res.status(200).json({ message: "Contraseña actualizada correctamente" });
+
+    } catch (error) {
+        console.error('Error al cambiar contraseña:', error);
+        return res.status(500).json({ 
+            message: "Error al cambiar la contraseña",
+            error: error.message 
+        });
+    }
+};

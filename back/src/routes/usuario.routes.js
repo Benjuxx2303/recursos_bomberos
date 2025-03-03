@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
+    changePassword,
+    createUser,
     deleteUsuario,
     getUsuarioById,
     // getUsuariosWithDetails,
@@ -43,12 +45,15 @@ router.patch(`${base_route}/:id`, checkPermission('updateUsuario'), updateUsuari
 // Registrar nuevo usuario (con validaciones y encriptación)
 router.post(`${base_route}/register`, registerUser);
 
-// Iniciar sesión
-router.post(`${base_route}/login`, loginUser); // Iniciar sesión
-router.post(`${base_route}/recover-password`, recoverPassword); // Recuperar contraseña
-router.post(`${base_route}/verify-reset-token`, verifyResetToken); // Verificar token de restablecimiento
-router.post(`${base_route}/reset-password`, resetPassword); // Resetear contraseña
-router.get(`${base_route}/verify-email/:token`, verifyEmail); // Ruta para verificar correo
+// Rutas públicas de autenticación
+router.post(`${base_route}/login`, loginUser);
+router.post(`${base_route}/recover-password`, recoverPassword);
+router.post(`${base_route}/verify-reset-token`, verifyResetToken);
+router.post(`${base_route}/reset-password`, resetPassword);
+router.post(`${base_route}/change-password`, changePassword);
+router.get(`${base_route}/verify-email/:token`, verifyEmail);
 
+// Rutas protegidas
+router.post(`${base_route}/crear`, checkPermission('crearUsuario'), createUser);
 
 export default router;

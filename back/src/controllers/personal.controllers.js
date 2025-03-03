@@ -11,7 +11,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 10;
 
         // Nuevos filtros opcionales
-        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut, esConductor, isDeleted } = req.query;
+        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut, esConductor, isDeleted, search } = req.query;
 
         // Inicializar la consulta y los parámetros
         let query = `
@@ -39,8 +39,14 @@ export const getPersonalWithDetailsPage = async (req, res) => {
 
         // Si no se proporciona 'isDeleted', se asigna 0 por defecto
         const params = [isDeleted !== undefined ? isDeleted : 0];
-
+    
         // Agregar filtros si se proporcionan
+
+        if (search) {
+            query += ' AND (p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ? OR p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
         if (compania_id) {
             query += ' AND p.compania_id = ?';
             params.push(compania_id);
@@ -87,7 +93,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             params.push(pageSize, offset);
         }
 
-        const [rows] = await pool.query(query, params);
+            const [rows] = await pool.query(query, params);
 
         // Procesar los resultados
         const results = rows.map(row => {

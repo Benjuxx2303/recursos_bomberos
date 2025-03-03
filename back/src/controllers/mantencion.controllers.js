@@ -414,18 +414,18 @@ export const createMantencion = async (req, res) => {
 
     // Preparar los datos del PDF
     const pdfData = [{
-      bitacora_id: bitacoraIdNumber,
-      maquina_id: maquinaIdNumber,
-      taller_id: tallerIdNumber,
-      estado_mantencion_id,
-      tipo_mantencion_id: tipoMantencionIdNumber,
-      fec_inicio: mysqlFecInicio,
-      fec_termino: mysqlFecTermino,
-      ord_trabajo,
-      n_factura,
-      cost_ser: costSerNumber,
-      aprobada_por: aprobada_por_nombre || null,
-      descripcion: descripcion || null
+      "Bitacora": bitacoraIdNumber,
+      "Máquina": maquinaIdNumber,
+      "Taller": tallerIdNumber,
+      "Estado": estado_mantencion_id,
+      "Tipo Mantencion": tipoMantencionIdNumber,
+      "Fecha inicio": mysqlFecInicio,
+      "Fecha termino": mysqlFecTermino,
+      "Orden de trabajo": ord_trabajo,
+      "N° de factura": n_factura,
+      "Coste del servicio": costSerNumber,
+      // aprobada_por: aprobada_por_nombre || null,
+      "Descripcion": descripcion || null
     }];
 
     // Generar el PDF

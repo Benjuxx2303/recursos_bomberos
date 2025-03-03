@@ -576,6 +576,9 @@ export const updateBitacora = async (req, res) => {
     }
 };
 
+/*
+    Crea e inicia la bitácora
+*/
 export const startServicio = async (req, res) => {
     try {
         console.log("Datos recibidos:", req.body);
@@ -913,11 +916,10 @@ export const endServicio = async (req, res) => {
     }
 };
 
-// TODO: Testear función.
 /* Función que inicia un servicio en una bitácora, validando los datos de salida (fecha, hora), 
 verificando la disponibilidad de la máquina y el personal, y actualizando la bitácora y la disponibilidad en la base de datos.
 */
-export const startServicio2 = async (req, res) => {
+export const startServicioOld = async (req, res) => {
     const { id } = req.params;
     const { f_salida, h_salida } = req.body;
 

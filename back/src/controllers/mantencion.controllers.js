@@ -395,33 +395,7 @@ export const createMantencion = async (req, res) => {
 
     // Insertar mantención
     const [result] = await pool.query(
-      `INSERT INTO mantencion (
-          bitacora_id, 
-          maquina_id, 
-          taller_id, 
-          estado_mantencion_id, 
-          tipo_mantencion_id, 
-          fec_inicio, 
-          fec_termino, 
-          ord_trabajo, 
-          n_factura, 
-          cost_ser, 
-          isDeleted,
-          img_url,
-          descripcion
-        ) VALUES (
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         ?, 
-         0,
-         ?)`,
+      `INSERT INTO mantencion (bitacora_id, maquina_id, taller_id, estado_mantencion_id, tipo_mantencion_id, fec_inicio, fec_termino, ord_trabajo, n_factura, cost_ser, img_url, isDeleted, descripcion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
       [
         bitacoraIdNumber, 
         maquinaIdNumber, 

@@ -4,54 +4,6 @@ import {
 } from '../utils/fileUpload.js';
 import { validateDate, validateRUT } from '../utils/validations.js';
 
-// TODO: implementacion de "imgLicencia"
-
-// Devuelve todos los personales
-export const getPersonal = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM personal WHERE isDeleted = 0');
-        res.json(rows);
-    } catch (error) {
-        console.error('error: ', error);
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-
-    }
-};
-
-// Devuelve solamente los activos con detalles
-export const getPersonalWithDetails = async (req, res) => {
-    try {
-        const query = `
-            SELECT p.id, p.rut, p.nombre AS nombre, p.apellido, 
-                   DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
-                   DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-                   p.img_url, 
-                   p.obs, 
-                   p.ven_licencia,
-                   p.imgLicencia,
-                   p.isDeleted,
-                   rp.nombre AS rol_personal, 
-                   c.nombre AS compania
-            FROM personal p
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            INNER JOIN compania c ON p.compania_id = c.id
-            WHERE p.isDeleted = 0
-        `;
-        
-        const [rows] = await pool.query(query);
-        res.json(rows);
-    } catch (error) {
-        console.error('error: ', error);
-        return res.status(500).json({
-            message: "Error interno del servidor",
-            error: error.message
-        });
-    }
-};
-
 export const getPersonalWithDetailsPage = async (req, res) => {
     try {
         // Obtener los parámetros opcionales
@@ -59,7 +11,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 10;
 
         // Nuevos filtros opcionales
-        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut, esConductor } = req.query;
+        const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut, esConductor, isDeleted } = req.query;
 
         // Inicializar la consulta y los parámetros
         let query = `
@@ -82,10 +34,11 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             INNER JOIN compania c ON p.compania_id = c.id
             LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
             LEFT JOIN maquina m ON cm.maquina_id = m.id
-            WHERE p.isDeleted = 0
+            WHERE p.isDeleted = ?
         `;
 
-        const params = [];
+        // Si no se proporciona 'isDeleted', se asigna 0 por defecto
+        const params = [isDeleted !== undefined ? isDeleted : 0];
 
         // Agregar filtros si se proporcionan
         if (compania_id) {
@@ -124,8 +77,6 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                 query += ' AND NOT EXISTS (SELECT 1 FROM conductor_maquina WHERE conductor_maquina.personal_id = p.id)';
             }
         }
-        
-        
 
         query += ' GROUP BY p.id ORDER BY p.id DESC';
 

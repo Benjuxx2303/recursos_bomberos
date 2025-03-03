@@ -219,6 +219,8 @@ export const createPersonal = async (req, res) => {
         ven_licencia, // campo opcional
         ultima_fec_servicio_fecha, // campo opcional (DATETIME) FECHA
         ultima_fec_servicio_hora, // campo opcional (DATETIME) HORA
+        correo,
+        celular,
     } = req.body;
 
     const errors = []; // Array para almacenar los errores
@@ -266,6 +268,8 @@ export const createPersonal = async (req, res) => {
         rut = String(rut).trim();
         nombre = String(nombre).trim();
         apellido = String(apellido).trim();
+        correo = String(correo).trim();
+        celular = String(celular).trim();
 
         // declarar variable para almacenar la fecha y hora
         let ultima_fec_servicio = null;
@@ -360,10 +364,10 @@ export const createPersonal = async (req, res) => {
         const [rows] = await pool.query(
             `INSERT INTO personal (
                 rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, 
-                fec_ingreso, isDeleted, ven_licencia, imgLicencia, ultima_fec_servicio
+                fec_ingreso, isDeleted, ven_licencia, imgLicencia, ultima_fec_servicio, correo, celular
             ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, 
                 STR_TO_DATE(?, '%d-%m-%Y'), 0, STR_TO_DATE(?, '%d-%m-%Y'), ?, 
-                STR_TO_DATE(?, '%d-%m-%Y %H:%i'))
+                STR_TO_DATE(?, '%d-%m-%Y %H:%i'), ?, ?)
             `,
             [
                 rolPersonalIdNumber,
@@ -378,6 +382,8 @@ export const createPersonal = async (req, res) => {
                 ven_licencia || null,    // Si no se proporciona, pasa null
                 imgLicenciaUrl || null,  // Si no se proporciona, pasa null
                 ultima_fec_servicio || null, // Si no se proporciona, pasa null
+                correo,
+                celular
             ]
         );
 
@@ -394,7 +400,9 @@ export const createPersonal = async (req, res) => {
             fec_ingreso,
             ven_licencia,
             imgLicenciaUrl,
-            ultima_fec_servicio
+            ultima_fec_servicio,
+            correo,
+            celular
         });
     } catch (error) {
         console.error('error: ', error);
@@ -444,6 +452,8 @@ export const updatePersonal = async (req, res) => {
         ven_licencia, // campo opcional 
         ultima_fec_servicio_fecha, // campo opcional (DATETIME) FECHA
         ultima_fec_servicio_hora, // campo opcional (DATETIME) HORA     
+        correo,
+        celular,
     } = req.body;
 
     let errors = [];
@@ -469,6 +479,20 @@ export const updatePersonal = async (req, res) => {
 
             updates.rol_personal_id = rolPersonalIdNumber;
 
+        }
+        if (correo !== undefined) {
+            correo = String(correo).trim();
+            if (typeof correo !== 'string') {
+                errors.push("Tipo de dato inválido para 'correo'");
+            }
+            updates.correo = correo;
+        }
+        if (celular !== undefined) {    
+            celular = String(celular).trim();
+            if (typeof celular !== 'string') {
+                errors.push("Tipo de dato inválido para 'celular'");
+            }
+            updates.celular = celular;
         }
 
         if (rut !== undefined) {
@@ -504,6 +528,7 @@ export const updatePersonal = async (req, res) => {
             }
             updates.apellido = apellido;
         }
+
 
         if (compania_id !== undefined) {
             const companiaIdNumber = parseInt(compania_id);

@@ -158,7 +158,7 @@ export const getPersonalbyID = async (req, res) => {
         }
 
         const query = `
-            SELECT p.id, p.disponible, p.rut, p.nombre AS nombre, p.apellido, 
+            SELECT p.id, p.disponible, p.rut, p.nombre AS nombre, p.apellido, p.correo, p.celular,
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, 

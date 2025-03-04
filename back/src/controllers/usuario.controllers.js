@@ -630,6 +630,18 @@ export const createUser = async (req, res) => {
     let errors = [];
 
     try {
+        // Verificar si ya existe un usuario para este personal
+        const [existingUser] = await pool.query(
+            "SELECT id FROM usuario WHERE personal_id = ? AND isDeleted = 0",
+            [personal_id]
+        );
+
+        if (existingUser.length > 0) {
+            return res.status(400).json({ 
+                message: "Ya existe un usuario asociado a este personal" 
+            });
+        }
+
         // Obtener información del personal
         const [personalInfo] = await pool.query(
             `SELECT 
@@ -660,16 +672,34 @@ export const createUser = async (req, res) => {
             let counter = 1;
             let tempUsername = username;
             while (true) {
-                const [exists] = await pool.query("SELECT id FROM usuario WHERE username = ?", [tempUsername]);
+                const [exists] = await pool.query(
+                    "SELECT id FROM usuario WHERE username = ? AND isDeleted = 0", 
+                    [tempUsername]
+                );
                 if (exists.length === 0) break;
                 tempUsername = `${username}${counter}`;
                 counter++;
             }
             username = tempUsername;
+        } else {
+            // Si se proporciona username, verificar que no exista
+            const [usernameExists] = await pool.query(
+                "SELECT id FROM usuario WHERE username = ? AND isDeleted = 0",
+                [username]
+            );
+            if (usernameExists.length > 0) {
+                return res.status(400).json({ 
+                    message: "El nombre de usuario ya está en uso" 
+                });
+            }
         }
 
         // Validar username
         validateUsername(username, errors);
+
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
 
         // Generar contraseña provisional aleatoria
         const provisionalPassword = Math.random().toString(36).slice(-8);
@@ -760,8 +790,14 @@ export const changePassword = async (req, res) => {
     const { token, contrasena } = req.body;
     let errors = [];
 
+    console.log('Recibida solicitud de cambio de contraseña:', {
+        tokenPresent: !!token,
+        contrasenaPresent: !!contrasena
+    });
+
     try {
         if (!token || !contrasena) {
+            console.log('Faltan datos requeridos');
             return res.status(400).json({ message: "Token y contraseña son requeridos" });
         }
 
@@ -769,32 +805,48 @@ export const changePassword = async (req, res) => {
         validatePassword(contrasena.trim(), errors);
 
         if (errors.length > 0) {
+            console.log('Errores de validación:', errors);
             return res.status(400).json({ errors });
         }
 
-        // Verificar el token
-        const decoded = jwt.verify(token, SECRET_JWT_KEY);
+        try {
+            // Verificar el token
+            console.log('Verificando token...');
+            const decoded = jwt.verify(token, SECRET_JWT_KEY);
+            console.log('Token decodificado:', {
+                userId: decoded.userId,
+                type: decoded.type
+            });
 
-        // Verificar que sea un token de cambio de contraseña
-        if (decoded.type !== 'password-change') {
-            return res.status(400).json({ message: "Token inválido" });
+            // Verificar que sea un token de cambio de contraseña
+            if (decoded.type !== 'password-change') {
+                console.log('Tipo de token incorrecto:', decoded.type);
+                return res.status(400).json({ message: "Token inválido" });
+            }
+
+            // Encriptar la nueva contraseña
+            const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
+            const hashedPassword = await bcrypt.hash(contrasena.trim(), salt);
+
+            // Actualizar la contraseña
+            console.log('Actualizando contraseña para usuario:', decoded.userId);
+            const [result] = await pool.query(
+                "UPDATE usuario SET contrasena = ? WHERE id = ? AND isDeleted = 0",
+                [hashedPassword, decoded.userId]
+            );
+
+            if (result.affectedRows === 0) {
+                console.log('No se encontró el usuario');
+                return res.status(404).json({ message: "Usuario no encontrado" });
+            }
+
+            console.log('Contraseña actualizada exitosamente');
+            res.status(200).json({ message: "Contraseña actualizada correctamente" });
+
+        } catch (jwtError) {
+            console.error('Error al verificar token:', jwtError);
+            return res.status(400).json({ message: "Token inválido o expirado" });
         }
-
-        // Encriptar la nueva contraseña
-        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
-        const hashedPassword = await bcrypt.hash(contrasena.trim(), salt);
-
-        // Actualizar la contraseña
-        const [result] = await pool.query(
-            "UPDATE usuario SET contrasena = ? WHERE id = ? AND isDeleted = 0",
-            [hashedPassword, decoded.userId]
-        );
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Usuario no encontrado" });
-        }
-
-        res.status(200).json({ message: "Contraseña actualizada correctamente" });
 
     } catch (error) {
         console.error('Error al cambiar contraseña:', error);

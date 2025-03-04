@@ -1,4 +1,4 @@
-import { isBefore, isValid, parse, format, parseISO } from 'date-fns';
+import { format, isBefore, isValid, parse, parseISO } from 'date-fns';
 
 /**
  * Validates a Chilean RUT (Rol Único Tributario).
@@ -143,10 +143,10 @@ export function validatePassword(password, errors) {
   }
 
   // Verificar longitud
-  if (password.length < 12 || password.length > 16) {
-    errors.push('La contraseña debe tener entre 12 y 16 caracteres.');
+  if (password.length < 8 || password.length > 16) {
+    errors.push('La contraseña debe tener entre 8 y 16 caracteres.');
   }
-
+/* 
   // Verificar mayúsculas
   if (!/[A-Z]/.test(password)) {
     errors.push('La contraseña debe incluir al menos una letra mayúscula.');
@@ -155,7 +155,7 @@ export function validatePassword(password, errors) {
   // Verificar minúsculas
   if (!/[a-z]/.test(password)) {
     errors.push('La contraseña debe incluir al menos una letra minúscula.');
-  }
+  } */
 
   // Verificar números
   if (!/[0-9]/.test(password)) {

@@ -324,6 +324,17 @@ export const createPersonal = async (req, res) => {
             errors.push('El apellido no puede tener más de 50 caracteres');
         }
 
+        // Validación de correo duplicado si se proporciona
+        if (correo) {
+            const [correoExists] = await pool.query(
+                "SELECT 1 FROM personal WHERE correo = ? AND isDeleted = 0",
+                [correo]
+            );
+            if (correoExists.length > 0) {
+                errors.push('El correo electrónico ya está registrado en el sistema.');
+            }
+        }
+
         // Validación de existencia de llaves foráneas
         const [rolPersonalExists] = await pool.query("SELECT 1 FROM rol_personal WHERE id = ? AND isDeleted = 0", [rolPersonalIdNumber]);
         if (rolPersonalExists.length === 0) {
@@ -484,8 +495,18 @@ export const updatePersonal = async (req, res) => {
             correo = String(correo).trim();
             if (typeof correo !== 'string') {
                 errors.push("Tipo de dato inválido para 'correo'");
+            } else {
+                // Validar que el correo no esté en uso por otro personal
+                const [correoExists] = await pool.query(
+                    "SELECT 1 FROM personal WHERE correo = ? AND id != ? AND isDeleted = 0",
+                    [correo, idNumber]
+                );
+                if (correoExists.length > 0) {
+                    errors.push('El correo electrónico ya está registrado en el sistema.');
+                } else {
+                    updates.correo = correo;
+                }
             }
-            updates.correo = correo;
         }
         if (celular !== undefined) {    
             celular = String(celular).trim();
@@ -650,34 +671,48 @@ export const updatePersonal = async (req, res) => {
             return res.status(400).json({ errors }); // Devuelve los errores
         }
 
-        const setClause = Object.keys(updates)
-            .map((key) => {
-                if (key === 'fec_nac' || key === 'fec_ingreso' || key === 'ven_licencia') {
-                    // Para estos campos, usa STR_TO_DATE con el formato de fecha sin hora
-                    return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
-                }
-                if (key === 'ultima_fec_servicio') {
-                    // Para el campo 'ultima_fec_servicio', usa STR_TO_DATE con el formato de fecha y hora
-                    return `${key} = STR_TO_DATE(?, '%d-%m-%Y %H:%i')`;
-                }
-                // Para otros campos, usa el valor directo
-                return `${key} = ?`;
-            })
-            .join(', ');
+        // Iniciar transacción para actualizar ambas tablas
+        await pool.query('START TRANSACTION');
 
+        try {
+            const setClause = Object.keys(updates)
+                .map((key) => {
+                    if (key === 'fec_nac' || key === 'fec_ingreso' || key === 'ven_licencia') {
+                        return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
+                    }
+                    if (key === 'ultima_fec_servicio') {
+                        return `${key} = STR_TO_DATE(?, '%d-%m-%Y %H:%i')`;
+                    }
+                    return `${key} = ?`;
+                })
+                .join(', ');
 
+            const values = Object.values(updates).concat(idNumber);
+            const [result] = await pool.query(`UPDATE personal SET ${setClause} WHERE id = ?`, values);
 
-        const values = Object.values(updates).concat(idNumber);
-        const [result] = await pool.query(`UPDATE personal SET ${setClause} WHERE id = ?`, values);
+            if (result.affectedRows === 0) {
+                await pool.query('ROLLBACK');
+                return res.status(404).json({
+                    message: 'Personal no encontrado'
+                });
+            }
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                message: 'Personal no encontrado'
-            });
+            // Si se actualizó el correo, actualizar también en la tabla usuarios
+            if (updates.correo) {
+                await pool.query(
+                    "UPDATE usuarios SET correo = ? WHERE personal_id = ?",
+                    [updates.correo, idNumber]
+                );
+            }
+
+            await pool.query('COMMIT');
+
+            const [rows] = await pool.query('SELECT * FROM personal WHERE id = ?', [idNumber]);
+            res.json(rows[0]);
+        } catch (error) {
+            await pool.query('ROLLBACK');
+            throw error;
         }
-
-        const [rows] = await pool.query('SELECT * FROM personal WHERE id = ?', [idNumber]);
-        res.json(rows[0]);
     } catch (error) {
         console.error('error: ', error);
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });

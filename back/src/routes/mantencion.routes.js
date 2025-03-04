@@ -60,18 +60,18 @@ router.delete(`${base_route}/:id`, checkPermission('deleteMantencion'), deleteMa
 router.patch(`${base_route}/:id`, checkPermission('updateMantencion'), uploadFields, updateMantencion);
 
 //mantencion en proceso
-router.patch(`${base_route}/:id/en-proceso`, checkPermission('updateMantencion'), enProceso);
+router.patch(`${base_route}/:id/en-proceso`, checkPermission('dejarMaquina'), enProceso);
 
 //mantencion completada
-router.patch(`${base_route}/:id/completar`, checkPermission('updateMantencion'), completarMantencion);
+router.patch(`${base_route}/:id/completar`, checkPermission('retirarMaquina'), completarMantencion);
 
 // Nueva ruta para aprobar/rechazar mantenciones
-router.patch(`${base_route}/:id/aprobacion`, checkPermission('updateMantencion'), aprobarMantencion);
+router.patch(`${base_route}/:id/aprobacion`, checkPermission('aprobarMantencion'), aprobarMantencion);
 
 // Nueva ruta para rechazar mantenciones
-router.patch(`${base_route}/:id/rechazar`, checkPermission('updateMantencion'), rechazarMantencion);
+router.patch(`${base_route}/:id/rechazar`, checkPermission('rechazarMantencion'), rechazarMantencion);
 // Nueva ruta para enviar a evaluacion
-router.patch(`${base_route}/:id/evaluacion`, checkPermission('updateMantencion'), enviarAEvaluacion);
+router.patch(`${base_route}/:id/evaluacion`, checkPermission('enviarAEvaluacion'), enviarAEvaluacion);
 
 router.patch(`${base_route}/:id/status`, checkPermission('updateMantencion'), updateMaintenanceStatus);
 

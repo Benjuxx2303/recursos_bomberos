@@ -1,6 +1,6 @@
 import { Router } from "express";
-import cron from 'node-cron';
 import multer from 'multer';
+import cron from 'node-cron';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
     activarMaquinaPorPatente,
@@ -78,16 +78,16 @@ router.get(base_route, checkPermission('getMaquina'), getMaquinasDetailsPage); /
 // pageSize:          10
 router.patch(`${base_route}/activar/:patente`, checkPermission('updateMaquina'), activarMaquinaPorPatente);
 router.get(`${base_route}/:id`, checkPermission('getMaquina'), getMaquinaById); // Obtener una máquina por ID
-router.post(base_route, checkPermission('createMaquina'), uploadFields, createMaquina); // Crear una nueva máquina
-router.delete(`${base_route}/:id`, checkPermission('deleteMaquina'), deleteMaquina); // dar de baja una máquina
-router.patch(`${base_route}/:id`, checkPermission('updateMaquina'), uploadFields, updateMaquina); // actualizar la máquina
+router.post(base_route, checkPermission('crearMaquina'), uploadFields, createMaquina); // Crear una nueva máquina
+router.delete(`${base_route}/:id`, checkPermission('eliminarMaquina'), deleteMaquina); // dar de baja una máquina
+router.patch(`${base_route}/:id`, checkPermission('actualizarMaquina'), uploadFields, updateMaquina); // actualizar la máquina
 router.get(`${base_route}/:id`, checkPermission('getMaquina'),getMaquinaById);
 
 /* // Asignar conductor/es  a una maquina 
 router.post(`${base_route}/:maquina_id/conductores`, checkPermission('updateMaquina'), asignarConductores);
 */
 // Asignar conductor/es  a una maquina 
-router.post(`${base_route}/asignar-conductores`, checkPermission('createMaquina'), asignarConductores);
+router.post(`${base_route}/asignar-conductores`, checkPermission('crearMaquina'), asignarConductores);
 
 
 export default router;

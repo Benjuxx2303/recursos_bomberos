@@ -412,20 +412,48 @@ export const createMantencion = async (req, res) => {
       ]
     );
 
+    const [datosPDF] = await pool.query(
+      `
+      SELECT 
+      	m.ord_trabajo AS 'orden_trabajoPDF',
+      	m.id AS 'mantencion_idPDF',
+        m.bitacora_id AS 'bitacora_idPDF',
+        ma.nombre AS 'maquinaPDF',
+      	ma.patente AS 'patentePDF',
+        t.nombre AS 'tallerPDF',
+        em.nombre AS 'estado_mantencionPDF',
+      	tm.nombre AS 'tipo_mantencionPDF',
+        DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fecha_inicioPDF',
+        DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fecha_terminoPDF',
+        m.n_factura AS 'numero_facturaPDF',
+        m.cost_ser AS 'costo_servicioPDF',
+        m.descripcion AS 'descripcionPDF'
+      FROM mantencion m
+      INNER JOIN maquina ma ON m.maquina_id = ma.id
+      INNER JOIN taller t ON m.taller_id = t.id
+      INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+      INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+      WHERE m.id = ?
+      `, [result.insertId]
+    )
+
+    const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF } = datosPDF[0];
+
     // Preparar los datos del PDF
     const pdfData = [{
-      "Bitacora": bitacoraIdNumber,
-      "Máquina": maquinaIdNumber,
-      "Taller": tallerIdNumber,
-      "Estado": estado_mantencion_id,
-      "Tipo Mantencion": tipoMantencionIdNumber,
-      "Fecha inicio": mysqlFecInicio,
-      "Fecha termino": mysqlFecTermino,
-      "Orden de trabajo": ord_trabajo,
-      "N° de factura": n_factura,
-      "Coste del servicio": costSerNumber,
-      // aprobada_por: aprobada_por_nombre || null,
-      "Descripcion": descripcion || null
+      "Orden de Trabajo": orden_trabajoPDF,
+      "ID de Mantención": mantencion_idPDF,
+      "ID de Bitácora": bitacora_idPDF,
+      "Maquina": maquinaPDF,
+      "Patente": patentePDF,
+      "Taller": tallerPDF,
+      "Estado de Mantención": estado_mantencionPDF,
+      "Tipo de Mantención": tipo_mantencionPDF,
+      "Fecha de Inicio": fecha_inicioPDF,
+      "Fecha de Término": fecha_terminoPDF,
+      "Número de Factura": numero_facturaPDF,
+      "Costo del Servicio": costo_servicioPDF,
+      "Descripción": descripcionPDF
     }];
 
     // Generar el PDF

@@ -630,6 +630,18 @@ export const createUser = async (req, res) => {
     let errors = [];
 
     try {
+        // Verificar si ya existe un usuario para este personal
+        const [existingUser] = await pool.query(
+            "SELECT id FROM usuario WHERE personal_id = ? AND isDeleted = 0",
+            [personal_id]
+        );
+
+        if (existingUser.length > 0) {
+            return res.status(400).json({ 
+                message: "Ya existe un usuario asociado a este personal" 
+            });
+        }
+
         // Obtener información del personal
         const [personalInfo] = await pool.query(
             `SELECT 
@@ -660,16 +672,34 @@ export const createUser = async (req, res) => {
             let counter = 1;
             let tempUsername = username;
             while (true) {
-                const [exists] = await pool.query("SELECT id FROM usuario WHERE username = ?", [tempUsername]);
+                const [exists] = await pool.query(
+                    "SELECT id FROM usuario WHERE username = ? AND isDeleted = 0", 
+                    [tempUsername]
+                );
                 if (exists.length === 0) break;
                 tempUsername = `${username}${counter}`;
                 counter++;
             }
             username = tempUsername;
+        } else {
+            // Si se proporciona username, verificar que no exista
+            const [usernameExists] = await pool.query(
+                "SELECT id FROM usuario WHERE username = ? AND isDeleted = 0",
+                [username]
+            );
+            if (usernameExists.length > 0) {
+                return res.status(400).json({ 
+                    message: "El nombre de usuario ya está en uso" 
+                });
+            }
         }
 
         // Validar username
         validateUsername(username, errors);
+
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
 
         // Generar contraseña provisional aleatoria
         const provisionalPassword = Math.random().toString(36).slice(-8);

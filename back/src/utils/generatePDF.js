@@ -1,103 +1,147 @@
-import PDFDocument from 'pdfkit';
-import { PassThrough } from 'stream';
+import puppeteer from 'puppeteer';
 
 /**
- * Genera un PDF con los datos en formato de tabla.
- * 
- * @param {Array} data - Array de objetos que contiene los datos a incluir en el PDF.
+ * Genera un PDF a partir de un arreglo de objetos.
+ * @param {Object[]} data - Arreglo de objetos que se convertirán en una tabla.
  * @returns {Promise<Buffer>} - Buffer del PDF generado.
  */
 export const generatePDF = async (data) => {
-    return new Promise((resolve, reject) => {
-        const doc = new PDFDocument();
-        const stream = new PassThrough();
-        const buffers = [];
+    const htmlTemplate = templatePDF(tablePDF(data));
 
-        // Captura los datos del PDF en un buffer
-        stream.on('data', buffers.push.bind(buffers));
-        stream.on('end', () => resolve(Buffer.concat(buffers)));
+    // Inicia Puppeteer
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
 
-        // Pipe del documento al stream
-        doc.pipe(stream);
+    // Establece el contenido HTML
+    await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
 
-        // Verifica si hay datos
-        if (!data || !data.length) {
-            doc.text('No hay datos disponibles.', { align: 'center' });
-            doc.end();
-            return;
-        }
-
-        // Configuración de la tabla
-        const columns = Object.keys(data[0]);
-        const margin = 50;
-        const pageWidth = doc.page.width;
-        const tableWidth = pageWidth - 2 * margin; // Restar los márgenes
-        const totalColumns = columns.length;
-
-        // Asignación proporcional del ancho de cada columna
-        const columnWidths = columns.map(() => tableWidth / totalColumns);
-
-        const tableTop = 100;
-        const cellHeight = 16;  // Reducir aún más la altura de la celda para ajustarse mejor al texto
-        const fontSize = 7;  // Reducir aún más el tamaño de la fuente
-
-        // Función para dibujar una línea horizontal
-        const drawLine = (y) => {
-            doc.moveTo(margin, y).lineTo(margin + tableWidth, y).stroke();
-        };
-
-        // Función para dibujar una línea vertical
-        const drawVerticalLine = (x) => {
-            doc.moveTo(x, tableTop).lineTo(x, tableTop + (data.length + 1) * cellHeight).stroke();
-        };
-
-        // Estilo de la tabla
-        doc.fontSize(fontSize);
-
-        // Encabezado de la tabla
-        doc.font('Helvetica-Bold');
-        let x = margin;
-        columns.forEach((col, index) => {
-            doc.text(col, x, tableTop, { width: columnWidths[index], align: 'left', continued: index < columns.length - 1 });
-            x += columnWidths[index];
-            drawVerticalLine(x); // Dibuja una línea vertical para separar las columnas
-        });
-        doc.moveDown(1); // Espacio entre el encabezado y las filas
-
-        // Dibuja una línea debajo del encabezado
-        drawLine(tableTop + cellHeight);
-
-        // Filas de la tabla
-        doc.font('Helvetica');
-        let y = tableTop + cellHeight + 2; // Empieza debajo de la línea
-
-        data.forEach((row, rowIndex) => {
-            x = margin;
-            columns.forEach((col, index) => {
-                const value = row[col] ?? 'N/A'; // Manejo de valores nulos o vacíos
-                doc.text(value, x, y, {
-                    width: columnWidths[index], 
-                    align: 'left', 
-                    lineBreak: true,   // Permite que el texto se ajuste a la celda
-                    continued: index < columns.length - 1
-                });
-                x += columnWidths[index];
-                drawVerticalLine(x); // Dibuja una línea vertical para separar las columnas
-            });
-
-            // Si la fila está por debajo del límite de la página, inicia una nueva página
-            if (y + cellHeight > doc.page.height - margin) {
-                doc.addPage();
-                y = tableTop;
-            } else {
-                y += cellHeight;
-            }
-        });
-
-        // Dibuja una línea final después de las filas
-        drawLine(y);
-
-        // Finaliza el documento
-        doc.end();
+    // Genera el PDF
+    const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
     });
+
+    await browser.close();
+    return pdfBuffer;
+};
+
+/**
+ * Crea un template HTML para el PDF con formato clásico de informe.
+ * @param {string} table - HTML de la tabla.
+ * @returns {string} - Template HTML.
+ */
+const templatePDF = (table) => {
+    const css_style = `
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        header img {
+            width: 80px; /* Ajusta el tamaño de la imagen del logo */
+            height: auto;
+        }
+        .company-info {
+            text-align: right;
+            font-size: 10px;
+        }
+        h1 {
+            font-size: 18px;
+            margin: 0;
+        }
+        h2 {
+            font-size: 14px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        .content {
+            margin-bottom: 20px;
+        }
+        .footer {
+            position: fixed;
+            bottom: 10px;
+            left: 20px;
+            font-size: 8px;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+        }
+        th, td { 
+            border: 1px solid black; 
+            padding: 8px; 
+            text-align: left; 
+            font-size: 8px; 
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    `;
+
+    return `
+        <html>
+        <head>
+            <style>
+            ${css_style}
+            </style>
+        </head>
+        <body>
+            <!-- Encabezado -->
+            <header>
+                <!-- Logo de la empresa -->
+                <img src="https://files.catbox.moe/jif8ih.png" alt="Logo de la empresa">
+                
+                <!-- Datos de la empresa -->
+                <div class="company-info">
+                    <h1>Cuerpo de bomberos de Osorno</h1>
+                    <p>Dirección: Calle Ejemplo 123, Ciudad</p>
+                    <p>Tel: +123 456 789</p>
+                    <p>Correo: contacto@empresa.com</p>
+                </div>
+            </header>
+            
+            <!-- Cuerpo del informe -->
+            <div class="content">
+                <h3>Resumen de Actividades</h3>
+                <p>En el siguiente informe se detallan las actividades realizadas durante el periodo correspondiente. Se incluyen las métricas relevantes y los resultados alcanzados.</p>
+                <table>
+                    ${table}
+                </table>
+            </div>
+            
+            <!-- Pie de página -->
+            <div class="footer">
+                <p>Informe generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}.</p>
+                <p>Confidencial: Este informe es confidencial y está destinado solo para uso interno.</p>
+            </div>
+        </body>
+        </html>
+    `;
+};
+
+
+
+/**
+ * Crea una tabla HTML a partir de un arreglo de objetos.
+ * @param {Object[]} data - Arreglo de objetos que se convertirán en una tabla.
+ * @returns {string} - HTML de la tabla.
+ */
+const tablePDF = (data) => {
+    if (!data || data.length === 0) return '';
+
+    const headers = Object.keys(data[0]);
+    const rows = data.map(row => {
+        return `<tr>${headers.map(header => {
+            const value = row[header] ?? 'n/a'; // Reemplaza null, vacío o undefined con "n/a"
+            return `<td>${String(value)}</td>`; // Asegura que el valor sea un string
+        }).join('')}</tr>`;
+    });
+
+    return `<thead><tr>${headers.map(header => `<th>${header}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody>`;
 };

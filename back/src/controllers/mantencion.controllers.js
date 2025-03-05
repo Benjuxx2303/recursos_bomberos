@@ -2,7 +2,7 @@ import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { generatePDF } from "../utils/generatePDF.js";
-import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
+import { createAndSendNotifications, getNotificationUsers, getNotificationTalleres } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
 import { formatDateTime, validateDate } from "../utils/validations.js";
 
@@ -490,7 +490,7 @@ export const createMantencion = async (req, res) => {
       await createAndSendNotifications({
         contenido, 
         tipo: "mantencion", 
-        usuarios,
+        destinatarios: usuarios,
         emailConfig: {
           subject: "Nueva Mantención Registrada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
@@ -934,17 +934,116 @@ export const aprobarMantencion = async (req, res) => {
        WHERE id = ?`,
       [personal_id, id]
     );
-
+    
     if (result.affectedRows === 0) {
       return res
         .status(404)
         .json({ message: "No se pudo actualizar la mantención" });
     }
 
+    // Inicio envío de notificaciones
+    const [datosPDF] = await pool.query(
+      `
+      SELECT 
+      	m.ord_trabajo AS 'orden_trabajoPDF', 
+        c.nombre AS 'companiaPDF',
+        CONCAT(ma.nombre, ' - PAT: ', ma.patente) AS 'movilPDF',
+      	tm.nombre AS 'tipo_mantencionPDF',
+      	m.descripcion AS 'descripcionPDF',
+        ma.kmetraje AS 'kmetrajePDF',
+        CONCAT(p.nombre, ' ', p.apellido) AS 'aprobadoPorPDF',
+        rp.nombre AS 'reportadoPorPDF',
+        u.correo AS 'emailSolicitantePDF',
+        t.nombre AS 'tallerPDF',
+        t.correo AS 'proveedor'
+      FROM mantencion m
+      LEFT JOIN maquina ma ON m.maquina_id = ma.id
+      LEFT JOIN compania c ON ma.compania_id = c.id -- toma la compania de la maquina
+      LEFT JOIN taller t ON m.taller_id = t.id
+      LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+      LEFT JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+      LEFT JOIN personal p ON m.aprobada_por = p.id
+      LEFT JOIN rol_personal rp ON p.rol_personal_id = rp.id
+      LEFT JOIN usuario u ON p.id = u.personal_id
+      WHERE m.id = ?
+      `, [id] 
+    );
+
+    const { orden_trabajoPDF, companiaPDF, movilPDF, tipo_mantencionPDF, descripcionPDF, kmetrajePDF, aprobadoPorPDF, reportadoPorPDF, emailSolicitantePDF, tallerPDF, proveedor } = datosPDF[0];
+
+    // Preparar los datos del PDF
+    const pdfData = [{
+      "Orden de Trabajo": orden_trabajoPDF,
+      "Compañía": companiaPDF,
+      "Movil": movilPDF,
+      "Tipo de Mantención": tipo_mantencionPDF,
+      "Descripción": descripcionPDF,
+      "Kmetraje": kmetrajePDF,
+      "Aprobado por": aprobadoPorPDF,
+      "Reportado por": reportadoPorPDF,
+      "Email Solicitante": emailSolicitantePDF,
+      "Taller": tallerPDF,
+      "Proveedor": proveedor
+    }];
+
+    // Generar el PDF
+    const pdfBuffer = await generatePDF(pdfData);
+
+    // Obtener taller al que notificar
+    const taller = await getNotificationTalleres({ nombre: tallerPDF });
+
+    // Obtener usuarios a notificar
+    const usuarios = await getNotificationUsers();
+
+    // enviar notificación (solo usuarios)
+    if (usuarios.length > 0) {
+      let contenido = `Mantención aprobada - Orden de trabajo: ${orden_trabajoPDF}\n`;
+
+      await createAndSendNotifications({
+        contenido,
+        tipo: "mantencion",
+        destinatarios: usuarios,
+        emailConfig: {
+          subject: "Mantención Aprobada",
+          redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${id}`,
+          buttonText: "Ver Detalles",
+          attachments: [{
+            filename: `mantencion_${id}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }]
+        },
+      });
+    }
+
+    // enviar notificacion (solo taller)
+    if (taller.length > 0) {
+      let contenido = `Mantención \n`;
+
+      await createAndSendNotifications({
+        contenido,
+        tipo: "mantencion",
+        destinatarios: taller,
+        emailConfig: {
+          subject: "Mantención Cuerpo Bomberos Osorno",
+          redirectUrl: `${emailSolicitantePDF}`,
+          buttonText: "Contactar Solicitante",
+          attachments: [{
+            filename: `mantencion_${id}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }]
+        },
+      });
+    }
+
+    // Fin envío de notificaciones
+
     res.json({
       message: "Mantención aprobada exitosamente",
       aprobada: 1,
     });
+    
   } catch (error) {
     console.error("Error al aprobar mantención:", error);
     return res.status(500).json({

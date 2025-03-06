@@ -1,13 +1,14 @@
 import { Router } from "express";
-import { 
-    // getTalleres,
-    getTalleresPage,
-    getTallerById,
+import { checkPermission } from "../controllers/authMiddleware.js";
+import {
     createTaller,
     deleteTaller,
+    getTallerById,
+    // getTalleres,
+    getTalleresPage,
+    getTiposTaller,
     updateTaller
 } from "../controllers/taller.controllers.js";
-import { checkPermission } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
@@ -27,5 +28,7 @@ router.post(base_route, checkPermission('createTaller'), createTaller);
 router.delete(`${base_route}/:id`, checkPermission('deleteTaller'), deleteTaller);
 
 router.patch(`${base_route}/:id`, checkPermission('updateTaller'), updateTaller);
+
+router.get(`${base_route}/tipos_taller`, getTiposTaller);
 
 export default router;

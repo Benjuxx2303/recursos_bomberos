@@ -7,7 +7,8 @@ export const getTalleres = async (req, res) => {
     const query = `
       SELECT
         t.id,
-        t.tipo,
+        t.tipo_taller_id,
+        tt.nombre as tipo_nombre,
         t.razon_social,
         t.rut,
         t.telefono,
@@ -16,6 +17,7 @@ export const getTalleres = async (req, res) => {
         t.direccion,
         t.correo
       FROM taller t
+      LEFT JOIN tipo_taller tt ON t.tipo_taller_id = tt.id
       WHERE t.isDeleted = 0
     `;
     const [rows] = await pool.query(query);
@@ -41,7 +43,8 @@ export const getTalleresPage = async (req, res) => {
       const query = `
         SELECT 
           t.id, 
-          t.tipo, 
+          t.tipo_taller_id,
+          tt.nombre as tipo_nombre,
           t.razon_social,
           t.rut,
           t.telefono,
@@ -50,6 +53,7 @@ export const getTalleresPage = async (req, res) => {
           t.direccion,
           t.correo
         FROM taller t
+        LEFT JOIN tipo_taller tt ON t.tipo_taller_id = tt.id
         WHERE t.isDeleted = 0
         ORDER BY t.id DESC
       `;
@@ -64,7 +68,7 @@ export const getTalleresPage = async (req, res) => {
     const query = `
       SELECT
         t.id,
-        t.tipo,
+        tt.nombre as tipo,
         t.razon_social,
         t.rut,
         t.telefono,
@@ -73,6 +77,7 @@ export const getTalleresPage = async (req, res) => {
         t.direccion,
         t.correo
       FROM taller t
+      JOIN tipo_taller tt ON t.tipo_taller_id = tt.id 
       WHERE t.isDeleted = 0
       ORDER BY t.id DESC
       LIMIT ? OFFSET ?
@@ -93,7 +98,7 @@ export const getTalleresPage = async (req, res) => {
 export const getTallerById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query("SELECT * FROM taller WHERE id = ? AND isDeleted = 0", [id]);
+    const [rows] = await pool.query("SELECT t.*, tt.nombre as tipo FROM taller t JOIN tipo_taller tt ON t.tipo_taller_id = tt.id WHERE t.id = ? AND t.isDeleted = 0", [id]);
     if (rows.length <= 0) {
       return res.status(404).json({
         message: "Taller no encontrado",
@@ -120,6 +125,7 @@ export const createTaller = async (req, res) => {
     tel_contacto,
     direccion,
     correo,
+    tipo_taller_id
    } = req.body;
   let errors = [];
 
@@ -236,26 +242,30 @@ export const createTaller = async (req, res) => {
       return res.status(400).json({ errors });
     }
 
+    if (tipo_taller_id !== undefined){
+      tipo_taller_id = parseInt(tipo_taller_id);
+    }
+
     // Inserción en la base de datos con valores predeterminados o NULL para campos opcionales
     const [rows] = await pool.query(
       `INSERT INTO taller 
-      (tipo, razon_social, rut, telefono, contacto, tel_contacto, direccion, correo, isDeleted)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      (tipo_taller_id, razon_social, rut, telefono, contacto, tel_contacto, direccion, correo, isDeleted)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
       [
-        tipo, 
         razon_social, 
         rut || null, 
         telefono || null, 
         contacto || null, 
         tel_contacto || null, 
         direccion || null, 
-        correo || null
+        correo || null,
+        tipo_taller_id
       ]
     );
 
     res.status(201).json({
       id: rows.insertId,
-      tipo,
+      tipo_taller_id,
       razon_social,
       rut,
       telefono,
@@ -294,7 +304,7 @@ export const deleteTaller = async (req, res) => {
 export const updateTaller = async (req, res) => {
   const { id } = req.params;
   let { 
-    tipo,
+    tipo_taller_id,
     razon_social,
     rut,
     telefono,
@@ -312,20 +322,15 @@ export const updateTaller = async (req, res) => {
       errors.push("ID inválido");
     }
 
+    if (tipo_taller_id !== undefined){
+      tipo_taller_id = parseInt(tipo_taller_id);
+    }
+
     // Validaciones
     const updates = {};
 
     // Validar campos requeridos y opcionales
-    if (tipo !== undefined) {
-      tipo = String(tipo).trim();
-      if (typeof tipo !== 'string') {
-        errors.push('Tipo de datos inválido para "tipo"');
-      } else if (tipo.length > 50) {
-        errors.push('El campo "tipo" no puede tener más de 50 caracteres');
-      } else {
-        updates.tipo = tipo;
-      }
-    }
+
 
     if (razon_social !== undefined) {
       razon_social = String(razon_social).trim();
@@ -453,3 +458,19 @@ export const updateTaller = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor", error: error.message });
   }
 };
+
+
+export const getTiposTaller = async (req, res) => {
+  try {
+    const query = "SELECT id, nombre FROM tipo_taller WHERE isDeleted = 0";
+    const [rows] = await pool.query(query);
+    res.json(rows);
+  } catch (error) {
+    console.error('error: ', error);
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message
+    });
+  }
+};
+

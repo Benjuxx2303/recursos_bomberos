@@ -59,6 +59,69 @@ export const getNotificationUsers = async (filters = {}) => {
 };
 
 /**
+ * Obtiene los talleres que deben recibir notificaciones según los criterios especificados
+ * @param {Object} filters - Filtros para seleccionar talleres
+ * @param {string} filters.tipo - Tipo específico de taller (opcional)
+ * @param {string} filters.razon_social - Razón social del taller (opcional)
+ * @param {boolean} filters.isDeleted - Estado de eliminación del taller (opcional)
+ * @param {string} filters.nombre - Nombre del taller (opcional)
+ * @param {number} filters.id - ID del taller (opcional)
+ * @returns {Promise<Array>} Lista de talleres que recibirán notificaciones
+ * @example
+ * // Obtener talleres del tipo 'Mecánico'
+ * const talleres = await getNotificationTalleres({ tipo: 'Mecánico' });
+ * 
+ * // Obtener talleres con una razón social específica
+ * const talleres = await getNotificationTalleres({ razon_social: 'Taller X' });
+ * 
+ * // Obtener talleres no eliminados
+ * const talleres = await getNotificationTalleres({ isDeleted: 0 });
+ * 
+ * // Obtener taller por nombre
+ * const talleres = await getNotificationTalleres({ nombre: 'Taller ABC' });
+ * 
+ * // Obtener taller por ID
+ * const talleres = await getNotificationTalleres({ id: 1 });
+ */
+export const getNotificationTalleres = async (filters = {}) => {
+    let query = `
+        SELECT id, nombre, razon_social, correo, telefono, contacto, tel_contacto, descripcion, direccion
+        FROM taller
+        WHERE isDeleted = 0
+    `;
+
+    const queryParams = [];
+
+    if (filters.tipo) {
+        query += ' AND tipo = ?';
+        queryParams.push(filters.tipo);
+    }
+
+    if (filters.razon_social) {
+        query += ' AND razon_social = ?';
+        queryParams.push(filters.razon_social);
+    }
+
+    if (filters.isDeleted !== undefined) {
+        query += ' AND isDeleted = ?';
+        queryParams.push(filters.isDeleted);
+    }
+
+    if (filters.nombre) {
+        query += ' AND nombre = ?';
+        queryParams.push(filters.nombre);
+    }
+
+    if (filters.id) {
+        query += ' AND id = ?';
+        queryParams.push(filters.id);
+    }
+
+    const [talleres] = await pool.query(query, queryParams);
+    return talleres;
+};
+
+/**
  * Crea y envía una notificación individual a un usuario específico
  * Esta función es útil para notificaciones personalizadas o eventos específicos de un usuario
  * 
@@ -141,13 +204,13 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
 };
 
 /**
- * Crea y envía notificaciones a múltiples usuarios
- * Esta función es útil para notificaciones masivas o eventos que afectan a múltiples usuarios
+ * Crea y envía notificaciones a múltiples destinatarios
+ * Esta función es útil para notificaciones masivas o eventos que afectan a múltiples destinatarios
  * 
  * @param {Object} params - Parámetros para la notificación
  * @param {string} params.contenido - Contenido de la notificación
  * @param {string} params.tipo - Tipo de notificación (ej: 'combustible', 'mantencion')
- * @param {Array} params.usuarios - Lista de usuarios que recibirán la notificación
+ * @param {Array} params.destinatarios - Lista de destinatarios que recibirán la notificación
  * @param {Object} params.emailConfig - Configuración del email
  * @param {string} params.emailConfig.subject - Asunto del correo
  * @param {string} params.emailConfig.redirectUrl - URL para el botón del correo
@@ -158,7 +221,7 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
  * await createAndSendNotifications({
  *     contenido: 'Nueva actualización del sistema',
  *     tipo: 'sistema',
- *     usuarios: usuariosList,
+ *     destinatarios: destinatariosList,
  *     emailConfig: {
  *         subject: 'Actualización Importante',
  *         redirectUrl: 'http://ejemplo.com/actualizacion',
@@ -166,10 +229,10 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
  *     }
  * });
  */
-export const createAndSendNotifications = async ({ contenido, tipo, usuarios, emailConfig }) => {
+export const createAndSendNotifications = async ({ contenido, tipo, destinatarios, emailConfig }) => {
     console.log('\n=== Iniciando proceso de notificaciones ===');
     console.log('Tipo:', tipo);
-    console.log('Usuarios a notificar:', usuarios.length);
+    console.log('Destinatarios a notificar:', destinatarios.length);
 
     try {
         // Crear una única alerta
@@ -181,29 +244,31 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
         const alertaId = alertaResult.insertId;
         console.log('Alerta creada con ID:', alertaId);
 
-        // Crear un Set para rastrear usuarios ya notificados
-        const notifiedUsers = new Set();
+        // Crear un Set para rastrear destinatarios ya notificados
+        const notifiedDestinatarios = new Set();
 
-        // Procesar cada usuario
-        const notificationPromises = usuarios.map(async (usuario) => {
+        // Procesar cada destinatario
+        const notificationPromises = destinatarios.map(async (destinatario) => {
             try {
                 // Evitar duplicados
-                if (notifiedUsers.has(usuario.id)) {
-                    console.log(`Usuario ${usuario.username} ya fue notificado, omitiendo...`);
+                if (notifiedDestinatarios.has(destinatario.correo)) {
+                    console.log(`Destinatario ${destinatario.correo} ya fue notificado, omitiendo...`);
                     return;
                 }
 
-                notifiedUsers.add(usuario.id);
-                console.log(`\n=== Procesando notificaciones para usuario: ${usuario.username} ===`);
+                notifiedDestinatarios.add(destinatario.correo);
+                console.log(`\n=== Procesando notificación para destinatario: ${destinatario.correo} ===`);
                 
-                // Crear relación usuario-alerta
-                await pool.query(
-                    'INSERT INTO usuario_alerta (usuario_id, alerta_id) VALUES (?, ?)',
-                    [usuario.id, alertaId]
-                );
+                // Si es un usuario, crear relación usuario-alerta
+                if (destinatario.id) {
+                    await pool.query(
+                        'INSERT INTO usuario_alerta (usuario_id, alerta_id) VALUES (?, ?)',
+                        [destinatario.id, alertaId]
+                    );
+                }
 
-                // Enviar correo si el usuario tiene email
-                if (usuario.correo) {
+                // Enviar correo si el destinatario tiene correo
+                if (destinatario.correo) {
                     try {
                         const htmlContent = generateEmailTemplate(
                             emailConfig.subject,
@@ -216,33 +281,35 @@ export const createAndSendNotifications = async ({ contenido, tipo, usuarios, em
                         const attachments = emailConfig.attachments || [];
 
                         await sendEmail(
-                            usuario.correo,
+                            destinatario.correo,
                             emailConfig.subject,
                             contenido,
                             htmlContent,
                             attachments
                         );
                     } catch (emailError) {
-                        console.error(`Error al enviar correo a ${usuario.correo}:`, emailError.message);
+                        console.error(`Error al enviar correo a ${destinatario.correo}:`, emailError.message);
                     }
                 }
 
-                // Enviar notificación WebSocket
-                try {
-                    const alertaData = {
-                        id: alertaId,
-                        contenido,
-                        tipo,
-                        createdAt: new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' }),
-                        isRead: false
-                    };
-                    
-                    await emitNotification(usuario.id, alertaData);
-                } catch (wsError) {
-                    console.error(`Error al emitir notificación WebSocket a ${usuario.username}:`, wsError.message);
+                // Si es un usuario, enviar notificación WebSocket
+                if (destinatario.id) {
+                    try {
+                        const alertaData = {
+                            id: alertaId,
+                            contenido,
+                            tipo,
+                            createdAt: new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' }),
+                            isRead: false
+                        };
+                        
+                        await emitNotification(destinatario.id, alertaData);
+                    } catch (wsError) {
+                        console.error(`Error al emitir notificación WebSocket a ${destinatario.correo}:`, wsError.message);
+                    }
                 }
-            } catch (userError) {
-                console.error(`Error procesando notificaciones para usuario ${usuario.username}:`, userError.message);
+            } catch (destinatarioError) {
+                console.error(`Error procesando notificaciones para destinatario ${destinatario.correo}:`, destinatarioError.message);
             }
         });
 

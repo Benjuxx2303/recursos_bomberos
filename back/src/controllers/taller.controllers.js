@@ -98,19 +98,30 @@ export const getTalleresPage = async (req, res) => {
 export const getTallerById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query("SELECT t.*, tt.nombre as tipo FROM taller t JOIN tipo_taller tt ON t.tipo_taller_id = tt.id WHERE t.id = ? AND t.isDeleted = 0", [id]);
-    if (rows.length <= 0) {
+    const query = `
+      SELECT 
+        t.*,
+        tt.nombre as tipo_nombre
+      FROM taller t
+      LEFT JOIN tipo_taller tt ON t.tipo_taller_id = tt.id
+      WHERE t.id = ? AND t.isDeleted = 0
+    `;
+    
+    const [rows] = await pool.query(query, [id]);
+    
+    if (rows.length === 0) {
       return res.status(404).json({
         message: "Taller no encontrado",
       });
     }
+    
     res.json(rows[0]);
   } catch (error) {
     console.error('error: ', error);
     return res.status(500).json({
       message: "Error interno del servidor",
       error: error.message
-  });
+    });
   }
 };
 
@@ -138,9 +149,9 @@ export const createTaller = async (req, res) => {
       errors.push('Tipo de datos inválido para "tipo"');
     } 
 
-    if (tipo.length > 50){
+/*     if (tipo.length > 50){
       errors.push('El campo "tipo" no puede tener más de 50 caracteres');
-    }
+    } */
 
     if (typeof razon_social !== 'string'){
       errors.push('Tipo de datos inválido para "razon_social"');
@@ -157,14 +168,14 @@ export const createTaller = async (req, res) => {
       if (typeof rut !== 'string'){
         errors.push('Tipo de datos inválido para "rut"');
       }
-
+/* 
       if (rut.length > 13){
         errors.push('El campo "rut" no puede tener más de 13 caracteres');
-      }
+      } */
 
-      if (!validateRUT(rut)){
+/*       if (!validateRUT(rut)){
         errors.push('El campo "rut" no es válido');
-      }
+      } */
     }
 
     if (telefono !== undefined){
@@ -226,9 +237,9 @@ export const createTaller = async (req, res) => {
         errors.push('El campo "correo" no puede tener más de 50 caracteres');
       }
 
-      if (!validateEmail(correo)){
+/*       if (!validateEmail(correo)){
         errors.push('El campo "correo" no es válido');
-      }
+      } */
     }
 
     // Validar que no exista un taller con el mismo razon_social
@@ -250,8 +261,9 @@ export const createTaller = async (req, res) => {
     const [rows] = await pool.query(
       `INSERT INTO taller 
       (tipo_taller_id, razon_social, rut, telefono, contacto, tel_contacto, direccion, correo, isDeleted)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
       [
+        tipo_taller_id,
         razon_social, 
         rut || null, 
         telefono || null, 
@@ -259,7 +271,6 @@ export const createTaller = async (req, res) => {
         tel_contacto || null, 
         direccion || null, 
         correo || null,
-        tipo_taller_id
       ]
     );
 
@@ -462,7 +473,7 @@ export const updateTaller = async (req, res) => {
 
 export const getTiposTaller = async (req, res) => {
   try {
-    const query = "SELECT id, nombre FROM tipo_taller ";
+    const query = "SELECT id, nombre FROM tipo_taller";
     const [rows] = await pool.query(query);
     res.json(rows);
   } catch (error) {

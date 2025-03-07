@@ -21,6 +21,7 @@ router.get(base_route, checkPermission('getTaller'), getTalleresPage);
 // page:              1
 // pageSize:          10
 
+router.get(`${base_route}/tipos_taller`, checkPermission('getTaller'), getTiposTaller);
 router.get(`${base_route}/:id`, checkPermission('getTaller'), getTallerById);
 
 router.post(base_route, checkPermission('createTaller'), createTaller);
@@ -28,7 +29,5 @@ router.post(base_route, checkPermission('createTaller'), createTaller);
 router.delete(`${base_route}/:id`, checkPermission('deleteTaller'), deleteTaller);
 
 router.patch(`${base_route}/:id`, checkPermission('updateTaller'), updateTaller);
-
-router.get(`${base_route}/tipos_taller`, checkPermission('getTaller'), getTiposTaller);
 
 export default router;

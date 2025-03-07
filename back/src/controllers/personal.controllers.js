@@ -697,10 +697,10 @@ export const updatePersonal = async (req, res) => {
                 });
             }
 
-            // Si se actualizó el correo, actualizar también en la tabla usuarios
+            // Si se actualizó el correo, actualizar también en la tabla usuario
             if (updates.correo) {
                 await pool.query(
-                    "UPDATE usuarios SET correo = ? WHERE personal_id = ?",
+                    "UPDATE usuario SET correo = ? WHERE personal_id = ?",
                     [updates.correo, idNumber]
                 );
             }

@@ -462,7 +462,7 @@ export const updateTaller = async (req, res) => {
 
 export const getTiposTaller = async (req, res) => {
   try {
-    const query = "SELECT id, nombre FROM tipo_taller WHERE isDeleted = 0";
+    const query = "SELECT id, nombre FROM tipo_taller ";
     const [rows] = await pool.query(query);
     res.json(rows);
   } catch (error) {

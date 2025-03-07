@@ -29,6 +29,6 @@ router.delete(`${base_route}/:id`, checkPermission('deleteTaller'), deleteTaller
 
 router.patch(`${base_route}/:id`, checkPermission('updateTaller'), updateTaller);
 
-router.get(`${base_route}/tipos_taller`, getTiposTaller);
+router.get(`${base_route}/tipos_taller`, checkPermission('getTaller'), getTiposTaller);
 
 export default router;

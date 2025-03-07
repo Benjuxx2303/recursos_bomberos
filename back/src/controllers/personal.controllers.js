@@ -21,27 +21,42 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal,
                    c.nombre AS compania,
-                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia, 
+                   p.compania_id, p.rol_personal_id, DATE_FORMAT(p.ven_licencia, '%d-%m-%Y') AS ven_licencia, p.imgLicencia, 
                    DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
                    TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
                    GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids,
                    (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
                     FROM bitacora
-                    WHERE bitacora.personal_id = p.id) AS total_horas_conduccion
+                    WHERE bitacora.personal_id = p.id) AS total_horas_conduccion,
+                   -- Estado maquinista calculado
+                   CASE 
+                       WHEN p.ven_licencia IS NULL THEN 'sin licencia'
+                       WHEN (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                             FROM bitacora
+                             WHERE bitacora.personal_id = p.id) < 40 OR 
+                            (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                             FROM bitacora
+                             WHERE bitacora.personal_id = p.id) IS NULL 
+                            THEN 'en entrenamiento'
+                       WHEN (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                             FROM bitacora
+                             WHERE bitacora.personal_id = p.id) >= 40 AND 
+                            p.ven_licencia >= CURDATE() THEN 'apto'
+                       WHEN p.ven_licencia < CURDATE() THEN 'licencia vencida'
+                       ELSE 'no apto'
+                   END AS estado_maquinista
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
             LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
             LEFT JOIN maquina m ON cm.maquina_id = m.id
-            WHERE p.isDeleted = ?
-        `;
+            WHERE p.isDeleted = ?`;
 
         // Si no se proporciona 'isDeleted', se asigna 0 por defecto
         const params = [isDeleted !== undefined ? isDeleted : 0];
     
         // Agregar filtros si se proporcionan
-
         if (search) {
             query += ' AND (p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ? OR p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ?)';
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
@@ -93,7 +108,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             params.push(pageSize, offset);
         }
 
-            const [rows] = await pool.query(query, params);
+        const [rows] = await pool.query(query, params);
 
         // Procesar los resultados
         const results = rows.map(row => {
@@ -157,13 +172,12 @@ export const getPersonalbyID = async (req, res) => {
             });
         }
 
-        const query = `
+        // Inicializar la consulta y parámetros
+        let query = `
             SELECT p.id, p.disponible, p.rut, p.nombre AS nombre, p.apellido, p.correo, p.celular,
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
-                   p.img_url, 
-                   p.obs, 
-                   p.isDeleted,
+                   p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
                    p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia,
@@ -173,7 +187,24 @@ export const getPersonalbyID = async (req, res) => {
                    GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids,
                    (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
                     FROM bitacora
-                    WHERE bitacora.personal_id = p.id) AS total_horas_conduccion
+                    WHERE bitacora.personal_id = p.id) AS total_horas_conduccion,
+                   -- Estado maquinista calculado
+                   CASE 
+                       WHEN p.ven_licencia IS NULL THEN 'sin licencia'
+                       WHEN (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                             FROM bitacora
+                             WHERE bitacora.personal_id = p.id) < 40 OR 
+                            (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                             FROM bitacora
+                             WHERE bitacora.personal_id = p.id) IS NULL 
+                            THEN 'en entrenamiento'
+                       WHEN (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
+                             FROM bitacora
+                             WHERE bitacora.personal_id = p.id) >= 40 AND 
+                            p.ven_licencia >= CURDATE() THEN 'apto'
+                       WHEN p.ven_licencia < CURDATE() THEN 'licencia vencida'
+                       ELSE 'no apto'
+                   END AS estado_maquinista
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
@@ -182,8 +213,9 @@ export const getPersonalbyID = async (req, res) => {
             WHERE p.id = ? AND p.isDeleted = 0
             GROUP BY p.id
         `;
-        
+
         const [rows] = await pool.query(query, [idNumber]);
+
         if (rows.length <= 0) {
             return res.status(404).json({
                 message: 'Personal no encontrado'
@@ -205,6 +237,7 @@ export const getPersonalbyID = async (req, res) => {
         });
     }
 };
+
 
 export const createPersonal = async (req, res) => {
     let {

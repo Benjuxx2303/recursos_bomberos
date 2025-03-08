@@ -1,6 +1,6 @@
 import { Router } from "express";
-import cron from 'node-cron';
 import multer from 'multer';
+import cron from 'node-cron';
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
     activatePersonal,
@@ -11,9 +11,10 @@ import {
     getPersonalLowData,
     getPersonalWithDetailsPage,
     getPersonalbyID,
+    quitarMaquinas,
     updatePersonal,
     updateUltimaFecServicio,
-    verificarVencimientoLicencia,
+    verificarVencimientoLicencia
 } from "../controllers/personal.controllers.js";
 
 // Configuración de multer
@@ -80,5 +81,8 @@ router.patch(`${base_route}/:id`, checkPermission('updatePersonal'), uploadField
 
 // Agregar la ruta para asignar máquinas con middleware de autenticación
 router.post(`${base_route}/:personal_id/maquinas`, checkPermission('updatePersonal'), asignarMaquinas);
+
+//Quitar asignacion de maquinas
+router.delete(`${base_route}/:personal_id/maquinas/:maquina_id`, checkPermission('updatePersonal'), quitarMaquinas);
 
 export default router;  

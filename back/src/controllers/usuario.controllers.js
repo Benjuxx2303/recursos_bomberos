@@ -247,33 +247,6 @@ export const loginUser = async (req, res) => {
         const [rol_personal_idRows] = await pool.query("SELECT rol_personal_id FROM personal WHERE id = ?", [user.personal_id]);
         const rol_personal_id = rol_personal_idRows[0]?.rol_personal_id || null;
 
-        // obtener permisos del usuario
- /*        const [permisosRows]= await pool.query(
-            `
-            SELECT 
-                JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        'nombre', perm.nombre,
-                        'descripcion', perm.descripcion
-                    )
-                ) AS permisos
-            FROM 
-                personal p
-            JOIN 
-                rol_personal rp ON p.rol_personal_id = rp.id
-            JOIN 
-                rol_permisos rp_perm ON rp.id = rp_perm.rol_personal_id
-            JOIN 
-                permiso perm ON rp_perm.permiso_id = perm.id
-            WHERE 
-                p.id = ?
-            GROUP BY 
-                p.id;
-            ;
-            `, [user.personal_id]
-        )
-        const permisos = permisosRows[0]?.permisos || null; */
-        // ----------------------------
 
         // JSON Web Token
         const token = jwt.sign({

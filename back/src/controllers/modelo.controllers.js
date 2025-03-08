@@ -12,6 +12,7 @@ export const getModelos = async (req, res) => {
       JOIN marca ma ON m.marca_id = ma.id
       JOIN tipo_maquina t ON m.tipo_maquina_id = t.id
       WHERE m.isDeleted = 0
+      ORDER BY m.id DESC
     `;
     const [rows] = await pool.query(query);
     res.json(rows);
@@ -40,6 +41,7 @@ export const getModelosPage = async (req, res) => {
       JOIN marca ma ON m.marca_id = ma.id
       JOIN tipo_maquina t ON m.tipo_maquina_id = t.id
       WHERE m.isDeleted = 0
+      ORDER BY m.id DESC
     `;
 
     const params = [];

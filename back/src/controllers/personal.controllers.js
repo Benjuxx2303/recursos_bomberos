@@ -1,4 +1,5 @@
 import { pool } from "../db.js";
+import { convertDateFormat } from '../utils/dateUtils.js';
 import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
@@ -298,11 +299,22 @@ export const createPersonal = async (req, res) => {
         // Validación de datos
         const rolPersonalIdNumber = parseInt(rol_personal_id);
         const companiaIdNumber = parseInt(compania_id);
-        rut = String(rut).trim();
+        rut = rut ? String(rut).trim() : '';
         nombre = String(nombre).trim();
         apellido = String(apellido).trim();
-        correo = String(correo).trim();
-        celular = String(celular).trim();
+        
+        // Solo procesar correo y celular si existen en req.body
+        if ('correo' in req.body) {
+            correo = String(correo).trim();
+        } else {
+            correo = null;
+        }
+        
+        if ('celular' in req.body) {
+            celular = String(celular).trim();
+        } else {
+            celular = null;
+        }
 
         // declarar variable para almacenar la fecha y hora
         let ultima_fec_servicio = null;
@@ -328,8 +340,8 @@ export const createPersonal = async (req, res) => {
             isNaN(companiaIdNumber) ||
             typeof rut !== 'string' ||
             typeof nombre !== 'string' ||
-            typeof apellido !== 'string' ||
-            typeof fec_nac !== 'string'
+            typeof apellido !== 'string' 
+   
         ) {
             errors.push('Tipo de datos inválido');
         }
@@ -363,7 +375,7 @@ export const createPersonal = async (req, res) => {
                 "SELECT 1 FROM personal WHERE correo = ? AND isDeleted = 0",
                 [correo]
             );
-            if (correoExists.length > 0) {
+            if (correoExists.length > 0 ) {
                 errors.push('El correo electrónico ya está registrado en el sistema.');
             }
         }
@@ -380,10 +392,10 @@ export const createPersonal = async (req, res) => {
         }
 
         // Validación de fecha
-        const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+         const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
         if (!fechaRegex.test(fec_nac)) {
-            errors.push('El formato de la fecha de nacimiento es inválido. Debe ser dd-mm-aaaa');
-        }
+            /* errors.push('El formato de la fecha de nacimiento es inválido. Debe ser dd-mm-aaaa'); */
+        } 
 
         // Validación opcional de fec_ingreso
         if (fec_ingreso) {
@@ -404,28 +416,50 @@ export const createPersonal = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
+        // Convertir fechas al formato de la base de datos
+        if (fec_nac) {
+            const convertedDate = convertDateFormat(fec_nac, 'dd-MM-yyyy', 'yyyy-MM-dd');
+            if (!convertedDate) {
+                errors.push('Formato de fecha de nacimiento inválido');
+            }
+            fec_nac = convertedDate;
+        }
+
+        if (fec_ingreso) {
+            const convertedDate = convertDateFormat(fec_ingreso, 'dd-MM-yyyy', 'yyyy-MM-dd');
+            if (!convertedDate) {
+                errors.push('Formato de fecha de ingreso inválido');
+            }
+            fec_ingreso = convertedDate;
+        }
+
+        if (ven_licencia) {
+            const convertedDate = convertDateFormat(ven_licencia, 'dd-MM-yyyy', 'yyyy-MM-dd');
+            if (!convertedDate) {
+                errors.push('Formato de fecha de vencimiento de licencia inválido');
+            }
+            ven_licencia = convertedDate;
+        }
+
         // Inserción en la base de datos
         const [rows] = await pool.query(
             `INSERT INTO personal (
                 rol_personal_id, rut, nombre, apellido, compania_id, fec_nac, img_url, obs, 
                 fec_ingreso, isDeleted, ven_licencia, imgLicencia, ultima_fec_servicio, correo, celular
-            ) VALUES (?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, 
-                STR_TO_DATE(?, '%d-%m-%Y'), 0, STR_TO_DATE(?, '%d-%m-%Y'), ?, 
-                STR_TO_DATE(?, '%d-%m-%Y %H:%i'), ?, ?)
-            `,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
             [
                 rolPersonalIdNumber,
                 rut,
                 nombre,
                 apellido,
                 companiaIdNumber,
-                fec_nac || null,         // Si no se proporciona, pasa null
-                img_url || null,         // Si no se proporciona, pasa null
+                fec_nac,
+                img_url || null,
                 obs,
-                fec_ingreso || null,     // Si no se proporciona, pasa null
-                ven_licencia || null,    // Si no se proporciona, pasa null
-                imgLicenciaUrl || null,  // Si no se proporciona, pasa null
-                ultima_fec_servicio || null, // Si no se proporciona, pasa null
+                fec_ingreso,
+                ven_licencia,
+                imgLicenciaUrl,
+                ultima_fec_servicio,
                 correo,
                 celular
             ]
@@ -490,14 +524,15 @@ export const updatePersonal = async (req, res) => {
         apellido,
         compania_id, // foranea
         fec_nac,
+        fec_ingreso,
         obs,
         isDeleted,
-        fec_ingreso,
         ven_licencia, // campo opcional 
         ultima_fec_servicio_fecha, // campo opcional (DATETIME) FECHA
         ultima_fec_servicio_hora, // campo opcional (DATETIME) HORA     
         correo,
         celular,
+        ven_licencia_fecha, // campo opcional (DATE) FECHA
     } = req.body;
 
     let errors = [];
@@ -559,7 +594,11 @@ export const updatePersonal = async (req, res) => {
                 errors.push('El RUT ingresado no es válido');
             }
 
-            const [rutExists] = await pool.query("SELECT 1 FROM personal WHERE rut = ? AND isDeleted = 0", [rut]);
+            // Verificar si el RUT ya existe, excluyendo el registro actual
+            const [rutExists] = await pool.query(
+                "SELECT 1 FROM personal WHERE rut = ? AND id != ? AND isDeleted = 0",
+                [rut, idNumber]
+            );
             if (rutExists.length > 0) {
                 errors.push('El RUT ya está registrado en el sistema.');
             }
@@ -598,44 +637,29 @@ export const updatePersonal = async (req, res) => {
             updates.compania_id = companiaIdNumber;
         }
 
-        // TODO: Usar "validateDate" para validar las fechas
-        if (fec_nac !== undefined) {
-            if (typeof fec_nac !== 'string') {
-                errors.push("Tipo de dato inválido para 'fec_nac'");
+        // Convertir fechas al formato de la base de datos
+        if (fec_nac) {
+            const convertedDate = convertDateFormat(fec_nac, 'dd-MM-yyyy', 'yyyy-MM-dd');
+            if (!convertedDate) {
+                errors.push('Formato de fecha de nacimiento inválido');
             }
-
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            if (!fechaRegex.test(fec_nac)) {
-                errors.push('El formato de la fecha es inválido. Debe ser dd-mm-aaaa');
-            }
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            updates.fec_nac = `${day}-${month}-${year}`;
+            updates.fec_nac = convertedDate;
         }
 
-        if (fec_ingreso !== undefined) {
-            if (typeof fec_ingreso !== 'string') {
-                errors.push("Tipo de dato inválido para 'fec_ingreso'");
+        if (fec_ingreso) {
+            const convertedDate = convertDateFormat(fec_ingreso, 'dd-MM-yyyy', 'yyyy-MM-dd');
+            if (!convertedDate) {
+                errors.push('Formato de fecha de ingreso inválido');
             }
-
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            if (!fechaRegex.test(fec_ingreso)) {
-                errors.push('El formato de la fecha de ingreso es inválido. Debe ser dd-mm-aaaa');
-            }
-            updates.fec_ingreso = fec_ingreso;
+            updates.fec_ingreso = convertedDate;
         }
 
-        if (ven_licencia !== undefined) {
-            if (typeof ven_licencia !== 'string') {
-                errors.push("Tipo de dato inválido para 'ven_licencia'");
+        if (ven_licencia) {
+            const convertedDate = convertDateFormat(ven_licencia, 'dd-MM-yyyy', 'yyyy-MM-dd');
+            if (!convertedDate) {
+                errors.push('Formato de fecha de vencimiento de licencia inválido');
             }
-
-            const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-            if (!fechaRegex.test(ven_licencia)) {
-                errors.push('El formato de la fecha de vencimiento de licencia es inválido. Debe ser dd-mm-aaaa');
-            }
-            updates.ven_licencia = ven_licencia;
+            updates.ven_licencia = convertedDate;
         }
 
         // manejar la carga de archivos si existen
@@ -710,11 +734,11 @@ export const updatePersonal = async (req, res) => {
         try {
             const setClause = Object.keys(updates)
                 .map((key) => {
-                    if (key === 'fec_nac' || key === 'fec_ingreso' || key === 'ven_licencia') {
-                        return `${key} = STR_TO_DATE(?, '%d-%m-%Y')`;
+                    if (['fec_nac', 'fec_ingreso', 'ven_licencia'].includes(key)) {
+                        return `${key} = ?`;
                     }
                     if (key === 'ultima_fec_servicio') {
-                        return `${key} = STR_TO_DATE(?, '%d-%m-%Y %H:%i')`;
+                        return `${key} = STR_TO_DATE(?, '%Y-%m-%d %H:%i')`;
                     }
                     return `${key} = ?`;
                 })
@@ -1008,6 +1032,64 @@ export const asignarMaquinas = async (req, res) => {
         console.error('error: ', error);
         return res.status(500).json({
             message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+};
+
+//Quitar asignacion de maquinas
+export const quitarMaquinas = async (req, res) => {
+    const { personal_id } = req.params;
+    const { maquinas } = req.body;
+    const errors = [];
+
+    try {
+        // Validar que personal_id sea un número válido
+        const personalIdNum = parseInt(personal_id);
+        if (isNaN(personalIdNum)) {
+            errors.push('ID de personal inválido');
+        }
+
+        // Validar que maquinas sea un array de números
+        if (!Array.isArray(maquinas)) {
+            errors.push('El parámetro maquinas debe ser un array');
+        }
+
+        if (errors.length > 0) {
+            return res.status(400).json({ errors });
+        }
+
+        // Iniciar transacción
+        await pool.query('START TRANSACTION');
+
+        try {
+            // Eliminar las asociaciones especificadas
+            const placeholders = maquinas.map(() => '?').join(',');
+            const deleteQuery = `
+                DELETE FROM conductor_maquina 
+                WHERE personal_id = ? 
+                AND maquina_id IN (${placeholders})
+            `;
+            
+            const [result] = await pool.query(
+                deleteQuery,
+                [personalIdNum, ...maquinas]
+            );
+
+            await pool.query('COMMIT');
+
+            res.json({
+                message: 'Máquinas desasignadas correctamente',
+                affected_rows: result.affectedRows
+            });
+        } catch (error) {
+            await pool.query('ROLLBACK');
+            throw error;
+        }
+    } catch (error) {
+        console.error('Error en quitarMaquinas:', error);
+        res.status(500).json({
+            message: 'Error al quitar máquinas',
             error: error.message
         });
     }

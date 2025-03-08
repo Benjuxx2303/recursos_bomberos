@@ -15,21 +15,21 @@ const router = Router();
 
 const base_route = "/bitacora";
 
-router.get(base_route, checkPermission('getBitacora'), getBitacora); // paginado
-router.get(`${base_route}/search`, checkPermission('getBitacora'), getBitacora); // nueva ruta de búsqueda
+router.get(base_route, checkPermission('verServicios'), getBitacora); // paginado
+router.get(`${base_route}/search`, checkPermission('verServicios'), getBitacora); // nueva ruta de búsqueda
 // http://{url}/api/bitacora
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkPermission('getBitacora'), getBitacoraById);
-router.get(`${base_route}/last`, checkPermission('getBitacora'),  getLastBitacora);
-router.post(base_route, checkPermission('createBitacora'), createBitacora);
+router.get(`${base_route}/:id`, checkPermission('verServicios'), getBitacoraById);
+router.get(`${base_route}/last`, checkPermission('verServicios'),  getLastBitacora);
+router.post(base_route, checkPermission('ingresarServicio'), createBitacora);
 
-router.delete(`${base_route}/:id`, checkPermission('deleteBitacora'),deleteBitacora);
+router.delete(`${base_route}/:id`, checkPermission('eliminarServicio'),deleteBitacora);
 
-router.patch(`${base_route}/:id`, checkPermission('updateBitacora'),updateBitacora);
-router.post(`${base_route}/start`, checkPermission('updateBitacora'), startServicio);
-router.patch(`${base_route}/:id/end`, checkPermission('updateBitacora'), endServicio);
+router.patch(`${base_route}/:id`, checkPermission('actualizarServicio'),updateBitacora);
+router.post(`${base_route}/start`, checkPermission('actualizarServicio'), startServicio);
+router.patch(`${base_route}/:id/end`, checkPermission('actualizarServicio'), endServicio);
 
 export default router;

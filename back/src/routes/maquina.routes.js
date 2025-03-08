@@ -71,23 +71,23 @@ router.get(`${base_route}/verificar-permiso-circulacion`, async (req, res) => {
 });
 
 // router.get(base_route, getMaquinasDetails);
-router.get(base_route, checkPermission('getMaquina'), getMaquinasDetailsPage); // paginado
+router.get(base_route, checkPermission('verMaquinas'), getMaquinasDetailsPage); // paginado
 // http://{url}/api/maquina
 // QueryParams:
 // page:              1
 // pageSize:          10
-router.patch(`${base_route}/activar/:patente`, checkPermission('updateMaquina'), activarMaquinaPorPatente);
-router.get(`${base_route}/:id`, checkPermission('getMaquina'), getMaquinaById); // Obtener una máquina por ID
-router.post(base_route, checkPermission('crearMaquina'), uploadFields, createMaquina); // Crear una nueva máquina
+router.patch(`${base_route}/activar/:patente`, checkPermission('actualizarMaquina'), activarMaquinaPorPatente);
+router.get(`${base_route}/:id`, checkPermission('verMaquina'), getMaquinaById); // Obtener una máquina por ID
+router.post(base_route, checkPermission('ingresarMaquina'), uploadFields, createMaquina); // Crear una nueva máquina
 router.delete(`${base_route}/:id`, checkPermission('eliminarMaquina'), deleteMaquina); // dar de baja una máquina
 router.patch(`${base_route}/:id`, checkPermission('actualizarMaquina'), uploadFields, updateMaquina); // actualizar la máquina
-router.get(`${base_route}/:id`, checkPermission('getMaquina'),getMaquinaById);
+router.get(`${base_route}/:id`, checkPermission('verMaquina'),getMaquinaById);
 
 /* // Asignar conductor/es  a una maquina 
-router.post(`${base_route}/:maquina_id/conductores`, checkPermission('updateMaquina'), asignarConductores);
+router.post(`${base_route}/:maquina_id/conductores`, checkPermission('actualizarMaquina'), asignarConductores);
 */
 // Asignar conductor/es  a una maquina 
-router.post(`${base_route}/asignar-conductores`, checkPermission('crearMaquina'), asignarConductores);
+router.post(`${base_route}/asignar-conductores`, checkPermission('asignarMaquina'), asignarConductores);
 
 
 export default router;

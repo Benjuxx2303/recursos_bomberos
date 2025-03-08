@@ -1,29 +1,29 @@
 import { Router } from "express";
-import { 
-    getConductorMaquinaPage,
-    getConductorMaquinaById,
+import { checkPermission } from "../controllers/authMiddleware.js";
+import {
     createConductorMaquina,
     deleteConductorMaquina,
+    getConductorMaquinaById,
+    getConductorMaquinaPage,
     updateConductorMaquina
 } from "../controllers/conductor_maquina.controllers.js";
-import { checkPermission } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
 const base_route = '/conductor_maquina'
 
-router.get(base_route, checkPermission('getConductor_maquina'), getConductorMaquinaPage); // paginado
+router.get(base_route, checkPermission('verAsignacionesMaquinas'), getConductorMaquinaPage); // paginado
 // http://{url}/api/conductor_maquina
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkPermission('getConductor_maquina'), getConductorMaquinaById);
+router.get(`${base_route}/:id`, checkPermission('verAsignacionesMaquinas'), getConductorMaquinaById);
 
-router.post(base_route, checkPermission('createConductor_maquina'), createConductorMaquina);
+router.post(base_route, checkPermission('asignarMaquina'), createConductorMaquina);
 
-router.delete(`${base_route}/:id`, checkPermission('deleteConductor_maquina'), deleteConductorMaquina);
+router.delete(`${base_route}/:id`, checkPermission('eliminarAsignacionMaquina'), deleteConductorMaquina);
 
-router.patch(`${base_route}/:id`, checkPermission('updateConductor_maquina'), updateConductorMaquina);
+router.patch(`${base_route}/:id`, checkPermission('asignarMaquina'), updateConductorMaquina);
 
 export default router;

@@ -1,13 +1,16 @@
 import { Router } from "express";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-    getDetallesMantencionPage,
-    getDetalleMantencion,
     createDetalleMantencion,
     deleteDetalleMantencion,
-    updateDetalleMantencion,
+    getDetalleMantencion,
     getDetalleMantencionByMantencionID // Importar la nueva función
+    ,
+
+
+    getDetallesMantencionPage,
+    updateDetalleMantencion
 } from "../controllers/detalle_mantencion.controllers.js";
-import { checkPermission } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
@@ -27,12 +30,12 @@ router.get(`${base_route}/:id`, checkPermission('getDetalle_mantencion'), getDet
 router.get(`${base_route}/mantencion/:mantencion_id`, checkPermission('getDetalle_mantencion'), getDetalleMantencionByMantencionID); // Nueva ruta
 
 // Crear un nuevo detalle de mantención
-router.post(base_route, checkPermission('createDetalle_mantencion'), createDetalleMantencion);
+router.post(base_route, checkPermission('ingresarMantencion'), createDetalleMantencion);
 
 // Eliminar detalle de mantención
-router.delete(`${base_route}/:id`, checkPermission('deleteDetalle_mantencion'), deleteDetalleMantencion);
+router.delete(`${base_route}/:id`, checkPermission('eliminarMantencion'), deleteDetalleMantencion);
 
 // Actualizar detalle de mantención
-router.patch(`${base_route}/:id`, checkPermission('updateDetalle_mantencion'), updateDetalleMantencion);
+router.patch(`${base_route}/:id`, checkPermission('actualizarMantencion'), updateDetalleMantencion);
 
 export default router;

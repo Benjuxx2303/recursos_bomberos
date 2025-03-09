@@ -2,7 +2,7 @@ import { pool } from "../db.js";
 import { exportToExcel } from "../utils/excelExport.js";
 import { uploadFileToS3 } from "../utils/fileUpload.js";
 import { generatePDF } from "../utils/generatePDF.js";
-import { createAndSendNotifications, getNotificationUsers, getNotificationTalleres } from '../utils/notifications.js';
+import { createAndSendNotifications, getNotificationTalleres, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
 import { formatDateTime, validateDate } from "../utils/validations.js";
 
@@ -268,6 +268,9 @@ export const getMantencionAllDetailsById = async (req, res) => {
 // Crear una nueva mantención
 export const createMantencion = async (req, res) => {
   try {
+    console.log("Datos recibidos en el servidor:", req.body);
+    console.log("Archivos recibidos:", req.files);
+
     let {
       bitacora_id,
       maquina_id,
@@ -278,169 +281,179 @@ export const createMantencion = async (req, res) => {
       ord_trabajo,
       n_factura,
       cost_ser,
-      // aprobada,
-      aprobada_por, // **Nuevo campo opcional**
       descripcion,
+      personal_id,
     } = req.body;
 
-    console.log(typeof fec_termino)
+    // Convertir strings a números donde sea necesario
+    maquina_id = maquina_id ? parseInt(maquina_id) : null;
+    personal_id = personal_id ? parseInt(personal_id) : null;
+    bitacora_id = bitacora_id ? parseInt(bitacora_id) : null;
+    taller_id = taller_id ? parseInt(taller_id) : null;
+    tipo_mantencion_id = tipo_mantencion_id ? parseInt(tipo_mantencion_id) : null;
+    n_factura = n_factura ? parseInt(n_factura) : null;
+    cost_ser = cost_ser ? parseFloat(cost_ser) : null;
+
+    console.log("Datos después de la conversión:", {
+      maquina_id,
+      personal_id,
+      bitacora_id,
+      taller_id,
+      tipo_mantencion_id,
+      n_factura,
+      cost_ser,
+      descripcion
+    });
 
     let errors = [];
     const estado_mantencion_id = 1;
 
-    // Validaciones de entrada
-    const validateId = (id, fieldName) => isNaN(parseInt(id)) && errors.push(`El ID de ${fieldName} es inválido`);
-    validateId(bitacora_id, 'bitácora');
-    validateId(maquina_id, 'máquina');
-    validateId(taller_id, 'taller');
-    validateId(tipo_mantencion_id, 'tipo de mantención');
+    // Validaciones obligatorias
+    if (!maquina_id || isNaN(maquina_id)) errors.push("El ID de máquina es obligatorio y debe ser un número válido");
+    if (!descripcion) errors.push("La descripción es obligatoria");
+    if (!personal_id || isNaN(personal_id)) errors.push("El ID del personal que ingresa es obligatorio y debe ser un número válido");
 
-    if (typeof ord_trabajo !== 'string') errors.push("El número de orden de trabajo debe ser una cadena de texto");
-    if (n_factura && isNaN(parseInt(n_factura))) errors.push("El número de factura es inválido");
-    if (cost_ser && isNaN(parseFloat(cost_ser))) errors.push("El costo del servicio es inválido");
-
-    // validar foreign keys
-    await checkIfDeletedById(pool, bitacora_id, 'bitacora',  errors);
-    await checkIfDeletedById(pool, maquina_id, 'maquina', errors);
-    await checkIfDeletedById(pool, taller_id,'taller',  errors);
-    await checkIfDeletedById(pool, tipo_mantencion_id, 'tipo_mantencion', errors);
-
-    // **Validación de fechas usando validateDate** (modificado)
-    if (validateDate(fec_inicio) === false) errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy"); // **Usamos la función validateDate aquí**
-    
-    if (fec_termino && !validateDate(fec_termino)) errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy"); // **Usamos la función validateDate aquí**
-
-    // TODO: Revisar Validacion
-    // **Validación de fecha de inicio y fecha de término usando validateStartEndDate** (modificado)
-    // try {
-    //   if (!validateStartEndDate(fec_inicio, fec_termino)) {  // **Usamos validateStartEndDate aquí**
-    //     errors.push("La fecha de término no puede ser anterior a la fecha de inicio");
-    //   }
-    // } catch (error) {
-    //   errors.push(error.message);  // **Capturamos cualquier error lanzado por validateStartEndDate**
-    // }
-
-    // **Validación del campo aprobada_por** (si está presente)
-    let aprobada_por_nombre = null;
-    if (aprobada_por) {
-      if (isNaN(parseInt(aprobada_por))) errors.push("El ID de la persona que aprobó es inválido");
-      
-      const aprobadaPorId = parseInt(aprobada_por);
-
-      // Validar si el ID de aprobada_por existe y tiene un rol superior
-      const [aprobadaPorInfo] = await pool.query(
-        `SELECT p.id, p.rol_personal_id, CONCAT(p.nombre, ' ' ,p.apellido) AS nombre FROM personal p WHERE p.id = ? AND p.rol_personal_id IN (SELECT r.id FROM rol_personal r WHERE r.nombre IN ('TELECOM', 'Teniente de Máquina', 'Capitán'))`,
-        [aprobadaPorId]
+    // Validar que el personal_id existe
+    if (personal_id) {
+      const [personalExists] = await pool.query(
+        "SELECT 1 FROM personal WHERE id = ? AND isDeleted = 0",
+        [personal_id]
       );
-
-      if (!aprobadaPorInfo.length) errors.push("La persona que aprobó no es válida o no tiene un rol superior");
-
-      if (aprobadaPorInfo.length) {
-        aprobada_por_nombre = aprobadaPorInfo[0].nombre;
+      if (!personalExists.length) {
+        errors.push("El personal ingresado no existe o está eliminado");
       }
     }
 
+    // Validar maquina_id si no viene de una bitácora
+    if (maquina_id && !bitacora_id) {
+      const [maquinaExists] = await pool.query(
+        "SELECT 1 FROM maquina WHERE id = ? AND isDeleted = 0",
+        [maquina_id]
+      );
+      if (!maquinaExists.length) {
+        errors.push("La máquina no existe o está eliminada");
+      }
+    }
+
+    // Validaciones opcionales solo si se proporcionan los campos
+    if (bitacora_id) {
+      await checkIfDeletedById(pool, bitacora_id, 'bitacora', errors);
+      // Si hay bitácora, validar que el maquina_id coincida
+      const [bitacoraMaquina] = await pool.query(
+        "SELECT maquina_id FROM bitacora WHERE id = ? AND isDeleted = 0",
+        [bitacora_id]
+      );
+      if (bitacoraMaquina.length && bitacoraMaquina[0].maquina_id !== maquina_id) {
+        errors.push("El ID de la máquina no coincide con la bitácora proporcionada");
+      }
+    }
+
+    if (taller_id) await checkIfDeletedById(pool, taller_id, 'taller', errors);
+    if (tipo_mantencion_id) await checkIfDeletedById(pool, tipo_mantencion_id, 'tipo_mantencion', errors);
+
+    // Validaciones de formato para campos opcionales
+    if (fec_inicio && validateDate(fec_inicio) === false) {
+      errors.push("El formato de la fecha de inicio es inválido. Debe ser dd-mm-yyyy");
+    }
+    
+    if (fec_termino && validateDate(fec_termino) === false) {
+      errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
+    }
+
+    if (n_factura && isNaN(n_factura)) errors.push("El número de factura debe ser un número válido");
+    if (cost_ser && isNaN(cost_ser)) errors.push("El costo del servicio debe ser un número válido");
+
     if (errors.length > 0) return res.status(400).json({ message: "Errores en los datos de entrada", errors });
 
-    // Convertir a números para evitar redundancia en el código
-    const bitacoraIdNumber = parseInt(bitacora_id);
-    const maquinaIdNumber = parseInt(maquina_id);
-    const tallerIdNumber = parseInt(taller_id);
-    const tipoMantencionIdNumber = parseInt(tipo_mantencion_id);
-    const costSerNumber = parseFloat(cost_ser);
-
-    // Validar existencia de la bitácora
-    const [bitacoraInfo] = await pool.query(
-      `SELECT b.id, b.personal_id, m.codigo, m.compania_id, c.nombre as compania_nombre
-       FROM bitacora b 
-       INNER JOIN maquina m ON b.maquina_id = m.id 
-       INNER JOIN compania c ON m.compania_id = c.id
-       WHERE b.id = ? AND b.isDeleted = 0`, 
-      [bitacoraIdNumber]
-    );
-
-    if (!bitacoraInfo|| !bitacoraInfo.length) return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
-
-    const { codigo, compania_id } = bitacoraInfo[0];
-
-    // Verificar si ya existe una mantención o carga de combustible asociada
-    const [mantencionExistente] = await pool.query(
-      "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
-      [bitacoraIdNumber]
-    );
-
-    const [cargaExistente] = await pool.query(
-      "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
-      [bitacoraIdNumber]
-    );
-
-    if (mantencionExistente.length || cargaExistente.length) return res.status(400).json({ message: "Ya existe un servicio asociado a esta bitácora" });
+    // Preparar los campos para la inserción
+    const fieldsToInsert = ['maquina_id', 'estado_mantencion_id', 'descripcion', 'ingresada_por', 'isDeleted'];
+    const valuesToInsert = [maquina_id, estado_mantencion_id, descripcion, personal_id, 0];
     
-    // Manejar la carga de imagen si existe
-    let img_url = null;
+    // Agregar campos opcionales solo si están presentes
+    if (bitacora_id) {
+      fieldsToInsert.push('bitacora_id');
+      valuesToInsert.push(bitacora_id);
+    }
+    if (taller_id) {
+      fieldsToInsert.push('taller_id');
+      valuesToInsert.push(taller_id);
+    }
+    if (tipo_mantencion_id) {
+      fieldsToInsert.push('tipo_mantencion_id');
+      valuesToInsert.push(tipo_mantencion_id);
+    }
+    if (fec_inicio) {
+      fieldsToInsert.push('fec_inicio');
+      valuesToInsert.push(formatDateTime(fec_inicio));
+    }
+    if (fec_termino) {
+      fieldsToInsert.push('fec_termino');
+      valuesToInsert.push(formatDateTime(fec_termino));
+    }
+    if (ord_trabajo) {
+      fieldsToInsert.push('ord_trabajo');
+      valuesToInsert.push(ord_trabajo);
+    }
+    if (n_factura) {
+      fieldsToInsert.push('n_factura');
+      valuesToInsert.push(n_factura);
+    }
+    if (cost_ser) {
+      fieldsToInsert.push('cost_ser');
+      valuesToInsert.push(cost_ser);
+    }
+
+    // Manejar la imagen si existe
     if (req.files?.imagen?.[0]) {
       try {
         const imgData = await uploadFileToS3(req.files.imagen[0], "mantencion");
-        if (imgData?.Location) img_url = imgData.Location;
+        if (imgData?.Location) {
+          fieldsToInsert.push('img_url');
+          valuesToInsert.push(imgData.Location);
+        }
       } catch (error) {
         return res.status(500).json({ message: "Error al subir la imagen", error: error.message });
       }
     }
 
-    // **Insertar mantención usando formatDateTime para las fechas** (modificado)
-    const mysqlFecTermino = typeof fec_termino !== 'undefined' ? formatDateTime(fec_termino) : null;
-    console.log(mysqlFecTermino)
-    const mysqlFecInicio = formatDateTime(fec_inicio);  // **Usamos formatDateTime aquí**
-    // if (fec_termino !== undefined) mysqlFecTermino = formatDateTime(fec_termino);  // **Usamos formatDateTime aquí**
+    // Construir la consulta dinámica
+    const query = `INSERT INTO mantencion (${fieldsToInsert.join(', ')}) VALUES (${fieldsToInsert.map(() => '?').join(', ')})`;
 
     // Insertar mantención
-    const [result] = await pool.query(
-      `INSERT INTO mantencion (bitacora_id, maquina_id, taller_id, estado_mantencion_id, tipo_mantencion_id, fec_inicio, fec_termino, ord_trabajo, n_factura, cost_ser, img_url, isDeleted, descripcion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      [
-        bitacoraIdNumber, 
-        maquinaIdNumber, 
-        tallerIdNumber, 
-        estado_mantencion_id, 
-        tipoMantencionIdNumber,
-        mysqlFecInicio,  // **Usamos mysqlFecInicio aquí**
-        mysqlFecTermino,  // **Usamos mysqlFecTermino aquí**
-        ord_trabajo, 
-        n_factura || null, 
-        costSerNumber || null,
-        img_url || null,
-        descripcion || null
-      ]
-    );
+    const [result] = await pool.query(query, valuesToInsert);
 
+    // Obtener datos para el PDF y notificaciones
     const [datosPDF] = await pool.query(
-      `
-      SELECT 
-      	m.ord_trabajo AS 'orden_trabajoPDF',
-      	m.id AS 'mantencion_idPDF',
+      `SELECT 
+        m.ord_trabajo AS 'orden_trabajoPDF',
+        m.id AS 'mantencion_idPDF',
         m.bitacora_id AS 'bitacora_idPDF',
         ma.nombre AS 'maquinaPDF',
-      	ma.patente AS 'patentePDF',
+        ma.patente AS 'patentePDF',
         t.nombre AS 'tallerPDF',
         em.nombre AS 'estado_mantencionPDF',
-      	tm.nombre AS 'tipo_mantencionPDF',
+        tm.nombre AS 'tipo_mantencionPDF',
         DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fecha_inicioPDF',
         DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fecha_terminoPDF',
         m.n_factura AS 'numero_facturaPDF',
         m.cost_ser AS 'costo_servicioPDF',
-        m.descripcion AS 'descripcionPDF'
+        m.descripcion AS 'descripcionPDF',
+        p.nombre AS 'ingresada_por_nombre',
+        p.apellido AS 'ingresada_por_apellido'
       FROM mantencion m
       INNER JOIN maquina ma ON m.maquina_id = ma.id
-      INNER JOIN taller t ON m.taller_id = t.id
-      INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+      LEFT JOIN taller t ON m.taller_id = t.id
+      LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
       INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-      WHERE m.id = ?
-      `, [result.insertId]
-    )
+      INNER JOIN personal p ON m.ingresada_por = p.id
+      WHERE m.id = ?`,
+      [result.insertId]
+    );
 
-    const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF } = datosPDF[0];
+    const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF, ingresada_por_nombre, ingresada_por_apellido } = datosPDF[0];
 
     // Preparar los datos del PDF
-    const pdfData = [{
+/*     const pdfData = [{
       "Orden de Trabajo": orden_trabajoPDF,
       "ID de Mantención": mantencion_idPDF,
       "ID de Bitácora": bitacora_idPDF,
@@ -453,68 +466,45 @@ export const createMantencion = async (req, res) => {
       "Fecha de Término": fecha_terminoPDF,
       "Número de Factura": numero_facturaPDF,
       "Costo del Servicio": costo_servicioPDF,
-      "Descripción": descripcionPDF
+      "Descripción": descripcionPDF,
+      "Ingresada por": `${ingresada_por_nombre} ${ingresada_por_apellido}`
     }];
-
+ */
     // Generar el PDF
-    const pdfBuffer = await generatePDF(pdfData);
-
-    // **Si "aprobada_por" es válido, se actualiza la mantención con fecha de aprobación y aprobado=1**
-    if (aprobada_por && !errors.length) {
-      await pool.query(
-        `UPDATE mantencion SET aprobada = 1, fecha_aprobacion = current_timestamp(), aprobada_por = ? WHERE id = ?`,
-        [aprobada_por, result.insertId]
-      );
-    }
+/*     const pdfBuffer = await generatePDF(pdfData); */
 
     // Enviar notificación (con filtros)
-    // const usuarios = await getNotificationUsers({
-    //   compania_id, roles: ["TELECOM", "Teniente de Máquina", "Capitán"]
-    // });
-
     const usuarios = await getNotificationUsers();
-
+    const [personal] = await pool.query("SELECT nombre, apellido FROM personal WHERE id = ?", [personal_id]);
+    const [maquina] = await pool.query("SELECT codigo, patente FROM maquina WHERE id = ?", [maquina_id]);
     if (usuarios.length > 0) {
-      let contenido = `Nueva mantención registrada - ${codigo} - Orden de trabajo: ${ord_trabajo}\n`;
+      let contenido = `Nueva mantención ingresada - Codigo: ${maquina[0].codigo} - Patente: ${maquina[0].patente} - Ingresada por ${personal[0].nombre} ${personal[0].apellido} - Descripcion: ${descripcion}\n`;
 
       // **Si se incluyó "cost_ser", se agrega a la notificación**
-      if (costSerNumber){
-        contenido += `Costo del servicio: $${costSerNumber}\n`;
-      }
-
-      // **Si se incluyó "aprobada_por", se agrega a la notificación**
-      if (aprobada_por_nombre) {
-        contenido += ` - Aprobada por: ${aprobada_por_nombre}\n`;
-      }
+      if (cost_ser){
+        contenido += `Costo del servicio: $${cost_ser}\n`;
+      } 
 
       await createAndSendNotifications({
         contenido, 
         tipo: "mantencion", 
         destinatarios: usuarios,
         emailConfig: {
-          subject: "Nueva Mantención Registrada",
+          subject: "Nueva Mantención Ingresada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
           buttonText: "Ver Detalles",
-          attachments: [{
+  /*         attachments: [{
             filename: `mantencion_${result.insertId}.pdf`,
             content: pdfBuffer,
             contentType: 'application/pdf'
-          }]
+          }] */
         },
       });
     }
 
     return res.json({
       id: result.insertId,
-      bitacora_id: bitacoraIdNumber,
-      maquina_id: maquinaIdNumber,
-      taller_id: tallerIdNumber,
-      estado_mantencion_id,
-      tipo_mantencion_id: tipoMantencionIdNumber,
-      fec_inicio, fec_termino, ord_trabajo, n_factura,
-      cost_ser: costSerNumber, img_url, 
-      // aprobada,
-      message: "Mantención creada exitosamente",
+      message: "Mantención creada exitosamente"
     });
 
   } catch (error) {

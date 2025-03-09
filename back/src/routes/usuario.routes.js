@@ -26,20 +26,20 @@ const base_route = "/usuario";
 // Obtener usuarios con detalles
 // router.get(`${base_route}/detalles`, getUsuariosWithDetails);
 // router.get(base_route, getUsuariosWithDetails);
-router.get(base_route, checkPermission('getUsuario'), getUsuariosWithDetailsPage); // paginado
+router.get(base_route, checkPermission('verUsuarios'), getUsuariosWithDetailsPage); // paginado
 // http://{url}/api/usuario
 // QueryParams:
 // page:              1
 // pageSize:          10
 
 // Obtener usuario por ID
-router.get(`${base_route}/:id`, checkPermission('getUsuario'), getUsuarioById);
+router.get(`${base_route}/:id`, checkPermission('verUsuario'), getUsuarioById);
 
 // Eliminar usuario (cambiar estado)
-router.delete(`${base_route}/:id`, checkPermission('deleteUsuario'), deleteUsuario);
+router.delete(`${base_route}/:id`, checkPermission('eliminarUsuario'), deleteUsuario);
 
 // Actualizar usuario
-router.patch(`${base_route}/:id`, checkPermission('updateUsuario'), updateUsuario);
+router.patch(`${base_route}/:id`, checkPermission('actualizarUsuario'), updateUsuario);
 
 // -----Logica login
 // Registrar nuevo usuario (con validaciones y encriptación)

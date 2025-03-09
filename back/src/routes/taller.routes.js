@@ -15,19 +15,19 @@ const router = Router();
 const base_route = '/taller'
 
 // router.get(base_route, getTalleres);
-router.get(base_route, checkPermission('getTaller'), getTalleresPage);
+router.get(base_route, checkPermission('verTalleres'), getTalleresPage);
 // http://{url}/api/taller
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/tipos_taller`, checkPermission('getTaller'), getTiposTaller);
-router.get(`${base_route}/:id`, checkPermission('getTaller'), getTallerById);
+router.get(`${base_route}/tipos_taller`, checkPermission('verTiposTaller'), getTiposTaller);
+router.get(`${base_route}/:id`, checkPermission('verTaller'), getTallerById);
 
-router.post(base_route, checkPermission('createTaller'), createTaller);
+router.post(base_route, checkPermission('ingresarTaller'), createTaller);
 
-router.delete(`${base_route}/:id`, checkPermission('deleteTaller'), deleteTaller);
+router.delete(`${base_route}/:id`, checkPermission('eliminarTaller'), deleteTaller);
 
-router.patch(`${base_route}/:id`, checkPermission('updateTaller'), updateTaller);
+router.patch(`${base_route}/:id`, checkPermission('actualizarTaller'), updateTaller);
 
 export default router;

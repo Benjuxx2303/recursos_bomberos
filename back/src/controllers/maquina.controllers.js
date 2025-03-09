@@ -619,11 +619,11 @@ export const asignarConductores = async (req, res) => {
       }
 
       // Validar que pertenecen a la misma compañía
-      if (conductor[0].compania_id !== compania_id_maquina) {
+/*       if (conductor[0].compania_id !== compania_id_maquina) {
         return res.status(400).json({
           message: `El conductor con ID ${conductor_id} no pertenece a la misma compañía que la máquina`,
         });
-      }
+      } */
 
       // Verificar si ya existe la asignación
       const [existeAsignacion] = await pool.query(

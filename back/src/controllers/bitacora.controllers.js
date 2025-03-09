@@ -191,6 +191,8 @@ export const createBitacora = async (req, res) => {
         direccion,
         f_salida,
         h_salida,
+        f_llegada,
+        h_llegada,
         km_salida,
         km_llegada,
         hmetro_salida,
@@ -205,9 +207,11 @@ export const createBitacora = async (req, res) => {
     try {
         // Validación de los campos que no se han pasado en el cuerpo (asignación de null si no están presentes)
         direccion = direccion ? String(direccion).trim() : null;
-        personal_id = personal_id !== undefined ? parseInt(personal_id) : null; // ** Cambio aquí: Verificar y asignar null a `personal_id` si no se especifica
+        personal_id = personal_id !== undefined ? parseInt(personal_id) : null;
         f_salida = f_salida ? f_salida : null;
         h_salida = h_salida ? h_salida : null;
+        f_llegada = f_llegada ? f_llegada : null;
+        h_llegada = h_llegada ? h_llegada : null;
         km_salida = km_salida !== undefined ? parseFloat(km_salida) : null;
         km_llegada = km_llegada !== undefined ? parseFloat(km_llegada) : null;
         hmetro_salida = hmetro_salida !== undefined ? parseFloat(hmetro_salida) : null;
@@ -217,11 +221,18 @@ export const createBitacora = async (req, res) => {
         obs = obs || null;
 
         let fh_salida = null;
+        let fh_llegada = null;
 
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
             if (error === false) errors.push("Fecha y hora de salida inválida.");
             else fh_salida = formatDateTime(f_salida, h_salida);
+        }
+
+        if (f_llegada && h_llegada) {
+            const error = validateDate(f_llegada, h_llegada);
+            if (error === false) errors.push("Fecha y hora de llegada inválida.");
+            else fh_llegada = formatDateTime(f_llegada, h_llegada);
         }
 
         // Validación de tipo de datos
@@ -235,8 +246,8 @@ export const createBitacora = async (req, res) => {
 
         // Validaciones de claves foráneas
         await checkIfDeletedById(pool, companiaIdNumber, "compania", errors);
-        if (personal_id !== null) { // ** Cambio aquí: Solo validamos si `personal_id` está presente en el cuerpo
-            await checkIfDeletedById(pool, personal_id, "personal", errors); // Verificar si el personal está eliminado
+        if (personal_id !== null) {
+            await checkIfDeletedById(pool, personal_id, "personal", errors);
         }
         await checkIfDeletedById(pool, maquinaIdNumber, "maquina", errors);
         await checkIfDeletedById(pool, claveIdNumber, "clave", errors);
@@ -261,7 +272,8 @@ export const createBitacora = async (req, res) => {
                 personal_id, 
                 maquina_id, 
                 direccion, 
-                fh_salida, 
+                fh_salida,
+                fh_llegada, 
                 clave_id, 
                 km_salida, 
                 km_llegada, 
@@ -271,14 +283,15 @@ export const createBitacora = async (req, res) => {
                 hbomba_llegada, 
                 obs, 
                 isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
             [
                 companiaIdNumber,
                 personal_id,
                 maquinaIdNumber,
                 direccion,
-                fh_salida, // Ahora esta fecha ya está transformada al formato MySQL
+                fh_salida,
+                fh_llegada,
                 claveIdNumber,
                 km_salida,
                 km_llegada,
@@ -299,6 +312,7 @@ export const createBitacora = async (req, res) => {
             maquina_id: maquinaIdNumber,
             direccion,
             fh_salida,
+            fh_llegada,
             claveIdNumber,
             km_salida,
             km_llegada,

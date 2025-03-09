@@ -15,16 +15,16 @@ const router = Router();
 const base_route = "/permiso";
 
 // Rutas de categorías
-router.get(`${base_route}/categorias`, checkPermission('getPermiso'), getCategorias);
+router.get(`${base_route}/categorias`, checkPermission('verCategoriasPermiso'), getCategorias);
 
 // Rutas de permisos
-router.get(base_route, checkPermission('getPermiso'), getPermisos);
-router.get(`${base_route}/:id`, checkPermission('getPermiso'), getPermisoById);
-router.post(base_route, checkPermission('createPermiso'), createPermiso);
-router.patch(`${base_route}/:id`, checkPermission('updatePermiso'), updatePermiso);
-router.delete(`${base_route}/:id`, checkPermission('deletePermiso'), deletePermiso);
+router.get(base_route, checkPermission('verPermisos'), getPermisos);
+router.get(`${base_route}/:id`, checkPermission('verPermisos'), getPermisoById);
+router.post(base_route, checkPermission('crearPermiso'), createPermiso);
+router.patch(`${base_route}/:id`, checkPermission('actualizarPermiso'), updatePermiso);
+router.delete(`${base_route}/:id`, checkPermission('eliminarPermiso'), deletePermiso);
 
 // Rutas de permisos por rol
-router.get(`${base_route}/rol/:rolId`, checkPermission('getPermiso'), getPermisosByRol);
+router.get(`${base_route}/rol/:rolId`, checkPermission('verPermisosPorRol'), getPermisosByRol);
 
 export default router;

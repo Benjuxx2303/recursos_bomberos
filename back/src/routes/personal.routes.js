@@ -52,37 +52,37 @@ router.get(`${base_route}/verificar-licencia`, async (req, res) => {
     }
 });
 
-router.get(`${base_route}/update-last-service-date`, checkPermission('getPersonal'), updateUltimaFecServicio);
+router.get(`${base_route}/update-last-service-date`, checkPermission("verPersonal"), updateUltimaFecServicio);
 
 // router.get(base_route, getPersonalWithDetails);
-router.get(base_route, checkPermission('getPersonal'), getPersonalWithDetailsPage); // con paginación
+router.get(base_route, checkPermission("verPersonal"), getPersonalWithDetailsPage); // con paginación
 // http://{url}/api/personal/
 // QueryParams:
 // id:          61
 // rut:         23904666-5
 
-router.get(`${base_route}/low-data`, checkPermission('getPersonal'), getPersonalLowData);
-router.patch(`${base_route}/activate`, checkPermission('updatePersonal'), activatePersonal);
+router.get(`${base_route}/low-data`, checkPermission("verPersonal"), getPersonalLowData);
+router.patch(`${base_route}/activate`, checkPermission('actualizarPersonal'), activatePersonal);
 // http://{url}/api/personal/activate
 // QueryParams:
 // id:          61
 // rut:         23904666-5
 
-router.patch(`${base_route}/deactivate`, checkPermission('updatePersonal'), deactivatePersonal);
+router.patch(`${base_route}/deactivate`, checkPermission('actualizarPersonal'), deactivatePersonal);
 // http://{url}/api/personal/deactivate
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkPermission('getPersonal'), getPersonalbyID); // Obtener un personal por ID
-router.post(base_route, checkPermission('createPersonal'), uploadFields, createPersonal); // Crear un nuevo personal
-router.delete(`${base_route}/:id`, checkPermission('deletePersonal'), downPersonal); // dar de baja un personal
-router.patch(`${base_route}/:id`, checkPermission('updatePersonal'), uploadFields, updatePersonal); // actualizar el personal
+router.get(`${base_route}/:id`, checkPermission("verPersonal"), getPersonalbyID); // Obtener un personal por ID
+router.post(base_route, checkPermission('ingresarPersonal'), uploadFields, createPersonal); // Crear un nuevo personal
+router.delete(`${base_route}/:id`, checkPermission('eliminarPersonal'), downPersonal); // dar de baja un personal
+router.patch(`${base_route}/:id`, checkPermission('actualizarPersonal'), uploadFields, updatePersonal); // actualizar el personal
 
 // Agregar la ruta para asignar máquinas con middleware de autenticación
-router.post(`${base_route}/:personal_id/maquinas`, checkPermission('updatePersonal'), asignarMaquinas);
+router.post(`${base_route}/:personal_id/maquinas`, checkPermission('actualizarPersonal'), asignarMaquinas);
 
 //Quitar asignacion de maquinas
-router.delete(`${base_route}/:personal_id/maquinas/:maquina_id`, checkPermission('updatePersonal'), quitarMaquinas);
+router.delete(`${base_route}/:personal_id/maquinas/:maquina_id`, checkPermission('actualizarPersonal'), quitarMaquinas);
 
 export default router;  

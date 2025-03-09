@@ -1,31 +1,31 @@
 import { Router } from "express";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
+    createRolPersonal,
+    deleteRolPersonal,
     // getRolesPersonal,
     getRolesPersonalPage,
     getRolPersonal,
-    createRolPersonal,
-    deleteRolPersonal,
     updateRolPersonal,
-} from "../controllers/rol_personal.controllers.js"
-import { checkPermission } from "../controllers/authMiddleware.js";
+} from "../controllers/rol_personal.controllers.js";
 
 const router = Router();
 
 const base_route = '/rol_personal'
 
 // router.get(base_route, getRolesPersonal);
-router.get(base_route, checkPermission('getRol_personal'), getRolesPersonalPage);
+router.get(base_route, checkPermission('verRolesPersonal'), getRolesPersonalPage);
 // http://{url}/api/rol_personal
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkPermission('getRol_personal'), getRolPersonal);
+router.get(`${base_route}/:id`, checkPermission('verRolesPersonal'), getRolPersonal);
 
-router.post(base_route, checkPermission('createRol_personal'), createRolPersonal);
+router.post(base_route, checkPermission('crearRolPersonal'), createRolPersonal);
 
-router.delete(`${base_route}/:id`, checkPermission('deleteRol_personal'), deleteRolPersonal);
+router.delete(`${base_route}/:id`, checkPermission('eliminarRolPersonal'), deleteRolPersonal);
 
-router.patch(`${base_route}/:id`, checkPermission('updateRol_personal'), updateRolPersonal);
+router.patch(`${base_route}/:id`, checkPermission('actualizarRolPersonal'), updateRolPersonal);
 
 export default router;

@@ -21,18 +21,18 @@ const router = Router();
 const base_route = "/modelo";
 
 // Ruta para obtener todos los modelos (sin paginación)
-router.get(base_route, checkPermission("getModelo"), getModelos);
+router.get(base_route, checkPermission("verModelos"), getModelos);
 
 // Ruta para obtener modelos paginados
-router.get(`${base_route}/page`, checkPermission("getModelo"), getModelosPage);
+router.get(`${base_route}/page`, checkPermission("verModelos"), getModelosPage);
 
 // Ruta para obtener un modelo específico
-router.get(`${base_route}/:id`, checkPermission("getModelo"), getModeloById);
+router.get(`${base_route}/:id`, checkPermission("verModelos"), getModeloById);
 
 // Ruta para crear un nuevo modelo
 router.post(
   base_route,
-  checkPermission("createModelo"),
+  checkPermission("crearModelo"),
   uploadFields,
   createModelo
 );
@@ -40,14 +40,14 @@ router.post(
 // Ruta para eliminar un modelo
 router.delete(
   `${base_route}/:id`,
-  checkPermission("deleteModelo"),
+  checkPermission("eliminarModelo"),
   deleteModelo
 );
 
 // Ruta para actualizar un modelo
 router.patch(
   `${base_route}/:id`,
-  checkPermission("updateModelo"),
+  checkPermission("actualizarModelo"),
   uploadFields,
   updateModelo
 );

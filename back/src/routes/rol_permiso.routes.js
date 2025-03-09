@@ -5,24 +5,23 @@ import {
     createRolPermiso,
     deleteRolPermiso,
     getRolPermisoById,
-    getRolPermisos,
-    updateRolPermiso
+    getRolPermisos
 } from "../controllers/rol_permisos.controllers.js";
 
 const router = Router();
 
 const base_route = "/rol_permiso";
 
-router.get(base_route, checkPermission('getRol_permiso'), getRolPermisos); // Devuelve todos los permisos por rol
+router.get(base_route, checkPermission('verPermisos'), getRolPermisos); // Devuelve todos los permisos por rol
 
-router.get(`${base_route}/:id`, checkPermission('getRol_permiso'), getRolPermisoById); // Devuelve un rol_permiso por ID
+router.get(`${base_route}/:id`, checkPermission('verPermisos'), getRolPermisoById); // Devuelve un rol_permiso por ID
 
-router.post(base_route, checkPermission('createRol_permiso'), createRolPermiso); // Crear rol_permiso
+router.post(base_route, checkPermission('asignarPermisosRol'), createRolPermiso); // Crear rol_permiso
 
-router.delete(`${base_route}/:id`, checkPermission('deleteRol_permiso'), deleteRolPermiso); // Dar de baja rol_permiso
+router.delete(`${base_route}/:id`, checkPermission('eliminarPermiso'), deleteRolPermiso); // Dar de baja rol_permiso
 
-router.patch(`${base_route}/:id`, checkPermission('updateRol_permiso'), updateRolPermiso); // Actualizar rol_permiso
+/* router.patch(`${base_route}/:id`, checkPermission('updateRol_permiso'), updateRolPermiso); // Actualizar rol_permiso */
 
-router.post(`${base_route}/:rolId/asignar`, checkPermission('updatePermiso'), asignarPermisosRol);
+router.post(`${base_route}/:rolId/asignar`, checkPermission('asignarPermisosRol'), asignarPermisosRol);
 
 export default router;

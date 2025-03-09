@@ -15,6 +15,8 @@ export const getBitacora = async (req, res) => {
         // Base de la consulta
         let query = `
             SELECT b.id, 
+                   m.codigo AS 'codigo_maquina',
+                   m.id AS 'maquina_id',
                    c.nombre AS compania, 
                    p.rut AS "rut_conductor", 
                    p.nombre AS "nombre_conductor", 
@@ -96,15 +98,8 @@ export const getBitacora = async (req, res) => {
 
         // Filtro de disponibilidad
         if (disponible !== undefined) {
-            if (disponible === "1") {
-                query += `
-                    AND NOT EXISTS (SELECT 1 FROM carga_combustible cc WHERE cc.bitacora_id = b.id)
-                    AND NOT EXISTS (SELECT 1 FROM mantencion m WHERE m.bitacora_id = b.id)`;
-            } else if (disponible === "0") {
-                query += `
-                    AND (EXISTS (SELECT 1 FROM carga_combustible cc WHERE cc.bitacora_id = b.id)
-                    OR EXISTS (SELECT 1 FROM mantencion m WHERE m.bitacora_id = b.id))`;
-            }
+            query += ` AND b.disponible = ?`;
+            params.push(disponible);
         }
 
         // Ordenar y aplicar paginación
@@ -131,6 +126,7 @@ export const getBitacoraById = async (req, res) => {
                     b.personal_id , 
                     b.maquina_id,
                     b.clave_id,
+                    m.codigo AS 'codigo_maquina',
                     m.patente AS 'patente_maquina',
                     tm.nombre AS tipo_maquina, 
                     DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 

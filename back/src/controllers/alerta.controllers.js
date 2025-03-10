@@ -37,7 +37,7 @@ const cargosImportantes = `
     INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
     INNER JOIN compania c ON p.compania_id = c.id
     WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-    AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina');
+    AND rp.nombre IN ('TELECOM', 'Comandante', 'Inspector Material Mayor');
 `;
 
 // Función para obtener alertas por usuario

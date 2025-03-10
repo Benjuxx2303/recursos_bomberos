@@ -46,14 +46,14 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
         m.aprobada AS 'aprobada',
         DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') AS 'fecha_aprobacion'
       FROM mantencion m
-      INNER JOIN bitacora b ON m.bitacora_id = b.id
+      LEFT JOIN bitacora b ON m.bitacora_id = b.id
       INNER JOIN compania c ON b.compania_id = c.id
       INNER JOIN maquina ma ON m.maquina_id = ma.id
       LEFT JOIN personal p ON b.personal_id = p.id
-      INNER JOIN taller t ON m.taller_id = t.id
+      LEFT JOIN taller t ON m.taller_id = t.id
       INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-      INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
-      WHERE m.isDeleted = 0 AND b.isDeleted = 0
+      LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+      WHERE m.isDeleted = 0
     `;
 
     // Array para almacenar los parámetros
@@ -86,7 +86,7 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
     }
 
     // Ordenar por ID de mantención de forma descendente
-    query += " ORDER BY m.id DESC";
+      query += " ORDER BY m.id DESC";
 
     // Paginación
     if (page && pageSize) {

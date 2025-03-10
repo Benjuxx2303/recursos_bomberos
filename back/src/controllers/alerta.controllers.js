@@ -31,12 +31,13 @@ const alertaYaEnviada = async (usuario_id, tipo) => {
 };
 
 const cargosImportantes = `
-    SELECT DISTINCT u.id, u.correo
+    SELECT DISTINCT u.id, u.correo, rp.nombre AS 'rol', c.nombre AS 'compania'
     FROM personal p
     INNER JOIN usuario u ON p.id = u.personal_id
     INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+    INNER JOIN compania c ON p.compania_id = c.id
     WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-    AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina')
+    AND rp.nombre IN ('TELECOM', 'Capitán', 'Teniente de Máquina');
 `;
 
 // Función para obtener alertas por usuario
@@ -185,7 +186,6 @@ export const sendVencimientoAlerts = async (req, res) => {
     }
 };
 
-
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
@@ -203,12 +203,16 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                         JSON_OBJECT(
                             'id', u.id,
                             'nombre', CONCAT(p.nombre, ' ', p.apellido),
-                            'correo', u.correo
+                            'correo', u.correo,
+                            'compania', c.nombre,
+                            'rol', rp.nombre
                         )
                     )
                     FROM conductor_maquina cm
                     INNER JOIN personal p ON cm.personal_id = p.id
                     INNER JOIN usuario u ON p.id = u.personal_id
+                    INNER JOIN compania c ON p.compania_id = c.id
+                    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
                     WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
                 ) AS conductores
             FROM maquina m
@@ -235,7 +239,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
             tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
 
             for (const conductor of conductoresArray) {
-                const { id: usuario_id, nombre, correo } = conductor;
+                const { id: usuario_id, nombre, correo, compania, rol } = conductor;
 
                 if (correosEnviados.has(correo)) continue;
                 correosEnviados.add(correo);
@@ -307,10 +311,14 @@ export const sendMantencionAlerts = async (req, res) => {
                 maq.codigo AS codigo_maquina,
                 p.id AS responsable_id,
                 p.nombre AS responsable_nombre,
-                u.correo AS responsable_correo
+                u.correo AS responsable_correo,
+                rp.nombre AS responsable_rol,
+                c.nombre AS responsable_compania
             FROM mantencion m
             INNER JOIN maquina maq ON m.maquina_id = maq.id
             INNER JOIN personal p ON m.personal_responsable_id = p.id
+            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            INNER JOIN compania c ON p.compania_id = c.id
             LEFT JOIN usuario u ON p.id = u.personal_id
             WHERE m.isDeleted = 0 
               AND m.fec_inicio IS NOT NULL
@@ -322,7 +330,7 @@ export const sendMantencionAlerts = async (req, res) => {
         }
 
         const emailPromises = rows.map(async (mantencion) => {
-            const { responsable_id, responsable_nombre, responsable_correo, fec_inicio, codigo_maquina, descripcion } = mantencion;
+            const { responsable_id, responsable_nombre, responsable_correo, responsable_rol, responsable_compania, fec_inicio, codigo_maquina, descripcion } = mantencion;
 
             if (!responsable_correo || correosEnviados.has(responsable_correo)) return;
             correosEnviados.add(responsable_correo);
@@ -350,10 +358,6 @@ export const sendMantencionAlerts = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
-
-
-
-
 
 // Función para enviar alertas sobre mantenciones próximas
 export const sendProximaMantencionAlerts = async (req, res) => {

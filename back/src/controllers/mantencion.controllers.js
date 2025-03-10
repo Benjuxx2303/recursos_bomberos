@@ -47,11 +47,11 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
         DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') AS 'fecha_aprobacion'
       FROM mantencion m
       LEFT JOIN bitacora b ON m.bitacora_id = b.id
-      INNER JOIN compania c ON b.compania_id = c.id
-      INNER JOIN maquina ma ON m.maquina_id = ma.id
+      LEFT JOIN compania c ON b.compania_id = c.id
+      LEFT JOIN maquina ma ON m.maquina_id = ma.id
       LEFT JOIN personal p ON b.personal_id = p.id
       LEFT JOIN taller t ON m.taller_id = t.id
-      INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+      LEFT JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
       LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
       WHERE m.isDeleted = 0
     `;

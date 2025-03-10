@@ -304,6 +304,19 @@ export const createBitacora = async (req, res) => {
             ]
         );
 
+        // Actualizar datos de la máquina si se proporcionaron valores de llegada
+        if (km_llegada || hmetro_llegada || hbomba_llegada) {
+            await pool.query(
+                `UPDATE maquina 
+                SET 
+                    kmetraje = COALESCE(?, kmetraje),
+                    hmetro_motor = COALESCE(?, hmetro_motor),
+                    hmetro_bomba = COALESCE(?, hmetro_bomba)
+                WHERE id = ?`,
+                [km_llegada, hmetro_llegada, hbomba_llegada, maquinaIdNumber]
+            );
+        }
+
         // Responder con la bitácora creada
         res.status(201).json({
             id: rows.insertId,

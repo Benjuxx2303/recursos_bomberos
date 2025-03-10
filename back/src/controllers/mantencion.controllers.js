@@ -633,6 +633,15 @@ export const updateMantencion = async (req, res) => {
       }
     }
 
+    // Validar y agregar descripcion
+    if (descripcion !== undefined) {
+      if (typeof descripcion !== "string") {
+        errors.push("Tipo de dato inválido para 'descripcion'");
+      } else {
+        updates.descripcion = descripcion;
+      }
+    }
+
     // TODO: Usar "validateStartEndDate"
     // Validar y agregar fec_inicio
     if (fec_inicio !== undefined) {

@@ -214,7 +214,9 @@ export const createCargaCombustible = async (req, res) => {
       if (usuarios.length > 0) {
         const contenido = `Nueva carga de combustible registrada - ${codigo} - ${litrosNumber} litros - $${valorMonNumber}`;
         await createAndSendNotifications({
-          contenido, tipo: 'combustible', usuarios,
+          contenido, 
+          tipo: 'combustible', 
+          destinatarios: usuarios,
           emailConfig: {
             subject: 'Nueva Carga de Combustible',
             redirectUrl: `${process.env.FRONTEND_URL}/combustible/${result.insertId}`,

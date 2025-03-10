@@ -259,7 +259,7 @@ export const loginUser = async (req, res) => {
             compania: company,
             img_url: img_url,
             rol_personal_id: rol_personal_id,
-        }, SECRET_JWT_KEY, { expiresIn: '5d' }); //por ahora 5 días de duración para desarrollo
+        }, SECRET_JWT_KEY, { expiresIn: '7d' }); //por ahora 5 días de duración para desarrollo
 
         // Enviar el token y la información del usuario.
         res.status(200).json({

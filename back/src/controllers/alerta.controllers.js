@@ -59,11 +59,14 @@ export const getAlertasByUsuario = async (req, res) => {
                 a.contenido,
                 DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
                 a.tipo,
-                COALESCE(ua.isRead, 0) as isRead,
-                a.createdAt AS createdAtOriginal
+                COALESCE(ua.isRead, 0) AS isRead,
+                a.createdAt AS createdAtOriginal,
+                ua.id AS ua_id,
+                ua.alerta_id,
+                ua.usuario_id
             FROM alerta a
             LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
-            WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible', 'revision_tecnica', 'vencimiento'))
+            WHERE ua.usuario_id = ?
             AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             ORDER BY a.createdAt DESC
             LIMIT ? OFFSET ?

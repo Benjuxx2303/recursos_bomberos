@@ -199,16 +199,16 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 END as tiempo_restante,
                 m.descripcion
             FROM mantencion m
-            INNER JOIN bitacora b ON m.bitacora_id = b.id
-            INNER JOIN compania c ON b.compania_id = c.id
-            INNER JOIN maquina ma ON m.maquina_id = ma.id
+            LEFT JOIN bitacora b ON m.bitacora_id = b.id
+            LEFT JOIN compania c ON b.compania_id = c.id
+            LEFT JOIN maquina ma ON m.maquina_id = ma.id
             LEFT JOIN personal p ON b.personal_id = p.id
             LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
             LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
-            INNER JOIN taller t ON m.taller_id = t.id
-            INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-            INNER JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
-            WHERE m.isDeleted = 0 AND b.isDeleted = 0 AND m.id = ?
+            LEFT JOIN taller t ON m.taller_id = t.id
+            LEFT JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+            LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+            WHERE m.isDeleted = 0 AND  m.id = ?
         `,
       [id]
     );

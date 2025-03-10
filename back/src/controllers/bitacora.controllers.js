@@ -180,10 +180,10 @@ export const getBitacoraById = async (req, res) => {
 // Crear una nueva bitácora (solo marca la fecha de salida)
 export const createBitacora = async (req, res) => {
     let {
-        compania_id, // obligatorio
-        maquina_id, // obligatorio
-        clave_id, // obligatorio
-        personal_id, // obligatorio
+        compania_id,
+        maquina_id,
+        clave_id,
+        personal_id,
         direccion,
         f_salida,
         h_salida,
@@ -198,97 +198,84 @@ export const createBitacora = async (req, res) => {
         obs,
     } = req.body;
 
-    const errors = []; // Array para capturar errores
+    const errors = [];
 
     try {
-        // Validación de los campos que no se han pasado en el cuerpo (asignación de null si no están presentes)
-        direccion = direccion ? String(direccion).trim() : null;
-        personal_id = personal_id !== undefined ? parseInt(personal_id) : null;
-        f_salida = f_salida ? f_salida : null;
-        h_salida = h_salida ? h_salida : null;
-        f_llegada = f_llegada ? f_llegada : null;
-        h_llegada = h_llegada ? h_llegada : null;
-        km_salida = km_salida !== undefined ? parseFloat(km_salida) : null;
-        km_llegada = km_llegada !== undefined ? parseFloat(km_llegada) : null;
-        hmetro_salida = hmetro_salida !== undefined ? parseFloat(hmetro_salida) : null;
-        hmetro_llegada = hmetro_llegada !== undefined ? parseFloat(hmetro_llegada) : null;
-        hbomba_salida = hbomba_salida !== undefined ? parseFloat(hbomba_salida) : null;
-        hbomba_llegada = hbomba_llegada !== undefined ? parseFloat(hbomba_llegada) : null;
-        obs = obs || null;
+        // Validar campos obligatorios
+        if (!compania_id) errors.push("ID de compañía es obligatorio");
+        if (!personal_id) errors.push("ID de personal es obligatorio");
+        if (!maquina_id) errors.push("ID de máquina es obligatorio");
+        if (!f_salida || !h_salida) errors.push("Fecha y hora de salida son obligatorios");
 
+        // Convertir IDs a números
+        const companiaIdNumber = parseInt(compania_id);
+        const maquinaIdNumber = parseInt(maquina_id);
+        const personalIdNumber = parseInt(personal_id);
+        const claveIdNumber = clave_id ? parseInt(clave_id) : null;
+
+        if (isNaN(companiaIdNumber) || isNaN(maquinaIdNumber) || isNaN(personalIdNumber)) {
+            errors.push("IDs inválidos");
+        }
+
+        // Validar existencia en la base de datos
+        await checkIfDeletedById(pool, companiaIdNumber, "compania", errors);
+        await checkIfDeletedById(pool, personalIdNumber, "personal", errors);
+        await checkIfDeletedById(pool, maquinaIdNumber, "maquina", errors);
+        if (claveIdNumber) {
+            await checkIfDeletedById(pool, claveIdNumber, "clave", errors);
+        }
+
+        // Si hay errores, retornar
+        if (errors.length > 0) return res.status(400).json({ errors });
+
+        // Obtener datos de la máquina si no se proporcionaron los valores de salida
+        if (!km_salida || !hmetro_salida || !hbomba_salida) {
+            const [maquinaData] = await pool.query(
+                "SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ?",
+                [maquinaIdNumber]
+            );
+
+            if (maquinaData && maquinaData[0]) {
+                km_salida = km_salida || maquinaData[0].kmetraje;
+                hmetro_salida = hmetro_salida || maquinaData[0].hmetro_motor;
+                hbomba_salida = hbomba_salida || maquinaData[0].hmetro_bomba;
+            }
+        }
+
+        // Procesar fechas y horas
         let fh_salida = null;
         let fh_llegada = null;
 
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
-            if (error === false) errors.push("Fecha y hora de salida inválida.");
+            if (error === false) errors.push("Fecha y hora de salida inválida");
             else fh_salida = formatDateTime(f_salida, h_salida);
         }
 
         if (f_llegada && h_llegada) {
             const error = validateDate(f_llegada, h_llegada);
-            if (error === false) errors.push("Fecha y hora de llegada inválida.");
+            if (error === false) errors.push("Fecha y hora de llegada inválida");
             else fh_llegada = formatDateTime(f_llegada, h_llegada);
         }
 
-        // Validación de tipo de datos
-        const companiaIdNumber = parseInt(compania_id);
-        const maquinaIdNumber = parseInt(maquina_id);
-        const claveIdNumber = parseInt(clave_id);
-
-        if (isNaN(companiaIdNumber) || isNaN(maquinaIdNumber) || isNaN(claveIdNumber)) {
-            errors.push("Tipo de datos inválido.");
+        // Validar longitud de la dirección
+        if (direccion && direccion.length > 100) {
+            errors.push("La dirección no puede tener más de 100 caracteres");
         }
 
-        // Validaciones de claves foráneas
-        await checkIfDeletedById(pool, companiaIdNumber, "compania", errors);
-        if (personal_id !== null) {
-            await checkIfDeletedById(pool, personal_id, "personal", errors);
-        }
-        await checkIfDeletedById(pool, maquinaIdNumber, "maquina", errors);
-        await checkIfDeletedById(pool, claveIdNumber, "clave", errors);
-
-        // Validaciones numéricas
-        if (km_salida !== null && isNaN(km_salida)) errors.push("Km salida es requerido y debe ser un número válido.");
-        if (km_llegada !== null && isNaN(km_llegada)) errors.push("Km llegada es requerido y debe ser un número válido.");
-        if (hmetro_salida !== null && isNaN(hmetro_salida)) errors.push("Hmetro salida es requerido y debe ser un número válido.");
-        if (hmetro_llegada !== null && isNaN(hmetro_llegada)) errors.push("Hmetro llegada es requerido y debe ser un número válido.");
-        if (hbomba_salida !== null && isNaN(hbomba_salida)) errors.push("Hbomba salida es requerido y debe ser un número válido.");
-        if (hbomba_llegada !== null && isNaN(hbomba_llegada)) errors.push("Hbomba llegada es requerido y debe ser un número válido.");
-
-        if (direccion && direccion.length > 100) errors.push("La dirección no puede tener más de 100 caracteres.");
-
-        // Si hay errores, devolver la respuesta con los errores
+        // Si hay errores después de todas las validaciones, retornar
         if (errors.length > 0) return res.status(400).json({ errors });
 
-        // Insertar los datos en la base de datos
+        // Insertar en la base de datos
         const [rows] = await pool.query(
             `INSERT INTO bitacora (
-                compania_id, 
-                personal_id, 
-                maquina_id, 
-                direccion, 
-                fh_salida,
-                fh_llegada, 
-                clave_id, 
-                km_salida, 
-                km_llegada, 
-                hmetro_salida, 
-                hmetro_llegada, 
-                hbomba_salida, 
-                hbomba_llegada, 
-                obs, 
-                isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-
-            [
-                companiaIdNumber,
+                compania_id,
                 personal_id,
-                maquinaIdNumber,
+                maquina_id,
+                clave_id,
                 direccion,
                 fh_salida,
                 fh_llegada,
-                claveIdNumber,
                 km_salida,
                 km_llegada,
                 hmetro_salida,
@@ -296,7 +283,24 @@ export const createBitacora = async (req, res) => {
                 hbomba_salida,
                 hbomba_llegada,
                 obs,
-                0, // isDeleted en 0
+                isDeleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                companiaIdNumber,
+                personalIdNumber,
+                maquinaIdNumber,
+                claveIdNumber,
+                direccion || null,
+                fh_salida,
+                fh_llegada,
+                km_salida || null,
+                km_llegada || null,
+                hmetro_salida || null,
+                hmetro_llegada || null,
+                hbomba_salida || null,
+                hbomba_llegada || null,
+                obs || null,
+                0
             ]
         );
 
@@ -304,23 +308,26 @@ export const createBitacora = async (req, res) => {
         res.status(201).json({
             id: rows.insertId,
             compania_id: companiaIdNumber,
-            personal_id: personal_id,
+            personal_id: personalIdNumber,
             maquina_id: maquinaIdNumber,
-            direccion,
+            clave_id: claveIdNumber,
+            direccion: direccion || null,
             fh_salida,
             fh_llegada,
-            claveIdNumber,
-            km_salida,
-            km_llegada,
-            hmetro_salida,
-            hmetro_llegada,
-            hbomba_salida,
-            hbomba_llegada,
-            obs,
+            km_salida: km_salida || null,
+            km_llegada: km_llegada || null,
+            hmetro_salida: hmetro_salida || null,
+            hmetro_llegada: hmetro_llegada || null,
+            hbomba_salida: hbomba_salida || null,
+            hbomba_llegada: hbomba_llegada || null,
+            obs: obs || null
         });
     } catch (error) {
-        console.log(error.message)
-        return res.status(500).json({ message: "Error en la creación de la bitácora", error: error.message });
+        console.error('Error en createBitacora:', error);
+        return res.status(500).json({ 
+            message: "Error en la creación de la bitácora", 
+            error: error.message 
+        });
     }
 };
 

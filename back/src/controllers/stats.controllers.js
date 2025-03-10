@@ -532,15 +532,14 @@ export const getSummaryData = async (req, res) => {
     `, params);
     const totalCompaniesTotal = totalCompanies[0] ? totalCompanies[0].total : 0;
 
-    // Obtener conductores activos (que han tenido servicios en el último mes)
+    // Obtener conductores activos (rol Maquinista y no eliminados)
     const [activeDrivers] = await pool.query(`
       SELECT COUNT(DISTINCT p.id) as total
       FROM personal p
-      INNER JOIN bitacora b ON p.id = b.personal_id
+      INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
       WHERE p.isDeleted = 0
-      AND b.isDeleted = 0
-      AND b.fh_salida >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
-      ${companiaId ? 'AND b.compania_id = ?' : ''}
+      AND rp.nombre = 'Maquinista'
+      ${companiaId ? 'AND p.compania_id = ?' : ''}
     `, params);
     const activeDriversTotal = activeDrivers[0] ? activeDrivers[0].total : 0;
 

@@ -45,13 +45,18 @@ export const getNotificationUsers = async (filters = {}) => {
     const queryParams = [];
 
     if (filters.rol) {
-        query += ' AND rp.nombre = ?';
+        query += ' AND rp.nombre = ?\n';
         queryParams.push(filters.rol);
     }
 
     if (filters.compania_id) {
-        query += ' AND p.compania_id = ?';
+        query += ' AND p.compania_id = ?\n';
         queryParams.push(filters.compania_id);
+    }
+
+    if (filters.cargos_importantes){
+        query += `AND rp.nombre IN ('TELECOM', 'Comandante', 'Teniente de Máquina')`
+        queryParams.push(filters.cargos_importantes);
     }
 
     const [usuarios] = await pool.query(query, queryParams);

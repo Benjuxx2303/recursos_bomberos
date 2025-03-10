@@ -35,6 +35,7 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
           WHEN em.nombre = 'Programada' THEN NULL 
           ELSE DATE_FORMAT(m.fec_termino, '%d-%m-%Y') 
         END AS 'fec_termino',
+        m.descripcion,
         m.ord_trabajo,
         m.n_factura,
         m.img_url,
@@ -117,6 +118,7 @@ export const getMantencionesAllDetailsSearch = async (req, res) => {
       "bitacora.hbomba_salida": row["bitacora.hbomba_salida"],
       "bitacora.hbomba_llegada": row["bitacora.hbomba_llegada"],
       "bitacora.obs": row["bitacora.obs"],
+      descripcion: row.descripcion,
       patente: row.patente,
       fec_inicio: row.fec_inicio,
       fec_termino: row.fec_termino,

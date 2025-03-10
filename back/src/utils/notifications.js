@@ -55,7 +55,7 @@ export const getNotificationUsers = async (filters = {}) => {
     }
 
     if (filters.cargos_importantes){
-        query += `AND rp.nombre IN ('TELECOM', 'Comandante', 'Teniente de Máquina')`
+        query += `AND rp.nombre IN ('TELECOM', 'Comandante', 'Inspector Material Mayor')`
         queryParams.push(filters.cargos_importantes);
     }
 

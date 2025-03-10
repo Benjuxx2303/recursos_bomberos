@@ -180,10 +180,12 @@ export const getMantencionAllDetailsById = async (req, res) => {
                 m.cost_ser,
                 m.aprobada,
                 DATE_FORMAT(m.fecha_aprobacion, '%d-%m-%Y %H:%i') AS 'fecha_aprobacion',
+                m.createdAt as fecha_ingreso,
                 m.aprobada_por,
                 m.personal_responsable_id,
                 CONCAT(p_apr.nombre, ' ', p_apr.apellido) AS 'aprobador_nombre',
                 CONCAT(p_resp.nombre, ' ', p_resp.apellido) AS 'responsable_nombre',
+                concat(p_ing.nombre, ' ', p_ing.apellido) AS 'ingresada_por_nombre',
                 t.razon_social AS 'taller',
                 t.id AS 'taller_id',
                 em.nombre AS 'estado_mantencion',
@@ -207,6 +209,7 @@ export const getMantencionAllDetailsById = async (req, res) => {
             LEFT JOIN personal p ON b.personal_id = p.id
             LEFT JOIN personal p_apr ON m.aprobada_por = p_apr.id
             LEFT JOIN personal p_resp ON m.personal_responsable_id = p_resp.id
+            LEFT JOIN personal p_ing ON m.ingresada_por = p_ing.id
             LEFT JOIN taller t ON m.taller_id = t.id
             LEFT JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
@@ -244,10 +247,13 @@ export const getMantencionAllDetailsById = async (req, res) => {
       cost_ser: row.cost_ser,
       aprobada: row.aprobada,
       fecha_aprobacion: row.fecha_aprobacion,
+     
       aprobada_por: row.aprobada_por,
       personal_responsable_id: row.personal_responsable_id,
       aprobador_nombre: row.aprobador_nombre,
       responsable_nombre: row.responsable_nombre,
+      fecha_ingreso: row.fecha_ingreso,
+      ingresada_por_nombre: row.ingresada_por_nombre,
       taller: row.taller,
       taller_id: row.taller_id,
       img_url: row.img_url,

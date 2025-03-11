@@ -1359,15 +1359,15 @@ export const enProceso = async (req, res) => {
       return res.status(400).json({ message: "El estado 'EnProceso' no existe" });
     }
 
-    // Actualizar el estado de la mantención
+    // Actualizar el estado de la mantención y establecer la fecha de inicio
     await pool.query(
-      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      "UPDATE mantencion SET estado_mantencion_id = ?, fec_inicio = NOW() WHERE id = ? AND isDeleted = 0",
       [estadoEnProceso[0].id, id]
     );
 
-    res.json({ message: "Estado de mantención actualizado a 'EnProceso'" });
+    res.json({ message: "Estado de mantención actualizado a 'EnProceso' y fecha de inicio establecida" });
   } catch (error) {
-    console.error("Error al actualizar estado de mantención:", error);
+    console.error("Error al actualizar estado de mantención y fecha de inicio:", error);
     return res.status(500).json({
       message: "Error interno del servidor",
       error: error.message,
@@ -1388,15 +1388,15 @@ export const completarMantencion = async (req, res) => {
       return res.status(400).json({ message: "El estado 'Completada' no existe" });
     }
 
-    // Actualizar el estado de la mantención
+    // Actualizar el estado de la mantención y establecer la fecha de término
     await pool.query(
-      "UPDATE mantencion SET estado_mantencion_id = ? WHERE id = ? AND isDeleted = 0",
+      "UPDATE mantencion SET estado_mantencion_id = ?, fec_termino = NOW() WHERE id = ? AND isDeleted = 0",
       [estadoCompletada[0].id, id]
     );
 
-    res.json({ message: "Mantención completada exitosamente" });
+    res.json({ message: "Mantención completada exitosamente y fecha de término establecida" });
   } catch (error) {
-    console.error("Error al completar mantención:", error);
+    console.error("Error al completar mantención y establecer fecha de término:", error);
     return res.status(500).json({
       message: "Error interno del servidor",
       error: error.message,

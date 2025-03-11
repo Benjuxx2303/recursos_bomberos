@@ -3,10 +3,11 @@ import puppeteer from 'puppeteer';
 /**
  * Genera un PDF a partir de un arreglo de objetos.
  * @param {Object[]} data - Arreglo de objetos que se convertirán en una tabla.
+ * @param {string} [title="ORDEN DE TRABAJO"] - Título del informe.
  * @returns {Promise<Buffer>} - Buffer del PDF generado.
  */
-export const generatePDF = async (data) => {
-    const htmlTemplate = templatePDF(tablePDF(data));
+export const generatePDF = async (data, title = "ORDEN DE TRABAJO") => {
+    const htmlTemplate = templatePDF(tablePDF(data), title);  // Se pasa el title a templatePDF
 
     // Inicia Puppeteer
     const browser = await puppeteer.launch();

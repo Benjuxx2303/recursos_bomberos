@@ -129,9 +129,10 @@ export const sendEmail = async (to, subject, text, html, attachments = []) => {
  * @param {string} content - Contenido principal del correo.
  * @param {string} actionUrl - URL para la acción del botón.
  * @param {string} actionText - Texto del botón de acción.
+ * @param {boolean} [showButton=true] - Si es `true`, muestra el botón. Si es `false`, no lo muestra.
  * @returns {string} Plantilla de correo HTML.
  */
-export const generateEmailTemplate = (title, content, actionUrl, actionText) => {
+export const generateEmailTemplate = (title, content, actionUrl, actionText, showButton = true) => {
     return `
         <!DOCTYPE html>
         <html>
@@ -168,13 +169,15 @@ export const generateEmailTemplate = (title, content, actionUrl, actionText) => 
                 </div>
                 <div class="content">
                     <p>${content}</p>
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
-                        <tr>
-                            <td align="center">
-                                <a href="${actionUrl}" class="button">${actionText}</a>
-                            </td>
-                        </tr>
-                    </table>
+                    ${showButton ? `
+                        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
+                            <tr>
+                                <td align="center">
+                                    <a href="${actionUrl}" class="button">${actionText}</a>
+                                </td>
+                            </tr>
+                        </table>
+                    ` : ''}
                     <hr>
                     <p style="font-size: 12px; color: #999;">Este es un correo automático, por favor no respondas a este mensaje.</p>
                 </div>

@@ -3,10 +3,11 @@ import puppeteer from 'puppeteer';
 /**
  * Genera un PDF a partir de un arreglo de objetos.
  * @param {Object[]} data - Arreglo de objetos que se convertirán en una tabla.
+ * @param {string} [title="ORDEN DE TRABAJO"] - Título del informe.
  * @returns {Promise<Buffer>} - Buffer del PDF generado.
  */
-export const generatePDF = async (data) => {
-    const htmlTemplate = templatePDF(tablePDF(data));
+export const generatePDF = async (data, title = "ORDEN DE TRABAJO") => {
+    const htmlTemplate = templatePDF(tablePDF(data), title);  // Se pasa el title a templatePDF
 
     // Inicia Puppeteer
     const browser = await puppeteer.launch();
@@ -28,9 +29,10 @@ export const generatePDF = async (data) => {
 /**
  * Crea un template HTML para el PDF con formato clásico de informe.
  * @param {string} table - HTML de la tabla.
+ * @param {string} [title="Orden de Trabajo"] - Título del informe.
  * @returns {string} - Template HTML.
  */
-const templatePDF = (table) => {
+const templatePDF = (table, title = "ORDEN DE TRABAJO") => {
     const css_style = `
         body {
             font-family: Arial, sans-serif;
@@ -102,7 +104,7 @@ const templatePDF = (table) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Solicitud Orden de Trabajo</title>
+            <title>${title}</title>
             <style>
                 ${css_style}
             </style>
@@ -110,9 +112,9 @@ const templatePDF = (table) => {
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="https://files.catbox.moe/jif8ih.png" alt="Logo CBO">
+                    <img src="https://flotacbo-s3.s3.us-east-2.amazonaws.com/logocbo.png" alt="Logo CBO">
                     <div>
-                        <h2>SOLICITUD ORDEN DE TRABAJO</h2>
+                        <h2>${title}</h2>
                         <h3>CUERPO DE BOMBEROS DE OSORNO</h3>
                     </div>
                 </div>
@@ -121,7 +123,7 @@ const templatePDF = (table) => {
                 </table>
                 <div class="signature">
                     <p>Atte.</p>
-                    <p>MARIO IGLESIAS GÓMEZ</p>
+                    <p>RODRIGO IGNACIO JARA</p>
                     <p>TERCER COMANDANTE - CBO</p>
                 </div>
             </div>

@@ -28,9 +28,10 @@ export const generatePDF = async (data) => {
 /**
  * Crea un template HTML para el PDF con formato clásico de informe.
  * @param {string} table - HTML de la tabla.
+ * @param {string} [title="Orden de Trabajo"] - Título del informe.
  * @returns {string} - Template HTML.
  */
-const templatePDF = (table) => {
+const templatePDF = (table, title = "ORDEN DE TRABAJO") => {
     const css_style = `
         body {
             font-family: Arial, sans-serif;
@@ -102,7 +103,7 @@ const templatePDF = (table) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Solicitud Orden de Trabajo</title>
+            <title>${title}</title>
             <style>
                 ${css_style}
             </style>
@@ -112,7 +113,7 @@ const templatePDF = (table) => {
                 <div class="header">
                     <img src="https://flotacbo-s3.s3.us-east-2.amazonaws.com/logocbo.png" alt="Logo CBO">
                     <div>
-                        <h2>SOLICITUD ORDEN DE TRABAJO</h2>
+                        <h2>${title}</h2>
                         <h3>CUERPO DE BOMBEROS DE OSORNO</h3>
                     </div>
                 </div>

@@ -2,8 +2,9 @@ import { pool } from "../db.js";
 import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
-import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
+import { createAndSendNotifications, getNotificationUsers} from '../utils/notifications.js';
 import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
+import { generatePDF } from "../utils/generatePDF.js";
 
 // con parámetros de búsqueda 
 // Paginacion
@@ -145,99 +146,177 @@ export const getCargaCombustibleByID = async (req, res) => {
 
 // Crear una nueva carga de combustible
 export const createCargaCombustible = async (req, res) => {
-    try {
-      const { bitacora_id, litros, valor_mon } = req.body;
-      let errors = [];
-  
-      // Validaciones de entrada
-      const validateId = (id, fieldName) => isNaN(parseInt(id)) && errors.push(`El ID de ${fieldName} es inválido`);
-      validateId(bitacora_id, 'bitácora');
-  
-      if (validateFloat(litros)) errors.push(validateFloat(litros));
-      if (validateFloat(valor_mon)) errors.push(validateFloat(valor_mon));
-  
-      if (errors.length > 0) {
-        return res.status(400).json({ message: "Errores en los datos de entrada", errors });
-      }
-  
-      const bitacoraIdNumber = parseInt(bitacora_id);
-      const litrosNumber = parseFloat(litros);
-      const valorMonNumber = parseFloat(valor_mon);
-  
-      // Validar existencia de la bitácora
-      const [bitacoraInfo] = await pool.query(
-        `SELECT b.id, m.codigo, m.compania_id
+  try {
+    const { bitacora_id, litros, valor_mon } = req.body;
+    let errors = [];
+
+    // Validaciones de entrada
+    const validateId = (id, fieldName) =>
+      isNaN(parseInt(id)) && errors.push(`El ID de ${fieldName} es inválido`);
+    validateId(bitacora_id, "bitácora");
+
+    if (validateFloat(litros)) errors.push(validateFloat(litros));
+    if (validateFloat(valor_mon)) errors.push(validateFloat(valor_mon));
+
+    if (errors.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "Errores en los datos de entrada", errors });
+    }
+
+    const bitacoraIdNumber = parseInt(bitacora_id);
+    const litrosNumber = parseFloat(litros);
+    const valorMonNumber = parseFloat(valor_mon);
+
+    // Validar existencia de la bitácora
+    const [bitacoraInfo] = await pool.query(
+      `SELECT b.id, m.codigo, m.compania_id, m.id AS maquina_id, b.personal_id
          FROM bitacora b 
          INNER JOIN maquina m ON b.maquina_id = m.id 
-         WHERE b.id = ? AND b.isDeleted = 0`, 
-        [bitacoraIdNumber]
-      );
-  
-      if (!bitacoraInfo ||!bitacoraInfo.length) {
-        return res.status(400).json({ message: "Bitácora no existe o está eliminada" });
-      }
-  
-      const { codigo, compania_id } = bitacoraInfo[0];
-  
-      // Verificar si ya existe un servicio asociado
-      const [cargaExistente] = await pool.query(
-        "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
-        [bitacoraIdNumber]
-      );
-  
-      const [mantencionExistente] = await pool.query(
-        "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
-        [bitacoraIdNumber]
-      );
-  
-      if (cargaExistente.length || mantencionExistente.length) return res.status(400).json({ message: "Ya existe un servicio asociado a esta bitácora" });
-  
-      // Manejar la carga de imagen si existe
-      let img_url = null;
-      if (req.files?.imagen?.[0]) {
-        try {
-          const imgData = await uploadFileToS3(req.files.imagen[0], "carga_combustible");
-          if (imgData?.Location) img_url = imgData.Location;
-        } catch (error) {
-          return res.status(500).json({ message: "Error al subir la imagen", error: error.message });
-        }
-      }
-  
-      // Insertar carga de combustible
-      const [result] = await pool.query(
-        'INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)',
-        [bitacoraIdNumber, litrosNumber, valorMonNumber, img_url]
-      );
-  
-      // Enviar notificación
-      const usuarios = await getNotificationUsers({ rol: 'TELECOM' });
-      if (usuarios.length > 0) {
-        const contenido = `Nueva carga de combustible registrada - ${codigo} - ${litrosNumber} litros - $${valorMonNumber}`;
-        await createAndSendNotifications({
-          contenido, 
-          tipo: 'combustible', 
-          destinatarios: usuarios,
-          emailConfig: {
-            subject: 'Nueva Carga de Combustible',
-            redirectUrl: `${process.env.FRONTEND_URL}/combustible/${result.insertId}`,
-            buttonText: 'Ver Detalles'
-          }
-        });
-      }
-  
-      return res.json({
-        id: result.insertId,
-        bitacora_id: bitacoraIdNumber,
-        litros: litrosNumber,
-        valor_mon: valorMonNumber,
-        img_url,
-        message: "Carga de combustible creada exitosamente"
-      });
-  
-    } catch (error) {
-      console.error('Error general en createCargaCombustible:', error);
-      return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+         WHERE b.id = ? AND b.isDeleted = 0`,
+      [bitacoraIdNumber]
+    );
+
+    if (!bitacoraInfo || !bitacoraInfo.length) {
+      return res
+        .status(400)
+        .json({ message: "Bitácora no existe o está eliminada" });
     }
+
+    const { codigo, compania_id } = bitacoraInfo[0];
+
+    // Verificar si ya existe un servicio asociado
+    const [cargaExistente] = await pool.query(
+      "SELECT 1 FROM carga_combustible WHERE bitacora_id = ? AND isDeleted = 0",
+      [bitacoraIdNumber]
+    );
+
+    const [mantencionExistente] = await pool.query(
+      "SELECT 1 FROM mantencion WHERE bitacora_id = ? AND isDeleted = 0",
+      [bitacoraIdNumber]
+    );
+
+    if (cargaExistente.length || mantencionExistente.length)
+      return res
+        .status(400)
+        .json({ message: "Ya existe un servicio asociado a esta bitácora" });
+
+    // Manejar la carga de imagen si existe
+    let img_url = null;
+    if (req.files?.imagen?.[0]) {
+      try {
+        const imgData = await uploadFileToS3(
+          req.files.imagen[0],
+          "carga_combustible"
+        );
+        if (imgData?.Location) img_url = imgData.Location;
+      } catch (error) {
+        return res
+          .status(500)
+          .json({ message: "Error al subir la imagen", error: error.message });
+      }
+    }
+
+    // Insertar carga de combustible
+    const [result] = await pool.query(
+      "INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)",
+      [bitacoraIdNumber, litrosNumber, valorMonNumber, img_url]
+    );
+
+    // obtener datos para el pdf
+    const [datosPDF] = await pool.query(
+        `
+        SELECT
+        	m.patente AS patentePDF,
+            c.nombre AS clavePDF,
+            cc.litros AS litrosPDF,
+            cc.valor_mon AS valorMonPDF,
+            CONCAT(p.nombre, ' ', p.apellido) AS personalPDF,
+            p.rut AS rutPDF,
+            DATE_FORMAT(cc.createdAt, '%d-%m-%Y %H:%i') AS creadaEl
+        FROM carga_combustible cc
+        LEFT JOIN bitacora b ON cc.bitacora_id = b.id
+        LEFT JOIN maquina m ON b.maquina_id = m.id
+        LEFT JOIN personal p ON b.personal_id = p.id
+        LEFT JOIN clave c ON b.clave_id = c.id
+        WHERE cc.id = ?
+        `, [result.insertId]
+    );
+
+    const { patentePDF, clavePDF, litrosPDF, valorMonPDF, personalPDF, rutPDF, creadaEl } = datosPDF[0];
+
+    // Generar PDF
+    const pdfData = [{
+        "Patente": patentePDF,
+        "Clave": clavePDF,
+        "Litros": litrosPDF,
+        "Valor": valorMonPDF,
+        "Personal": personalPDF,
+        "Rut": rutPDF,
+        "Creada el": creadaEl
+    }];
+
+    const pdfBuffer = await generatePDF(pdfData, "CARGA DE COMBUSTIBLE");
+
+    console.log(bitacoraInfo[0].maquina_id)
+    const [maquina] = await pool.query(
+        `SELECT id AS maquina_id, patente, compania_id FROM maquina WHERE id = ? AND isDeleted = 0`,
+        [bitacoraInfo[0].maquina_id]
+    );
+    const [personal] = await pool.query(
+      `SELECT id AS personal_id, rut, nombre, apellido, compania_id FROM personal WHERE id = ? AND isDeleted = 0`,
+      [bitacoraInfo[0].personal_id]
+    );
+
+    // enviar notificacion con filtros
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+      getNotificationUsers({ cargos_importantes: true }),
+      getNotificationUsers({ rol: "Teniente de Máquina", compania_id: maquina[0].compania_id }),
+      getNotificationUsers({ rol: "Capitán", compania_id: personal[0].compania_id }),
+      getNotificationUsers({ rol: "Capitán", compania_id: maquina[0].compania_id }),
+    ]);
+
+    const todosLosUsuarios = [
+      ...usuariosCargosImportantes,
+      ...usuariosTenientes,
+      ...usuariosCapitanesPersonal,
+      ...usuariosCapitanesMaquina,
+    ];
+
+    // Enviar notificación
+    if (todosLosUsuarios.length > 0) {
+      const contenido = `Nueva carga de combustible registrada - ${codigo} - ${litrosNumber} litros - $${valorMonNumber}`;
+      await createAndSendNotifications({
+        contenido,
+        tipo: "combustible",
+        destinatarios: todosLosUsuarios,
+        emailConfig: {
+          subject: "Nueva Carga de Combustible",
+          redirectUrl: `${process.env.FRONTEND_URL}/combustible/${result.insertId}`,
+          buttonText: "Ver Detalles",
+          attachments: [{
+            filename: `carga_combustible_${result.insertId}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }] 
+        },
+      });
+    }
+
+    return res.json({
+      id: result.insertId,
+      bitacora_id: bitacoraIdNumber,
+      litros: litrosNumber,
+      valor_mon: valorMonNumber,
+      img_url,
+      message: "Carga de combustible creada exitosamente",
+    });
+  } catch (error) {
+    console.error("Error general en createCargaCombustible:", error);
+    return res
+      .status(500)
+      .json({ message: "Error interno del servidor", error: error.message });
+  }
 };  
 
 // TODO: Agregar logica de "createCargaCombustible" aqui

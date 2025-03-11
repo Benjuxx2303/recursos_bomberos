@@ -110,7 +110,7 @@ const templatePDF = (table) => {
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="https://files.catbox.moe/jif8ih.png" alt="Logo CBO">
+                    <img src="https://flotacbo-s3.s3.us-east-2.amazonaws.com/logocbo.png" alt="Logo CBO">
                     <div>
                         <h2>SOLICITUD ORDEN DE TRABAJO</h2>
                         <h3>CUERPO DE BOMBEROS DE OSORNO</h3>
@@ -121,7 +121,7 @@ const templatePDF = (table) => {
                 </table>
                 <div class="signature">
                     <p>Atte.</p>
-                    <p>MARIO IGLESIAS GÓMEZ</p>
+                    <p>RODRIGO IGNACIO JARA</p>
                     <p>TERCER COMANDANTE - CBO</p>
                 </div>
             </div>

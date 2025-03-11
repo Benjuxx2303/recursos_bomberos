@@ -455,11 +455,11 @@ export const createMantencion = async (req, res) => {
     const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF, ingresada_por_nombre, ingresada_por_apellido } = datosPDF[0];
 
     // Preparar los datos del PDF
-/*     const pdfData = [{
+     const pdfData = [{
       "Orden de Trabajo": orden_trabajoPDF,
       "ID de Mantención": mantencion_idPDF,
       "ID de Bitácora": bitacora_idPDF,
-      "Maquina": maquinaPDF,
+      "Máquina": maquinaPDF,
       "Patente": patentePDF,
       "Taller": tallerPDF,
       "Estado de Mantención": estado_mantencionPDF,
@@ -471,14 +471,24 @@ export const createMantencion = async (req, res) => {
       "Descripción": descripcionPDF,
       "Ingresada por": `${ingresada_por_nombre} ${ingresada_por_apellido}`
     }];
- */
+ 
     // Generar el PDF
-/*     const pdfBuffer = await generatePDF(pdfData); */
+    const pdfBuffer = await generatePDF(pdfData); 
+
+    const [maquina] = await pool.query("SELECT codigo, patente, compania_id FROM maquina WHERE id = ?", [maquina_id]);
+    const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
 
     // Enviar notificación (con filtros)
-    const usuarios = await getNotificationUsers();
-    const [personal] = await pool.query("SELECT nombre, apellido FROM personal WHERE id = ?", [personal_id]);
-    const [maquina] = await pool.query("SELECT codigo, patente FROM maquina WHERE id = ?", [maquina_id]);
+    const [usuarios, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+      getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
+      getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
+      getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
+      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id })
+    ]);
+
+    // Juntar todos los usuarios en un solo array
+    const todosLosUsuarios = [...usuarios, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+
     if (usuarios.length > 0) {
       let contenido = `Nueva mantención ingresada - Codigo: ${maquina[0].codigo} - Patente: ${maquina[0].patente} - Ingresada por ${personal[0].nombre} ${personal[0].apellido} - Descripcion: ${descripcion}\n`;
 
@@ -490,16 +500,16 @@ export const createMantencion = async (req, res) => {
       await createAndSendNotifications({
         contenido, 
         tipo: "mantencion", 
-        destinatarios: usuarios,
+        destinatarios: todosLosUsuarios,
         emailConfig: {
           subject: "Nueva Mantención Ingresada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
           buttonText: "Ver Detalles",
-  /*         attachments: [{
+           attachments: [{
             filename: `mantencion_${result.insertId}.pdf`,
             content: pdfBuffer,
             contentType: 'application/pdf'
-          }] */
+          }] 
         },
       });
     }
@@ -901,9 +911,20 @@ export const aprobarMantencion = async (req, res) => {
       [id]
     );
 
+    
     if (mantencion.length === 0) {
       return res.status(404).json({ message: "Mantención no encontrada" });
     }
+    
+    // Obtener el id de la máquina
+    const [idMaquina] = await pool.query(`
+      SELECT maquina_id
+      FROM mantencion 
+      WHERE id = ?
+      AND isDeleted = 0
+      `, [id]
+    );
+    const maquina_id = idMaquina[0].maquina_id;
 
     // Obtener el personal_id correspondiente al usuario_id
     const [personalInfo] = await pool.query(
@@ -947,7 +968,8 @@ export const aprobarMantencion = async (req, res) => {
         rp.nombre AS 'reportadoPorPDF',
         u.correo AS 'emailSolicitantePDF',
         t.nombre AS 'tallerPDF',
-        t.correo AS 'proveedor'
+        t.correo AS 'proveedor',
+        t.id AS 'taller_idPDF'
       FROM mantencion m
       LEFT JOIN maquina ma ON m.maquina_id = ma.id
       LEFT JOIN compania c ON ma.compania_id = c.id -- toma la compania de la maquina
@@ -961,16 +983,16 @@ export const aprobarMantencion = async (req, res) => {
       `, [id] 
     );
 
-    const { orden_trabajoPDF, companiaPDF, movilPDF, tipo_mantencionPDF, descripcionPDF, kmetrajePDF, aprobadoPorPDF, reportadoPorPDF, emailSolicitantePDF, tallerPDF, proveedor } = datosPDF[0];
+    const { orden_trabajoPDF, companiaPDF, movilPDF, tipo_mantencionPDF, descripcionPDF, kmetrajePDF, aprobadoPorPDF, reportadoPorPDF, emailSolicitantePDF, tallerPDF, proveedor, taller_idPDF } = datosPDF[0];
 
     // Preparar los datos del PDF
     const pdfData = [{
       "Orden de Trabajo": orden_trabajoPDF,
       "Compañía": companiaPDF,
-      "Movil": movilPDF,
+      "Móvil": movilPDF,
       "Tipo de Mantención": tipo_mantencionPDF,
       "Descripción": descripcionPDF,
-      "Kmetraje": kmetrajePDF,
+      "Kilometraje": kmetrajePDF,
       "Aprobado por": aprobadoPorPDF,
       "Reportado por": reportadoPorPDF,
       "Email Solicitante": emailSolicitantePDF,
@@ -983,18 +1005,41 @@ export const aprobarMantencion = async (req, res) => {
 
     // Obtener taller al que notificar
     const taller = await getNotificationTalleres({ nombre: tallerPDF });
+    const [datosTaller] = await pool.query(
+      `
+      SELECT
+      	t.nombre AS nombre_taller,
+        t.contacto AS contacto_taller
+      FROM taller t
+      WHERE t.id = ?
+      ;
+      `, [taller_idPDF]
+    )
+    const { nombre_taller, contacto_taller } = datosTaller[0];
 
     // Obtener usuarios a notificar
-    const usuarios = await getNotificationUsers();
+    const [maquina] = await pool.query("SELECT codigo, patente, compania_id FROM maquina WHERE id = ?", [maquina_id]);
+    const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
+
+    // Enviar notificación (con filtros)
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+      getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
+      getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
+      getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
+      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id })
+    ]);
+
+    // Juntar todos los usuarios en un solo array
+    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
 
     // enviar notificación (solo usuarios)
-    if (usuarios.length > 0) {
+    if (todosLosUsuarios.length > 0) {
       let contenido = `Mantención aprobada - Orden de trabajo: ${orden_trabajoPDF}\n`;
 
       await createAndSendNotifications({
         contenido,
         tipo: "mantencion",
-        destinatarios: usuarios,
+        destinatarios: todosLosUsuarios,
         emailConfig: {
           subject: "Mantención Aprobada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${id}`,
@@ -1010,7 +1055,21 @@ export const aprobarMantencion = async (req, res) => {
 
     // enviar notificacion (solo taller)
     if (taller.length > 0) {
-      let contenido = `Mantención \n`;
+      let contenido = `
+      Estimados/as <b>${nombre_taller}</b>,<br><br>
+      
+      El Cuerpo de Bomberos de Osorno solicita la mantención de nuestro móvil: "<b>${movilPDF}</b>", según lo indicado en el documento adjunto.<br><br>
+      
+      La mantención de tipo <b>${tipo_mantencionPDF}</b>. Agradeceríamos recibir una cotización y disponibilidad para el servicio a la brevedad.<br><br>
+      
+      Para consultas, contactar a <b>${contacto_taller}</b>, quien gestionará el proceso.<br><br>
+      
+      Adjunto PDF con detalles técnicos y especificaciones.<br><br>
+      
+      Saludos cordiales,<br>
+      Cuerpo de Bomberos de Osorno<br>
+      <b>${companiaPDF}</b>
+      `;      
 
       await createAndSendNotifications({
         contenido,
@@ -1018,7 +1077,7 @@ export const aprobarMantencion = async (req, res) => {
         destinatarios: taller,
         emailConfig: {
           subject: "Mantención Cuerpo Bomberos Osorno",
-          redirectUrl: `${emailSolicitantePDF}`,
+          redirectUrl: `mailto://${emailSolicitantePDF}`,
           buttonText: "Contactar Solicitante",
           attachments: [{
             filename: `mantencion_${id}.pdf`,

@@ -138,29 +138,48 @@ export const generateEmailTemplate = (title, content, actionUrl, actionText) => 
         <head>
             <meta charset="utf-8">
             <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: #f8f9fa; padding: 20px; text-align: center; }
-                .content { padding: 20px; }
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9f9f9; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
+                .header { background: #c0392b; padding: 20px; text-align: center; color: white; border-radius: 8px 8px 0 0; }
+                .content { padding: 20px; color: #000; } /* Color de texto negro para el contenido */
                 .button { 
+                    background-color: #e53e3e; 
+                    color: #ffffff; /* Color de texto blanco para el botón */
                     display: inline-block; 
-                    padding: 10px 20px; 
-                    background-color: #007bff; 
-                    color: white; 
+                    padding: 12px 24px; 
                     text-decoration: none; 
                     border-radius: 5px; 
-                    margin-top: 20px; 
+                    font-weight: bold; 
+                    margin: 30px auto; 
+                    text-align: center; 
+                    transition: background-color 0.3s; 
                 }
+                .button:hover { background-color: #c0392b; }
+                .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #777; }
+                .logo { position: absolute; top: 20px; right: 20px; width: 100px; }
+                hr { margin: 20px 0; border: 1px solid #eee; }
             </style>
         </head>
         <body>
             <div class="container">
+                <img src="https://flotacbo-s3.s3.us-east-2.amazonaws.com/logocbo.png" alt="Logo" class="logo">
                 <div class="header">
                     <h2>${title}</h2>
                 </div>
                 <div class="content">
                     <p>${content}</p>
-                    <a href="${actionUrl}" class="button">${actionText}</a>
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 30px auto;">
+                        <tr>
+                            <td align="center">
+                                <a href="${actionUrl}" class="button">${actionText}</a>
+                            </td>
+                        </tr>
+                    </table>
+                    <hr>
+                    <p style="font-size: 12px; color: #999;">Este es un correo automático, por favor no respondas a este mensaje.</p>
+                </div>
+                <div class="footer">
+                    <p>Cuerpo de Bomberos de Osorno</p>
                 </div>
             </div>
         </body>

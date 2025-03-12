@@ -487,7 +487,7 @@ export const createMantencion = async (req, res) => {
     const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
 
     // Enviar notificación (con filtros)
-    const [usuarios, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
       getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
       getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
       getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
@@ -495,9 +495,14 @@ export const createMantencion = async (req, res) => {
     ]);
 
     // Juntar todos los usuarios en un solo array
-    const todosLosUsuarios = [...usuarios, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
 
-    if (usuarios.length > 0) {
+    // console.log(usuariosCargosImportantes);
+    // console.log(usuariosTenientes);
+    // console.log(usuariosCapitanesPersonal);
+    // console.log(usuariosCapitanesMaquina);
+
+    if (todosLosUsuarios.length > 0) {
       let contenido = `Nueva mantención ingresada - Codigo: ${maquina[0].codigo} - Patente: ${maquina[0].patente} - Ingresada por ${personal[0].nombre} ${personal[0].apellido} - Descripcion: ${descripcion}\n`;
 
       // **Si se incluyó "cost_ser", se agrega a la notificación**
@@ -1048,6 +1053,11 @@ export const aprobarMantencion = async (req, res) => {
 
     // Juntar todos los usuarios en un solo array
     const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+
+    // console.log(usuariosCargosImportantes);
+    // console.log(usuariosTenientes);
+    // console.log(usuariosCapitanesPersonal);
+    // console.log(usuariosCapitanesMaquina);
 
     // enviar notificación (solo usuarios)
     if (todosLosUsuarios.length > 0) {

@@ -487,16 +487,18 @@ export const createMantencion = async (req, res) => {
     const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
 
     // Enviar notificación (con filtros)
-    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina, usuarioPersonal] = await Promise.all([
       getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
       getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
       getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
-      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id })
+      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id }),
+      getNotificationUsers({ personal_id: personal_id })
     ]);
 
     // Juntar todos los usuarios en un solo array
-    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina, ...usuarioPersonal];
 
+    // console.log(usuarioPersonal);
     // console.log(usuariosCargosImportantes);
     // console.log(usuariosTenientes);
     // console.log(usuariosCapitanesPersonal);

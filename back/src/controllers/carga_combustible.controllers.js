@@ -269,11 +269,12 @@ export const createCargaCombustible = async (req, res) => {
     );
 
     // enviar notificacion con filtros
-    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
-      getNotificationUsers({ cargos_importantes: true }),
-      getNotificationUsers({ rol: "Teniente de Máquina", compania_id: maquina[0].compania_id }),
-      getNotificationUsers({ rol: "Capitán", compania_id: personal[0].compania_id }),
-      getNotificationUsers({ rol: "Capitán", compania_id: maquina[0].compania_id }),
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina, usuarioPersonal] = await Promise.all([
+      getNotificationUsers({ cargos_importantes: true }), // usuarios con cargos importantes
+      getNotificationUsers({ rol: "Teniente de Máquina", compania_id: maquina[0].compania_id }), // tenientes de máquina
+      getNotificationUsers({ rol: "Capitán", compania_id: personal[0].compania_id }), // capitanes del personal
+      getNotificationUsers({ rol: "Capitán", compania_id: maquina[0].compania_id }), // capitanes de la máquina
+      getNotificationUsers({ personal_id: personal[0].personal_id}), // personal que realizó la carga
     ]);
 
     const todosLosUsuarios = [
@@ -281,7 +282,11 @@ export const createCargaCombustible = async (req, res) => {
       ...usuariosTenientes,
       ...usuariosCapitanesPersonal,
       ...usuariosCapitanesMaquina,
+      ...usuarioPersonal
     ];
+
+    // console.log(usuarioPersonal);
+    // console.log(personal[0].personal_id);
 
     // Enviar notificación
     if (todosLosUsuarios.length > 0) {

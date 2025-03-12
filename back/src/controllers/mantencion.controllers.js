@@ -432,72 +432,79 @@ export const createMantencion = async (req, res) => {
     // Insertar mantención
     const [result] = await pool.query(query, valuesToInsert);
 
-    // Obtener datos para el PDF y notificaciones
-    const [datosPDF] = await pool.query(
-      `SELECT 
-        m.ord_trabajo AS 'orden_trabajoPDF',
-        m.id AS 'mantencion_idPDF',
-        m.bitacora_id AS 'bitacora_idPDF',
-        ma.nombre AS 'maquinaPDF',
-        ma.patente AS 'patentePDF',
-        t.nombre AS 'tallerPDF',
-        em.nombre AS 'estado_mantencionPDF',
-        tm.nombre AS 'tipo_mantencionPDF',
-        DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fecha_inicioPDF',
-        DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fecha_terminoPDF',
-        m.n_factura AS 'numero_facturaPDF',
-        m.cost_ser AS 'costo_servicioPDF',
-        m.descripcion AS 'descripcionPDF',
-        p.nombre AS 'ingresada_por_nombre',
-        p.apellido AS 'ingresada_por_apellido'
-      FROM mantencion m
-      INNER JOIN maquina ma ON m.maquina_id = ma.id
-      LEFT JOIN taller t ON m.taller_id = t.id
-      LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
-      INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-      INNER JOIN personal p ON m.ingresada_por = p.id
-      WHERE m.id = ?`,
-      [result.insertId]
-    );
+    // // Obtener datos para el PDF y notificaciones
+    // const [datosPDF] = await pool.query(
+    //   `SELECT 
+    //     m.ord_trabajo AS 'orden_trabajoPDF',
+    //     m.id AS 'mantencion_idPDF',
+    //     m.bitacora_id AS 'bitacora_idPDF',
+    //     ma.nombre AS 'maquinaPDF',
+    //     ma.patente AS 'patentePDF',
+    //     t.nombre AS 'tallerPDF',
+    //     em.nombre AS 'estado_mantencionPDF',
+    //     tm.nombre AS 'tipo_mantencionPDF',
+    //     DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fecha_inicioPDF',
+    //     DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fecha_terminoPDF',
+    //     m.n_factura AS 'numero_facturaPDF',
+    //     m.cost_ser AS 'costo_servicioPDF',
+    //     m.descripcion AS 'descripcionPDF',
+    //     p.nombre AS 'ingresada_por_nombre',
+    //     p.apellido AS 'ingresada_por_apellido'
+    //   FROM mantencion m
+    //   INNER JOIN maquina ma ON m.maquina_id = ma.id
+    //   LEFT JOIN taller t ON m.taller_id = t.id
+    //   LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+    //   INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+    //   INNER JOIN personal p ON m.ingresada_por = p.id
+    //   WHERE m.id = ?`,
+    //   [result.insertId]
+    // );
 
-    const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF, ingresada_por_nombre, ingresada_por_apellido } = datosPDF[0];
+    // const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF, ingresada_por_nombre, ingresada_por_apellido } = datosPDF[0];
 
-    // Preparar los datos del PDF
-     const pdfData = [{
-      "Orden de Trabajo": orden_trabajoPDF,
-      "ID de Mantención": mantencion_idPDF,
-      "ID de Bitácora": bitacora_idPDF,
-      "Máquina": maquinaPDF,
-      "Patente": patentePDF,
-      "Taller": tallerPDF,
-      "Estado de Mantención": estado_mantencionPDF,
-      "Tipo de Mantención": tipo_mantencionPDF,
-      "Fecha de Inicio": fecha_inicioPDF,
-      "Fecha de Término": fecha_terminoPDF,
-      "Número de Factura": numero_facturaPDF,
-      "Costo del Servicio": costo_servicioPDF,
-      "Descripción": descripcionPDF,
-      "Ingresada por": `${ingresada_por_nombre} ${ingresada_por_apellido}`
-    }];
+    // // Preparar los datos del PDF
+    //  const pdfData = [{
+    //   "Orden de Trabajo": orden_trabajoPDF,
+    //   "ID de Mantención": mantencion_idPDF,
+    //   "ID de Bitácora": bitacora_idPDF,
+    //   "Máquina": maquinaPDF,
+    //   "Patente": patentePDF,
+    //   "Taller": tallerPDF,
+    //   "Estado de Mantención": estado_mantencionPDF,
+    //   "Tipo de Mantención": tipo_mantencionPDF,
+    //   "Fecha de Inicio": fecha_inicioPDF,
+    //   "Fecha de Término": fecha_terminoPDF,
+    //   "Número de Factura": numero_facturaPDF,
+    //   "Costo del Servicio": costo_servicioPDF,
+    //   "Descripción": descripcionPDF,
+    //   "Ingresada por": `${ingresada_por_nombre} ${ingresada_por_apellido}`
+    // }];
  
-    // Generar el PDF
-    const pdfBuffer = await generatePDF(pdfData); 
+    // // Generar el PDF
+    // const pdfBuffer = await generatePDF(pdfData); 
 
     const [maquina] = await pool.query("SELECT codigo, patente, compania_id FROM maquina WHERE id = ?", [maquina_id]);
     const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
 
     // Enviar notificación (con filtros)
-    const [usuarios, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina, usuarioPersonal] = await Promise.all([
       getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
       getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
       getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
-      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id })
+      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id }),
+      getNotificationUsers({ personal_id: personal_id })
     ]);
 
     // Juntar todos los usuarios en un solo array
-    const todosLosUsuarios = [...usuarios, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina, ...usuarioPersonal];
 
-    if (usuarios.length > 0) {
+    // console.log(usuarioPersonal);
+    // console.log(usuariosCargosImportantes);
+    // console.log(usuariosTenientes);
+    // console.log(usuariosCapitanesPersonal);
+    // console.log(usuariosCapitanesMaquina);
+
+    if (todosLosUsuarios.length > 0) {
       let contenido = `Nueva mantención ingresada - Codigo: ${maquina[0].codigo} - Patente: ${maquina[0].patente} - Ingresada por ${personal[0].nombre} ${personal[0].apellido} - Descripcion: ${descripcion}\n`;
 
       // **Si se incluyó "cost_ser", se agrega a la notificación**
@@ -513,11 +520,11 @@ export const createMantencion = async (req, res) => {
           subject: "Nueva Mantención Ingresada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
           buttonText: "Ver Detalles",
-           attachments: [{
-            filename: `mantencion_${result.insertId}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }] 
+          // attachments: [{
+          //   filename: `mantencion_${result.insertId}.pdf`,
+          //   content: pdfBuffer,
+          //   contentType: 'application/pdf'
+          // }] 
         },
       });
     }
@@ -928,22 +935,40 @@ export const aprobarMantencion = async (req, res) => {
       [id]
     );
 
-    
     if (mantencion.length === 0) {
       return res.status(404).json({ message: "Mantención no encontrada" });
     }
-    
+
+    // Obtener el último número de orden de trabajo
+    const [ultimaOrden] = await pool.query(
+      "SELECT MAX(CAST(SUBSTRING(ord_trabajo, 4) AS UNSIGNED)) AS ultimo_numero FROM mantencion"
+    );
+
+    let nuevoNumero = 25026; // Número inicial si no hay registros
+    if (ultimaOrden[0].ultimo_numero !== null) {
+      nuevoNumero = ultimaOrden[0].ultimo_numero + 1;
+    }
+
+    // si el utlimaOrden[0].ultimo_numero es menor a 25026, se asigna 25026
+    if (nuevoNumero < 25026) {
+      nuevoNumero = 25026;
+    }
+
+    const nuevaOrdenTrabajo = `OT-${nuevoNumero}`;
+
     // Obtener el id de la máquina
-    const [idMaquina] = await pool.query(`
+    const [idMaquina] = await pool.query(
+      `
       SELECT maquina_id
       FROM mantencion 
       WHERE id = ?
       AND isDeleted = 0
-      `, [id]
+      `,
+      [id]
     );
     const maquina_id = idMaquina[0].maquina_id;
 
-    // Obtener el personal_id correspondiente al usuario_id
+    // Obtener el personal_id correspondiente al usuario_id (quien aprueba)
     const [personalInfo] = await pool.query(
       "SELECT personal_id FROM usuario WHERE id = ?",
       [usuario_id]
@@ -955,16 +980,19 @@ export const aprobarMantencion = async (req, res) => {
 
     const personal_id = personalInfo[0].personal_id;
 
-    // Actualizar el estado a aprobado
+    // Actualizar el estado a aprobado y asignar la nueva orden de trabajo
     const [result] = await pool.query(
-      `UPDATE mantencion 
-       SET aprobada = 1,
-           aprobada_por = ?,
-           fecha_aprobacion = NOW()
-       WHERE id = ?`,
-      [personal_id, id]
+      `
+      UPDATE mantencion 
+      SET aprobada = 1,
+          aprobada_por = ?,
+          fecha_aprobacion = NOW(),
+          ord_trabajo = ?
+      WHERE id = ?
+      `,
+      [personal_id, nuevaOrdenTrabajo, id]
     );
-    
+
     if (result.affectedRows === 0) {
       return res
         .status(404)
@@ -975,11 +1003,11 @@ export const aprobarMantencion = async (req, res) => {
     const [datosPDF] = await pool.query(
       `
       SELECT 
-      	m.ord_trabajo AS 'orden_trabajoPDF', 
+        m.ord_trabajo AS 'orden_trabajoPDF', 
         c.nombre AS 'companiaPDF',
         CONCAT(ma.nombre, ' - PAT: ', ma.patente) AS 'movilPDF',
-      	tm.nombre AS 'tipo_mantencionPDF',
-      	m.descripcion AS 'descripcionPDF',
+        tm.nombre AS 'tipo_mantencionPDF',
+        m.descripcion AS 'descripcionPDF',
         ma.kmetraje AS 'kmetrajePDF',
         CONCAT(p.nombre, ' ', p.apellido) AS 'aprobadoPorPDF',
         rp.nombre AS 'reportadoPorPDF',
@@ -997,25 +1025,28 @@ export const aprobarMantencion = async (req, res) => {
       LEFT JOIN rol_personal rp ON p.rol_personal_id = rp.id
       LEFT JOIN usuario u ON p.id = u.personal_id
       WHERE m.id = ?
-      `, [id] 
+      `,
+      [id]
     );
 
     const { orden_trabajoPDF, companiaPDF, movilPDF, tipo_mantencionPDF, descripcionPDF, kmetrajePDF, aprobadoPorPDF, reportadoPorPDF, emailSolicitantePDF, tallerPDF, proveedor, taller_idPDF } = datosPDF[0];
 
     // Preparar los datos del PDF
-    const pdfData = [{
-      "Orden de Trabajo": orden_trabajoPDF,
-      "Compañía": companiaPDF,
-      "Móvil": movilPDF,
-      "Tipo de Mantención": tipo_mantencionPDF,
-      "Descripción": descripcionPDF,
-      "Kilometraje": kmetrajePDF,
-      "Aprobado por": aprobadoPorPDF,
-      "Reportado por": reportadoPorPDF,
-      "Email Solicitante": emailSolicitantePDF,
-      "Taller": tallerPDF,
-      "Proveedor": proveedor
-    }];
+    const pdfData = [
+      {
+        "Orden de Trabajo": orden_trabajoPDF,
+        "Compañía": companiaPDF,
+        "Móvil": movilPDF,
+        "Tipo de Mantención": tipo_mantencionPDF,
+        "Descripción": descripcionPDF,
+        "Kilometraje": kmetrajePDF,
+        "Aprobado por": aprobadoPorPDF,
+        "Reportado por": reportadoPorPDF,
+        "Email Solicitante": emailSolicitantePDF,
+        "Taller": tallerPDF,
+        "Proveedor": proveedor,
+      },
+    ];
 
     // Generar el PDF
     const pdfBuffer = await generatePDF(pdfData);
@@ -1025,29 +1056,56 @@ export const aprobarMantencion = async (req, res) => {
     const [datosTaller] = await pool.query(
       `
       SELECT
-      	t.nombre AS nombre_taller,
+        t.nombre AS nombre_taller,
         t.contacto AS contacto_taller
       FROM taller t
       WHERE t.id = ?
       ;
-      `, [taller_idPDF]
-    )
+      `,
+      [taller_idPDF]
+    );
     const { nombre_taller, contacto_taller } = datosTaller[0];
 
     // Obtener usuarios a notificar
-    const [maquina] = await pool.query("SELECT codigo, patente, compania_id FROM maquina WHERE id = ?", [maquina_id]);
-    const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
+    const [maquina] = await pool.query(
+      "SELECT codigo, patente, compania_id FROM maquina WHERE id = ?",
+      [maquina_id]
+    );
+    const [personal] = await pool.query(
+      "SELECT nombre, apellido, compania_id FROM personal WHERE id = ?",
+      [personal_id]
+    );
+    const [quienIngreso] = await pool.query(
+      "SELECT ingresada_por FROM mantencion WHERE id = ?",
+      [id]
+    );
 
     // Enviar notificación (con filtros)
-    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+    const [
+      usuariosCargosImportantes,
+      usuariosTenientes,
+      usuariosCapitanesPersonal,
+      usuariosCapitanesMaquina,
+      usuarioPersonal,
+      usuarioQueIngreso,
+    ] = await Promise.all([
       getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
       getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
-      getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
-      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id })
+      getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }), // Capitanes de la compañía del personal
+      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id }), // Capitanes de la compañía de la máquina
+      getNotificationUsers({ personal_id: personal_id }), // Usuario que aprobó
+      getNotificationUsers({ personal_id: quienIngreso[0].ingresada_por }), // Usuario que ingresó la mantención
     ]);
 
     // Juntar todos los usuarios en un solo array
-    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+    const todosLosUsuarios = [
+      ...usuariosCargosImportantes,
+      ...usuariosTenientes,
+      ...usuariosCapitanesPersonal,
+      ...usuariosCapitanesMaquina,
+      ...usuarioPersonal,
+      ...usuarioQueIngreso,
+    ];
 
     // enviar notificación (solo usuarios)
     if (todosLosUsuarios.length > 0) {
@@ -1061,11 +1119,13 @@ export const aprobarMantencion = async (req, res) => {
           subject: "Mantención Aprobada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${id}`,
           buttonText: "Ver Detalles",
-          attachments: [{
-            filename: `mantencion_${id}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }]
+          attachments: [
+            {
+              filename: `mantencion_${id}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf',
+            },
+          ],
         },
       });
     }
@@ -1086,7 +1146,7 @@ export const aprobarMantencion = async (req, res) => {
       Saludos cordiales,<br>
       Cuerpo de Bomberos de Osorno<br>
       <b>${companiaPDF}</b>
-      `;      
+      `;
 
       await createAndSendNotifications({
         contenido,
@@ -1096,11 +1156,13 @@ export const aprobarMantencion = async (req, res) => {
           subject: "Mantención Cuerpo Bomberos Osorno",
           redirectUrl: `mailto://${emailSolicitantePDF}`,
           buttonText: "Contactar Solicitante",
-          attachments: [{
-            filename: `mantencion_${id}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }]
+          attachments: [
+            {
+              filename: `mantencion_${id}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf',
+            },
+          ],
         },
       });
     }
@@ -1111,7 +1173,6 @@ export const aprobarMantencion = async (req, res) => {
       message: "Mantención aprobada exitosamente",
       aprobada: 1,
     });
-    
   } catch (error) {
     console.error("Error al aprobar mantención:", error);
     return res.status(500).json({

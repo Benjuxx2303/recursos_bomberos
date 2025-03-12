@@ -59,6 +59,11 @@ export const getNotificationUsers = async (filters = {}) => {
         queryParams.push(filters.cargos_importantes);
     }
 
+    if (filters.personal_id){
+        query += `AND p.id = ?`
+        queryParams.push(filters.personal_id);
+    }
+
     const [usuarios] = await pool.query(query, queryParams);
     return usuarios;
 };

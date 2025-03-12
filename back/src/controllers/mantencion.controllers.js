@@ -950,7 +950,7 @@ export const aprobarMantencion = async (req, res) => {
     );
     const maquina_id = idMaquina[0].maquina_id;
 
-    // Obtener el personal_id correspondiente al usuario_id
+    // Obtener el personal_id correspondiente al usuario_id (quien aprueba)
     const [personalInfo] = await pool.query(
       "SELECT personal_id FROM usuario WHERE id = ?",
       [usuario_id]
@@ -1044,18 +1044,22 @@ export const aprobarMantencion = async (req, res) => {
     // Obtener usuarios a notificar
     const [maquina] = await pool.query("SELECT codigo, patente, compania_id FROM maquina WHERE id = ?", [maquina_id]);
     const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
+    const [quienIngreso] = await pool.query("SELECT ingresada_por FROM mantencion WHERE id = ?", [id])
 
     // Enviar notificación (con filtros)
-    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina] = await Promise.all([
+    const [usuariosCargosImportantes, usuariosTenientes, usuariosCapitanesPersonal, usuariosCapitanesMaquina, usuarioPersonal, usuarioQueIngreso] = await Promise.all([
       getNotificationUsers({ cargos_importantes: true }), // Todos los usuarios con cargos importantes
       getNotificationUsers({ rol: 'Teniente de Máquina', compania_id: maquina[0].compania_id }), // Tenientes de la compañía de la máquina
-      getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }),
-      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id })
+      getNotificationUsers({ rol: 'Capitán', compania_id: personal[0].compania_id }), // Capitanes de la compañía del personal
+      getNotificationUsers({ rol: 'Capitán', compania_id: maquina[0].compania_id }), // Capitanes de la compañía de la máquina
+      getNotificationUsers({ personal_id: personal_id }), // Usuario que aprobó
+      getNotificationUsers({ personal_id: quienIngreso[0].ingresada_por }) // Usuario que ingresó la mantención
     ]);
 
     // Juntar todos los usuarios en un solo array
-    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina];
+    const todosLosUsuarios = [...usuariosCargosImportantes, ...usuariosTenientes, ...usuariosCapitanesPersonal, ...usuariosCapitanesMaquina, ...usuarioPersonal, ...usuarioQueIngreso];
 
+    // console.log(usuarioQueIngreso);
     // console.log(usuariosCargosImportantes);
     // console.log(usuariosTenientes);
     // console.log(usuariosCapitanesPersonal);

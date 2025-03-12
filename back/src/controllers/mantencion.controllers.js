@@ -432,56 +432,56 @@ export const createMantencion = async (req, res) => {
     // Insertar mantención
     const [result] = await pool.query(query, valuesToInsert);
 
-    // Obtener datos para el PDF y notificaciones
-    const [datosPDF] = await pool.query(
-      `SELECT 
-        m.ord_trabajo AS 'orden_trabajoPDF',
-        m.id AS 'mantencion_idPDF',
-        m.bitacora_id AS 'bitacora_idPDF',
-        ma.nombre AS 'maquinaPDF',
-        ma.patente AS 'patentePDF',
-        t.nombre AS 'tallerPDF',
-        em.nombre AS 'estado_mantencionPDF',
-        tm.nombre AS 'tipo_mantencionPDF',
-        DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fecha_inicioPDF',
-        DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fecha_terminoPDF',
-        m.n_factura AS 'numero_facturaPDF',
-        m.cost_ser AS 'costo_servicioPDF',
-        m.descripcion AS 'descripcionPDF',
-        p.nombre AS 'ingresada_por_nombre',
-        p.apellido AS 'ingresada_por_apellido'
-      FROM mantencion m
-      INNER JOIN maquina ma ON m.maquina_id = ma.id
-      LEFT JOIN taller t ON m.taller_id = t.id
-      LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
-      INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
-      INNER JOIN personal p ON m.ingresada_por = p.id
-      WHERE m.id = ?`,
-      [result.insertId]
-    );
+    // // Obtener datos para el PDF y notificaciones
+    // const [datosPDF] = await pool.query(
+    //   `SELECT 
+    //     m.ord_trabajo AS 'orden_trabajoPDF',
+    //     m.id AS 'mantencion_idPDF',
+    //     m.bitacora_id AS 'bitacora_idPDF',
+    //     ma.nombre AS 'maquinaPDF',
+    //     ma.patente AS 'patentePDF',
+    //     t.nombre AS 'tallerPDF',
+    //     em.nombre AS 'estado_mantencionPDF',
+    //     tm.nombre AS 'tipo_mantencionPDF',
+    //     DATE_FORMAT(m.fec_inicio, '%d-%m-%Y') AS 'fecha_inicioPDF',
+    //     DATE_FORMAT(m.fec_termino, '%d-%m-%Y') AS 'fecha_terminoPDF',
+    //     m.n_factura AS 'numero_facturaPDF',
+    //     m.cost_ser AS 'costo_servicioPDF',
+    //     m.descripcion AS 'descripcionPDF',
+    //     p.nombre AS 'ingresada_por_nombre',
+    //     p.apellido AS 'ingresada_por_apellido'
+    //   FROM mantencion m
+    //   INNER JOIN maquina ma ON m.maquina_id = ma.id
+    //   LEFT JOIN taller t ON m.taller_id = t.id
+    //   LEFT JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
+    //   INNER JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
+    //   INNER JOIN personal p ON m.ingresada_por = p.id
+    //   WHERE m.id = ?`,
+    //   [result.insertId]
+    // );
 
-    const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF, ingresada_por_nombre, ingresada_por_apellido } = datosPDF[0];
+    // const { orden_trabajoPDF, mantencion_idPDF, bitacora_idPDF, maquinaPDF, patentePDF, tallerPDF, estado_mantencionPDF, tipo_mantencionPDF, fecha_inicioPDF, fecha_terminoPDF, numero_facturaPDF, costo_servicioPDF, descripcionPDF, ingresada_por_nombre, ingresada_por_apellido } = datosPDF[0];
 
-    // Preparar los datos del PDF
-     const pdfData = [{
-      "Orden de Trabajo": orden_trabajoPDF,
-      "ID de Mantención": mantencion_idPDF,
-      "ID de Bitácora": bitacora_idPDF,
-      "Máquina": maquinaPDF,
-      "Patente": patentePDF,
-      "Taller": tallerPDF,
-      "Estado de Mantención": estado_mantencionPDF,
-      "Tipo de Mantención": tipo_mantencionPDF,
-      "Fecha de Inicio": fecha_inicioPDF,
-      "Fecha de Término": fecha_terminoPDF,
-      "Número de Factura": numero_facturaPDF,
-      "Costo del Servicio": costo_servicioPDF,
-      "Descripción": descripcionPDF,
-      "Ingresada por": `${ingresada_por_nombre} ${ingresada_por_apellido}`
-    }];
+    // // Preparar los datos del PDF
+    //  const pdfData = [{
+    //   "Orden de Trabajo": orden_trabajoPDF,
+    //   "ID de Mantención": mantencion_idPDF,
+    //   "ID de Bitácora": bitacora_idPDF,
+    //   "Máquina": maquinaPDF,
+    //   "Patente": patentePDF,
+    //   "Taller": tallerPDF,
+    //   "Estado de Mantención": estado_mantencionPDF,
+    //   "Tipo de Mantención": tipo_mantencionPDF,
+    //   "Fecha de Inicio": fecha_inicioPDF,
+    //   "Fecha de Término": fecha_terminoPDF,
+    //   "Número de Factura": numero_facturaPDF,
+    //   "Costo del Servicio": costo_servicioPDF,
+    //   "Descripción": descripcionPDF,
+    //   "Ingresada por": `${ingresada_por_nombre} ${ingresada_por_apellido}`
+    // }];
  
-    // Generar el PDF
-    const pdfBuffer = await generatePDF(pdfData); 
+    // // Generar el PDF
+    // const pdfBuffer = await generatePDF(pdfData); 
 
     const [maquina] = await pool.query("SELECT codigo, patente, compania_id FROM maquina WHERE id = ?", [maquina_id]);
     const [personal] = await pool.query("SELECT nombre, apellido, compania_id FROM personal WHERE id = ?", [personal_id]);
@@ -520,11 +520,11 @@ export const createMantencion = async (req, res) => {
           subject: "Nueva Mantención Ingresada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
           buttonText: "Ver Detalles",
-           attachments: [{
-            filename: `mantencion_${result.insertId}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf'
-          }] 
+          // attachments: [{
+          //   filename: `mantencion_${result.insertId}.pdf`,
+          //   content: pdfBuffer,
+          //   contentType: 'application/pdf'
+          // }] 
         },
       });
     }

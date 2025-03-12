@@ -9,8 +9,10 @@ import puppeteer from 'puppeteer';
 export const generatePDF = async (data, title = "ORDEN DE TRABAJO") => {
     const htmlTemplate = templatePDF(tablePDF(data), title);  // Se pasa el title a templatePDF
 
-    // Inicia Puppeteer
-    const browser = await puppeteer.launch();
+    // Inicia Puppeteer con los parámetros adecuados
+    const browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'], // Evita el error de ejecución como root
+    });
     const page = await browser.newPage();
 
     // Establece el contenido HTML
@@ -77,13 +79,13 @@ const templatePDF = (table, title = "ORDEN DE TRABAJO") => {
         }
         .footer {
             position: fixed;
-            bottom: 20px; /* Ajusta el margen inferior del footer */
+            bottom: 20px;
             left: 0;
             width: 100%;
             display: flex;
             justify-content: space-between;
             font-size: 10px;
-            padding: 0 20px; /* Espaciado adicional a los lados */
+            padding: 0 20px;
         }
         .footer .left, .footer .right {
             display: inline-block;

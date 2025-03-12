@@ -557,13 +557,16 @@ export const deleteMantencion = async (req, res) => {
         message: "Mantención no encontrada",
       });
     }
-    res.sendStatus(204);
+    return res.json({ message: "Mantención eliminada exitosamente" });
   } catch (error) {
+    console.error("Error al eliminar mantención:", error);
     return res.status(500).json({
-      message: error.message,
+      message: "Error interno del servidor",
+      error: error.message,
     });
   }
 };
+
 
 export const updateMantencion = async (req, res) => {
   const { id } = req.params;

@@ -246,161 +246,196 @@ export const getMaquinaById = async (req, res) => {
 
 // Crear nueva máquina
 export const createMaquina = async (req, res) => {
-  let {
-    compania_id,
-    modelo_id,
-    codigo,
-    patente,
-    num_chasis,
-    vin,
-    bomba,
-    hmetro_bomba,
-    hmetro_motor,
-    kmetraje,
-    num_motor,
-    ven_patente,
-    procedencia_id,
-    cost_rev_tec,
-    ven_rev_tec,
-    cost_seg_auto,
-    ven_seg_auto,
-    peso_kg,
-    nombre,
-  } = req.body;
+  try {
+    // Parsear los datos JSON si vienen en el campo 'data'
+    const data = req.body.data ? JSON.parse(req.body.data) : req.body;
+    
+    console.log('Datos recibidos:', data);
+    console.log('Valor de bomba recibido:', data.bomba, typeof data.bomba);
 
-  const errors = [];
+    // Asegurarse de que bomba sea un número
+    data.bomba = Number(data.bomba);
 
-  // Validación genérica para números y cadenas
-  const validateField = (value, type, field) => {
-    if (type === 'number' && isNaN(value)) {
-      errors.push({ field, message: `El campo "${field}" debe ser un número.` });
-    } else if (type === 'string' && typeof value !== 'string') {
-      errors.push({ field, message: `El campo "${field}" debe ser una cadena de texto.` });
-    } else if (type === 'decimal' && isNaN(parseFloat(value))) {
-      errors.push({ field, message: `El campo "${field}" debe ser un número decimal.` });
+    if (data.bomba !== 0 && data.bomba !== 1) {
+      return res.status(400).json({
+        errors: [{
+          field: 'bomba',
+          message: 'El campo "bomba" debe ser 0 o 1.'
+        }]
+      });
     }
-  };
 
-  // Validación de campos
-  const fieldsToValidate = [
-    { value: compania_id, type: 'number', field: 'compania_id' },
-    { value: modelo_id, type: 'number', field: 'modelo_id' },
-    { value: codigo, type: 'string', field: 'codigo' },
-    { value: nombre, type: 'string', field: 'nombre' },
-    { value: patente, type: 'string', field: 'patente' },
-    { value: num_chasis, type: 'string', field: 'num_chasis' },
-    { value: vin, type: 'string', field: 'vin' },
-    { value: cost_rev_tec, type: 'decimal', field: 'cost_rev_tec' },
-    { value: cost_seg_auto, type: 'decimal', field: 'cost_seg_auto' },
-    { value: peso_kg, type: 'number', field: 'peso_kg' },
-    { value: bomba, type: 'number', field: 'bomba' },
-  ];
+    let {
+      compania_id,
+      modelo_id,
+      codigo,
+      patente,
+      num_chasis,
+      vin,
+      bomba,
+      hmetro_bomba,
+      hmetro_motor,
+      kmetraje,
+      num_motor,
+      ven_patente,
+      procedencia_id,
+      cost_rev_tec,
+      ven_rev_tec,
+      cost_seg_auto,
+      ven_seg_auto,
+      peso_kg,
+      nombre,
+    } = data;
 
-  fieldsToValidate.forEach(({ value, type, field }) => validateField(value, type, field));
+    const errors = [];
 
-  // Validación de fechas
-  const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-  const fechas = [
-    { field: 'ven_patente', value: ven_patente },
-    { field: 'ven_rev_tec', value: ven_rev_tec },
-    { field: 'ven_seg_auto', value: ven_seg_auto }
-  ];
-  
-  fechas.forEach(({ field, value }) => {
-    if (value && !fechaRegex.test(value)) {
-      errors.push({ field, message: `El formato de fecha en el campo ${field} es inválido. Debe ser dd-mm-aaaa.` });
-    }
-  });
-
-  // Validación de existencia en base de datos
-  const validateExists = async (field, table, id) => {
-    const [result] = await pool.query(`SELECT * FROM ${table} WHERE id = ? AND isDeleted = 0`, [id]);
-    if (result.length === 0) {
-      errors.push({ field, message: `El ${field} con el ID proporcionado no existe o está eliminado.` });
-    }
-  };
-
-  await Promise.all([
-    validateExists('compania_id', 'compania', compania_id),
-    validateExists('procedencia_id', 'procedencia', procedencia_id),
-    validateExists('modelo_id', 'modelo', modelo_id)
-  ]);
-
-  // Verificar patente duplicada
-  const [patenteExists] = await pool.query("SELECT * FROM maquina WHERE patente = ? AND isDeleted = 0", [patente]);
-  if (patenteExists.length > 0) {
-    errors.push({ field: 'patente', message: 'Ya existe una máquina con la patente proporcionada.' });
-  }
-
-  // Manejo de imágenes
-  let img_url = null;
-  let img_rev_tecnica = null;
-  let img_seguro = null;
-  let img_permiso_circulacion = null;
-
-  if (req.files) {
-    const uploadImage = async (file, prefix) => {
-      try {
-        const imgData = await uploadFileToS3(file, `maquina/${prefix}`);
-        return imgData?.Location || null;
-      } catch (error) {
-        errors.push(`Error al subir la imagen ${prefix}: ${error.message}`);
-        return null;
+    // Validación genérica para números y cadenas
+    const validateField = (value, type, field) => {
+      if (type === 'number' && isNaN(value)) {
+        errors.push({ field, message: `El campo "${field}" debe ser un número.` });
+      } else if (type === 'string' && typeof value !== 'string') {
+        errors.push({ field, message: `El campo "${field}" debe ser una cadena de texto.` });
+      } else if (type === 'decimal' && isNaN(parseFloat(value))) {
+        errors.push({ field, message: `El campo "${field}" debe ser un número decimal.` });
       }
     };
 
-    if (req.files.imagen) {
-      img_url = await uploadImage(req.files.imagen[0], "perfil");
-    }
-    if (req.files.img_rev_tecnica) {
-      img_rev_tecnica = await uploadImage(req.files.img_rev_tecnica[0], "rev_tecnica");
-    }
-    if (req.files.img_seguro) {
-      img_seguro = await uploadImage(req.files.img_seguro[0], "seguro");
-    }
-    if (req.files.img_permiso_circulacion) {
-      img_permiso_circulacion = await uploadImage(req.files.img_permiso_circulacion[0], "permiso");
-    }
-  }
+    // Validación de campos
+    const fieldsToValidate = [
+      { value: compania_id, type: 'number', field: 'compania_id' },
+      { value: modelo_id, type: 'number', field: 'modelo_id' },
+      { value: codigo, type: 'string', field: 'codigo' },
+      { value: nombre, type: 'string', field: 'nombre' },
+      { value: patente, type: 'string', field: 'patente' },
+      { value: num_chasis, type: 'string', field: 'num_chasis' },
+      { value: vin, type: 'string', field: 'vin' },
+      { value: cost_rev_tec, type: 'decimal', field: 'cost_rev_tec' },
+      { value: cost_seg_auto, type: 'decimal', field: 'cost_seg_auto' },
+      { value: peso_kg, type: 'number', field: 'peso_kg' },
+    ];
 
-  // Validación de bomba
-  if (bomba !== 0 && bomba !== 1) {
-    errors.push({ field: 'bomba', message: 'El campo "bomba" debe ser 0 o 1.' });
-  }
+    fieldsToValidate.forEach(({ value, type, field }) => validateField(value, type, field));
 
-  // Si hay errores, devolverlos antes de continuar
-  if (errors.length > 0) {
-    return res.status(400).json({ errors });
-  }
-
-  try {
-    // Inserción en la base de datos
-    const [rows] = await pool.query(
-      `INSERT INTO maquina (
-        compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
-        hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
-        ven_seg_auto, peso_kg, img_url, nombre, disponible, isDeleted, img_rev_tecnica, img_seguro, img_permiso_circulacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, 
-        STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 1, 0, ?, ?, ?)`,
-      [
-        compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
-        hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
-        ven_seg_auto, peso_kg, img_url, nombre, img_rev_tecnica, img_seguro, img_permiso_circulacion
-      ]
-    );
-
-    res.status(201).json({ 
-      id: rows.insertId, 
-      ...req.body, 
-      img_url,
-      img_rev_tecnica,
-      img_seguro,
-      img_permiso_circulacion
+    // Validación de fechas
+    const fechaRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+    const fechas = [
+      { field: 'ven_patente', value: ven_patente },
+      { field: 'ven_rev_tec', value: ven_rev_tec },
+      { field: 'ven_seg_auto', value: ven_seg_auto }
+    ];
+    
+    fechas.forEach(({ field, value }) => {
+      if (value && !fechaRegex.test(value)) {
+        errors.push({ field, message: `El formato de fecha en el campo ${field} es inválido. Debe ser dd-mm-aaaa.` });
+      }
     });
 
+    // Validación de existencia en base de datos
+    const validateExists = async (field, table, id) => {
+      const [result] = await pool.query(`SELECT * FROM ${table} WHERE id = ? AND isDeleted = 0`, [id]);
+      if (result.length === 0) {
+        errors.push({ field, message: `El ${field} con el ID proporcionado no existe o está eliminado.` });
+      }
+    };
+
+    await Promise.all([
+      validateExists('compania_id', 'compania', compania_id),
+      validateExists('procedencia_id', 'procedencia', procedencia_id),
+      validateExists('modelo_id', 'modelo', modelo_id)
+    ]);
+
+    // Verificar patente duplicada
+    const [patenteExists] = await pool.query("SELECT * FROM maquina WHERE patente = ? AND isDeleted = 0", [patente]);
+    if (patenteExists.length > 0) {
+      errors.push({ field: 'patente', message: 'Ya existe una máquina con la patente proporcionada.' });
+    }
+
+    // Manejo de imágenes
+    let img_url = null;
+    let img_rev_tecnica = null;
+    let img_seguro = null;
+    let img_permiso_circulacion = null;
+    let imgFrontal = null;
+    let imgLateralDerecha = null;
+    let imgLateralIzquierda = null;
+    let imgTrasera = null;
+
+    if (req.files) {
+      const uploadImage = async (file, prefix) => {
+        try {
+          const imgData = await uploadFileToS3(file, `maquina/${prefix}`);
+          return imgData?.Location || null;
+        } catch (error) {
+          errors.push(`Error al subir la imagen ${prefix}: ${error.message}`);
+          return null;
+        }
+      };
+
+      if (req.files.imagen) {
+        img_url = await uploadImage(req.files.imagen[0], "perfil");
+      }
+      if (req.files.img_rev_tecnica) {
+        img_rev_tecnica = await uploadImage(req.files.img_rev_tecnica[0], "rev_tecnica");
+      }
+      if (req.files.img_seguro) {
+        img_seguro = await uploadImage(req.files.img_seguro[0], "seguro");
+      }
+      if (req.files.img_permiso_circulacion) {
+        img_permiso_circulacion = await uploadImage(req.files.img_permiso_circulacion[0], "permiso");
+      }
+      if (req.files.imgFrontal) {
+        imgFrontal = await uploadImage(req.files.imgFrontal[0], "frontal");
+      }
+      if (req.files.imgLateralDerecha) {
+        imgLateralDerecha = await uploadImage(req.files.imgLateralDerecha[0], "lateral_derecha");
+      }
+      if (req.files.imgLateralIzquierda) {
+        imgLateralIzquierda = await uploadImage(req.files.imgLateralIzquierda[0], "lateral_izquierda");
+      }
+      if (req.files.imgTrasera) {
+        imgTrasera = await uploadImage(req.files.imgTrasera[0], "trasera");
+      }
+    }
+
+    // Si hay errores, devolverlos antes de continuar
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
+
+    try {
+      // Inserción en la base de datos
+      const [rows] = await pool.query(
+        `INSERT INTO maquina (
+          compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
+          hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
+          ven_seg_auto, peso_kg, img_url, nombre, disponible, isDeleted, img_rev_tecnica, img_seguro, img_permiso_circulacion,
+          imgFrontal, imgLateralDerecha, imgLateralIzquierda, imgTrasera
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, STR_TO_DATE(?, '%d-%m-%Y'), ?, 
+          STR_TO_DATE(?, '%d-%m-%Y'), ?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          compania_id, modelo_id, codigo, patente, num_chasis, vin, bomba, hmetro_bomba,
+          hmetro_motor, kmetraje, num_motor, ven_patente, procedencia_id, cost_rev_tec, ven_rev_tec, cost_seg_auto,
+          ven_seg_auto, peso_kg, img_url, nombre, img_rev_tecnica, img_seguro, img_permiso_circulacion,
+          imgFrontal, imgLateralDerecha, imgLateralIzquierda, imgTrasera
+        ]
+      );
+
+      res.status(201).json({ 
+        id: rows.insertId, 
+        ...data, 
+        img_url,
+        img_rev_tecnica,
+        img_seguro,
+        img_permiso_circulacion
+      });
+
+    } catch (error) {
+      errors.push({ message: "Error interno del servidor", error: error.message });
+      return res.status(500).json({ errors });
+    }
   } catch (error) {
-    errors.push({ message: "Error interno del servidor", error: error.message });
-    return res.status(500).json({ errors });
+    console.error("Error al crear máquina:", error);
+    return res.status(500).json({ message: "Error al crear máquina", error: error.message });
   }
 };
 

@@ -21,6 +21,10 @@ const upload = multer({ storage: storage });
 // Configuración de multer para los campos o "key" de imagen
 const uploadFields = upload.fields([
     { name: 'imagen' },
+    { name: 'imgFrontal' },
+    { name: 'imgLateralDerecha' },
+    { name: 'imgLateralIzquierda' },
+    { name: 'imgTrasera' },
     { name: 'img_rev_tecnica' },
     { name: 'img_seguro' },
     { name: 'img_permiso_circulacion' }

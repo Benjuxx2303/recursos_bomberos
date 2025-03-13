@@ -572,31 +572,19 @@ export const markAllAlertsAsRead = async (req, res) => {
     const { usuario_id } = req.params;
     
     try {
-        const [alertas] = await pool.query(`
-            SELECT DISTINCT a.id
-            FROM alerta a
-            LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
-            WHERE (ua.usuario_id = ? OR a.tipo IN ('mantencion', 'combustible'))
-            AND (ua.isRead = 0 OR ua.isRead IS NULL)
-            AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        `, [usuario_id, usuario_id]);
-
-        for (const alerta of alertas) {
-            await pool.query(`
-                INSERT INTO usuario_alerta (usuario_id, alerta_id, isRead)
-                VALUES (?, ?, 1)
-                ON DUPLICATE KEY UPDATE isRead = 1
-            `, [usuario_id, alerta.id]);
-        }
-
-        res.status(200).json({ 
-            message: "Todas las alertas marcadas como leídas",
-            count: alertas.length
-        });
+        await pool.query(
+            `
+            UPDATE usuario_alerta
+            SET isRead = 1
+            WHERE usuario_id = ?
+            `,
+            [usuario_id]
+        );
+        
+        res.status(200).json({ message: "Alerta marcada como leída" });
     } catch (error) {
-        console.error('Error en markAllAlertsAsRead:', error);
         res.status(500).json({ 
-            message: "Error al marcar las alertas como leídas", 
+            message: "Error al marcar la alerta como leída", 
             error: error.message 
         });
     }

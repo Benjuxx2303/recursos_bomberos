@@ -532,7 +532,12 @@ export const markAlertAsRead = async (req, res) => {
     
     try {
         await pool.query(
-            'UPDATE alerta SET isRead = true WHERE id = ? AND usuario_id = ?',
+            `
+            UPDATE usuario_alerta
+            SET isRead = 1
+            WHERE alerta_id = ?
+            AND usuario_id = ?
+            `,
             [alerta_id, usuario_id]
         );
         

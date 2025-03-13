@@ -525,6 +525,7 @@ export const updateMaquina = async (req, res) => {
         }
       };
 
+      // Manejar todas las imágenes posibles
       if (req.files.imagen) {
         updates.img_url = await uploadImage(req.files.imagen[0], "perfil");
       }
@@ -536,6 +537,18 @@ export const updateMaquina = async (req, res) => {
       }
       if (req.files.img_permiso_circulacion) {
         updates.img_permiso_circulacion = await uploadImage(req.files.img_permiso_circulacion[0], "permiso");
+      }
+      if (req.files.imgFrontal) {
+        updates.imgFrontal = await uploadImage(req.files.imgFrontal[0], "frontal");
+      }
+      if (req.files.imgLateralDerecha) {
+        updates.imgLateralDerecha = await uploadImage(req.files.imgLateralDerecha[0], "lateral_derecha");
+      }
+      if (req.files.imgLateralIzquierda) {
+        updates.imgLateralIzquierda = await uploadImage(req.files.imgLateralIzquierda[0], "lateral_izquierda");
+      }
+      if (req.files.imgTrasera) {
+        updates.imgTrasera = await uploadImage(req.files.imgTrasera[0], "trasera");
       }
     }
 

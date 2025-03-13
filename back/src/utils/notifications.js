@@ -139,7 +139,7 @@ export const getNotificationTalleres = async (filters = {}) => {
  * @param {string} contenido - Contenido de la notificación
  * @param {string} [tipo='general'] - Tipo de notificación
  * @returns {Promise<Object>} Objeto con la información de la alerta creada
- * @throws {Error} Si el usuario no existe o hay problemas al crear la alerta
+ * @throws {Error} Si hay problemas al crear la alerta
  * @example
  * // Enviar una notificación general a un usuario
  * await saveAndEmitAlert(1, 'Tu solicitud ha sido aprobada');
@@ -166,8 +166,10 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
             [usuario_id]
         );
 
+        // Cambio realizado: Si no se encuentra el usuario, se omite la creación de la alerta
         if (userInfo.length === 0) {
-            throw new Error(`Usuario no encontrado o inactivo: ${usuario_id}`);
+            console.log(`Usuario no encontrado o inactivo: ${usuario_id}. No se creará la alerta.`);
+            return null; // Omitir la creación de la alerta
         }
 
         // Verificar si ya existe una alerta con un contenido similar

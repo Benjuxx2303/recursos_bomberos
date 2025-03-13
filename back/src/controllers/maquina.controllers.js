@@ -206,6 +206,10 @@ export const getMaquinaById = async (req, res) => {
         m.img_rev_tecnica AS img_rev_tecnica,
         m.img_seguro AS img_seguro,
         m.img_permiso_circulacion AS img_permiso_circulacion,
+        m.imgFrontal AS imgFrontal,
+        m.imgLateralDerecha AS imgLateralDerecha,
+        m.imgLateralIzquierda AS imgLateralIzquierda,
+        m.imgTrasera AS imgTrasera,
         (
           SELECT GROUP_CONCAT(
             JSON_OBJECT(

@@ -53,7 +53,8 @@ export const getAlertasByUsuario = async (req, res) => {
                 a.createdAt AS createdAtOriginal,
                 ua.id AS ua_id,
                 ua.alerta_id,
-                ua.usuario_id
+                ua.usuario_id,
+                a.idLink
             FROM alerta a
             LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
             WHERE ua.usuario_id = ?
@@ -78,6 +79,7 @@ export const sendVencimientoAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
         const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
+        // console.log(cargosImportantes);
 
         // Crear un conjunto para almacenar los correos ya enviados
         const correosEnviados = new Set();
@@ -97,7 +99,7 @@ export const sendVencimientoAlerts = async (req, res) => {
         const emailPromises = [];
 
         for (const personal of rows) {
-            const { nombre, apellido, ven_licencia, correo, usuario_id, rol, compania_id } = personal;
+            const { nombre, apellido, ven_licencia, correo, usuario_id, rol, compania_id, personal_id } = personal;
 
             // Si ya se ha enviado un correo a este usuario, se salta el registro
             if (correosEnviados.has(correo)) continue;
@@ -170,7 +172,7 @@ export const sendVencimientoAlerts = async (req, res) => {
                     sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoCargoImportante, htmlContentCargoImportante)
                         .then(() => {
                             // Guardar alerta en la base de datos para cada cargo importante (TELECOM, Comandante, Inspector Material Mayor)
-                            return saveAndEmitAlert(cargoId, contenidoCargoImportante, 'vencimiento');
+                            return saveAndEmitAlert(cargoId, contenidoCargoImportante, 'vencimiento', personal_id);
                         })
                 ),
                 // Enviar correo al capitán de la compañía del usuario
@@ -178,11 +180,11 @@ export const sendVencimientoAlerts = async (req, res) => {
                     sendEmail(correoCapitan, "Recordatorio: Vencimiento de Licencia", contenidoCapitan, htmlContentCapitan)
                         .then(() => {
                             // Guardar alerta en la base de datos para el capitán
-                            return saveAndEmitAlert(capitanId, contenidoCapitan, 'vencimiento');
+                            return saveAndEmitAlert(capitanId, contenidoCapitan, 'vencimiento', personal_id);
                         })
                 ),
                 // Guardar y emitir la alerta de vencimiento para el usuario
-                saveAndEmitAlert(usuario_id, contenido, 'vencimiento')
+                saveAndEmitAlert(usuario_id, contenido, 'vencimiento', personal_id)
             );
 
             // Aplicar un pequeño delay entre los envíos
@@ -245,7 +247,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         const emailPromises = [];
 
         for (const maquina of rows) {
-            const { conductores, ven_rev_tec, codigo, patente } = maquina;
+            const { conductores, ven_rev_tec, codigo, patente, maquina_id } = maquina;
             if (!conductores) continue;
 
             const conductoresArray = JSON.parse(`[${conductores}]`);
@@ -317,15 +319,15 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                     saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica'),
                     ...cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
                         sendEmail(correoCargo, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCargoImportante, htmlContentCargoImportante)
-                            .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'revision_tecnica'))
+                            .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'revision_tecnica', maquina_id))
                     ),
                     ...(await getNotificationUsers({ compania_id: compania, rol: 'Capitán' })).map(({ correo: correoCapitan, id: capitanId }) =>
                         sendEmail(correoCapitan, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCapitan, htmlContentCapitan)
-                            .then(() => saveAndEmitAlert(capitanId, contenidoCapitan, 'revision_tecnica'))
+                            .then(() => saveAndEmitAlert(capitanId, contenidoCapitan, 'revision_tecnica', maquina_id))
                     ),
                     ...(await getNotificationUsers({ compania_id: compania, rol: 'Teniente de Máquina' })).map(({ correo: correoTeniente, id: tenienteId }) =>
                         sendEmail(correoTeniente, "Recordatorio: Vencimiento de Revisión Técnica", contenidoTenienteMaquina, htmlContentTenienteMaquina)
-                            .then(() => saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'revision_tecnica'))
+                            .then(() => saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'revision_tecnica', maquina_id))
                     )
                 );
             }
@@ -381,7 +383,7 @@ export const sendMantencionAlerts = async (req, res) => {
         }
 
         const emailPromises = rows.map(async (mantencion) => {
-            const { responsable_id, responsable_nombre, responsable_correo, responsable_rol, responsable_compania, fec_inicio, codigo_maquina, descripcion, compania_id } = mantencion;
+            const { responsable_id, responsable_nombre, responsable_correo, responsable_rol, responsable_compania, fec_inicio, codigo_maquina, descripcion, compania_id, mantencion_id } = mantencion;
 
             if (!responsable_correo || correosEnviados.has(responsable_correo)) return;
             correosEnviados.add(responsable_correo);
@@ -404,26 +406,26 @@ export const sendMantencionAlerts = async (req, res) => {
 
             // Enviar correo al responsable
             await sendEmail(responsable_correo, "Recordatorio: Mantención Programada", contenido, htmlContent);
-            await saveAndEmitAlert(responsable_id, contenido, 'mantencion');
+            await saveAndEmitAlert(responsable_id, contenido, 'mantencion', mantencion_id);
 
             // Enviar correos a cargos importantes
             await Promise.all(cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
                 sendEmail(correoCargo, "Recordatorio: Mantención Programada", contenidoCargoImportante, htmlContentCargoImportante)
-                    .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion'))
+                    .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id))
             ));
 
             // Enviar correo al capitán de la compañía del responsable
             const capitanes = await getNotificationUsers({ compania_id: compania_id, rol: 'Capitán' });
             await Promise.all(capitanes.map(({ correo: correoCapitan, id: capitanId }) =>
                 sendEmail(correoCapitan, "Recordatorio: Mantención Programada", contenidoCapitan, htmlContentCapitan)
-                    .then(() => saveAndEmitAlert(capitanId, contenidoCapitan, 'mantencion'))
+                    .then(() => saveAndEmitAlert(capitanId, contenidoCapitan, 'mantencion', mantencion_id))
             ));
 
             // Enviar correo al teniente de máquina
             const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
             await Promise.all(tenientes.map(({ correo: correoTeniente, id: tenienteId }) =>
                 sendEmail(correoTeniente, "Recordatorio: Mantención Programada", contenidoCapitan, htmlContentCapitan)
-                    .then(() => saveAndEmitAlert(tenienteId, contenidoCapitan, 'mantencion'))
+                    .then(() => saveAndEmitAlert(tenienteId, contenidoCapitan, 'mantencion', mantencion_id))
             ));
         });
 
@@ -447,7 +449,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
         // Obtener mantenciones próximas
         const [mantenciones] = await pool.query(`
             SELECT 
-                m.id, m.descripcion, m.fec_inicio, maq.codigo, maq.compania_id
+                m.id AS mantencion_id, m.descripcion, m.fec_inicio, maq.codigo, maq.compania_id
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN maquina maq ON b.maquina_id = maq.id
@@ -469,6 +471,8 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             // Obtener usuarios comunes de la compañía de la mantención
             const usuariosComunes = await getNotificationUsers({ compania_id: mantencion.compania_id });
 
+            const { mantencion_id } = mantencion;
+
             for (const usuario of usuariosComunes) {
                 const { nombre, correo, id: usuario_id, rol } = usuario;
 
@@ -480,7 +484,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
                 const htmlContent = generateEmailTemplate('Próxima Mantención Programada', contenidoBase, url, 'Acceder');
                 emailPromises.push(
                     sendEmail(correo, 'Próxima Mantención Programada', contenidoBase, htmlContent),
-                    saveAndEmitAlert(usuario_id, contenidoBase, 'mantencion')
+                    saveAndEmitAlert(usuario_id, contenidoBase, 'mantencion', mantencion_id)
                 );
 
                 // Enviar correos a cargos importantes
@@ -490,7 +494,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
                     emailPromises.push(
                         ...cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
                             sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoCapitan, htmlContentCapitan)
-                                .then(() => saveAndEmitAlert(cargoId, contenidoCapitan, 'mantencion'))
+                                .then(() => saveAndEmitAlert(cargoId, contenidoCapitan, 'mantencion', mantencion_id))
                         )
                     );
                 }
@@ -501,7 +505,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
                     const htmlContentTeniente = generateEmailTemplate('Próxima Mantención Programada', contenidoTeniente, url, 'Acceder');
                     emailPromises.push(
                         sendEmail(correo, 'Próxima Mantención Programada', contenidoTeniente, htmlContentTeniente)
-                            .then(() => saveAndEmitAlert(usuario_id, contenidoTeniente, 'mantencion'))
+                            .then(() => saveAndEmitAlert(usuario_id, contenidoTeniente, 'mantencion', mantencion_id))
                     );
                 }
             }
@@ -512,7 +516,7 @@ export const sendProximaMantencionAlerts = async (req, res) => {
                 const htmlContentCargoImportante = generateEmailTemplate('Próxima Mantención Programada', contenidoCargoImportante, url, 'Acceder');
                 emailPromises.push(
                     sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoCargoImportante, htmlContentCargoImportante)
-                        .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion'))
+                        .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id))
                 );
             }
         }
@@ -523,7 +527,6 @@ export const sendProximaMantencionAlerts = async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
     }
 };
-
 
 // Función para marcar alertas como leídas
 export const markAlertAsRead = async (req, res) => {

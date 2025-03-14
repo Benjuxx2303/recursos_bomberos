@@ -5,7 +5,6 @@ import { generatePDF } from "../utils/generatePDF.js";
 import { createAndSendNotifications, getNotificationTalleres, getNotificationUsers } from '../utils/notifications.js';
 import { checkIfDeletedById } from "../utils/queries.js";
 import { formatDateTime, validateDate } from "../utils/validations.js";
-
 // con parámetros de búsqueda
 // Paginacion
 export const getMantencionesAllDetailsSearch = async (req, res) => {
@@ -552,26 +551,25 @@ export const createMantencion = async (req, res) => {
         contenido += `Costo del servicio: $${cost_ser}\n`;
       } 
 
-      await createAndSendNotifications({
+      console.log('ID de la mantención creada:', result.insertId);
+
+      // Enviamos las notificaciones por email y websocket en una sola llamada
+      await createAndSendNotifications({ 
         contenido, 
-        tipo: "mantencion", 
+        tipo: "mantencion",
+        idLink: result.insertId, // Agregamos el idLink aquí
         destinatarios: todosLosUsuarios,
         emailConfig: {
           subject: "Nueva Mantención Ingresada",
           redirectUrl: `${process.env.FRONTEND_URL}/mantenciones/${result.insertId}`,
           buttonText: "Ver Detalles",
-          // attachments: [{
-          //   filename: `mantencion_${result.insertId}.pdf`,
-          //   content: pdfBuffer,
-          //   contentType: 'application/pdf'
-          // }] 
         },
       });
     }
 
     return res.json({
       id: result.insertId,
-      message: "Mantención creada exitosamente"
+      message: "Mantención creada exitosamente",
     });
 
   } catch (error) {

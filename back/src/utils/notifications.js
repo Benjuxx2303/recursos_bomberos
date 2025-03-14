@@ -175,15 +175,17 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general', 
 
         // Verificar si ya existe una alerta con un contenido similar
         const [existingAlert] = await pool.query(
-            'SELECT id FROM alerta WHERE contenido LIKE ? LIMIT 1',
-            [`%${contenido}%`] // Busca si hay alertas con contenido similar
+            'SELECT id, idLink FROM alerta WHERE contenido LIKE ? AND tipo = ? LIMIT 1',
+            [`%${contenido}%`, tipo] // Busca si hay alertas con contenido similar y mismo tipo
         );
 
         let alertaId;
+        let alertaIdLink;
 
         if (existingAlert.length > 0) {
-            // Si existe una alerta similar, usamos el ID de esa alerta
+            // Si existe una alerta similar, usamos el ID y el idLink de esa alerta
             alertaId = existingAlert[0].id;
+            alertaIdLink = existingAlert[0].idLink;
             console.log(`❗❗Alerta duplicada encontrada. Usando alerta existente con ID: ${alertaId}`);
         } else {
             // Si no existe, se crea la alerta nueva
@@ -192,6 +194,7 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general', 
                 [contenido, tipo, idLink]
             );
             alertaId = result.insertId;
+            alertaIdLink = idLink;
             console.log(`❗Alerta con ID "${alertaId}" creada para usuario "${usuario_id}": ${contenido}`);
         }
 
@@ -219,7 +222,7 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general', 
             usuario_id,
             contenido,
             tipo,
-            idLink, // Se agrega el idLink a los datos de la alerta
+            idLink: alertaIdLink, // Usamos el idLink guardado
             createdAt: new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' }),
             isRead: false
         };
@@ -260,7 +263,7 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general', 
  *     }
  * });
  */
-export const createAndSendNotifications = async ({ contenido, tipo, destinatarios, emailConfig }) => {
+export const createAndSendNotifications = async ({ contenido, tipo, idLink = null, destinatarios, emailConfig }) => {
     console.log('\n=== Iniciando proceso de notificaciones ===');
     console.log('Tipo:', tipo);
     console.log('Destinatarios a notificar:', destinatarios.length);
@@ -268,8 +271,8 @@ export const createAndSendNotifications = async ({ contenido, tipo, destinatario
     try {
         // Crear una única alerta
         const [alertaResult] = await pool.query(
-            'INSERT INTO alerta (contenido, tipo, createdAt, isRead) VALUES (?, ?, NOW(), false)',
-            [contenido, tipo]
+            'INSERT INTO alerta (contenido, tipo, idLink, createdAt, isRead) VALUES (?, ?, ?, NOW(), false)',
+            [contenido, tipo, idLink]
         );
         
         const alertaId = alertaResult.insertId;
@@ -330,6 +333,7 @@ export const createAndSendNotifications = async ({ contenido, tipo, destinatario
                             id: alertaId,
                             contenido,
                             tipo,
+                            idLink,
                             createdAt: new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' }),
                             isRead: false
                         };

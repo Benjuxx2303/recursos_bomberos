@@ -622,6 +622,7 @@ export const updateMantencion = async (req, res) => {
     fec_termino,
     descripcion,
     personal_responsable_id,
+    aprobada
     
   } = req.body;
 
@@ -684,7 +685,13 @@ export const updateMantencion = async (req, res) => {
         updates.n_factura = n_factura;
       }
     }
-
+    if (aprobada !== undefined) {
+      if (typeof aprobada !== "number") {
+        errors.push("Tipo de dato inválido para 'aprobada'");
+      } else {
+        updates.aprobada = aprobada;
+      }
+    }
     if (cost_ser !== undefined) {
       if (typeof cost_ser !== "number") {
         errors.push("Tipo de dato inválido para 'cost_ser'");

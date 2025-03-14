@@ -370,6 +370,33 @@ export const createMantencion = async (req, res) => {
       errors.push("El formato de la fecha de término es inválido. Debe ser dd-mm-yyyy");
     }
 
+    // Validar estados según las fechas proporcionadas
+    let estado_id = estado_mantencion_id;
+
+    // Caso 1: Si hay fecha de término anterior a la fecha actual -> Completada
+    if (fec_termino && validateDate(fec_termino)) {
+      const fechaTermino = new Date(formatDateTime(fec_termino));
+      const fechaActual = new Date();
+      
+      if (fechaTermino < fechaActual) {
+        const [estadoCompletada] = await pool.query(
+          "SELECT id FROM estado_mantencion WHERE nombre = 'Completada' AND isDeleted = 0"
+        );
+        if (estadoCompletada.length > 0) {
+          estado_id = estadoCompletada[0].id;
+        }
+      }
+    }
+    // Caso 2: Si hay fecha de inicio pero no hay fecha de término -> En Proceso
+    else if (fec_inicio && validateDate(fec_inicio) && !fec_termino) {
+      const [estadoEnProceso] = await pool.query(
+        "SELECT id FROM estado_mantencion WHERE nombre = 'En Proceso' AND isDeleted = 0"
+      );
+      if (estadoEnProceso.length > 0) {
+        estado_id = estadoEnProceso[0].id;
+      }
+    }
+
     if (n_factura && isNaN(n_factura)) errors.push("El número de factura debe ser un número válido");
     if (cost_ser && isNaN(cost_ser)) errors.push("El costo del servicio debe ser un número válido");
 
@@ -377,7 +404,7 @@ export const createMantencion = async (req, res) => {
 
     // Preparar los campos para la inserción
     const fieldsToInsert = ['maquina_id', 'estado_mantencion_id', 'descripcion', 'ingresada_por', 'isDeleted'];
-    const valuesToInsert = [maquina_id, estado_mantencion_id, descripcion, personal_id, 0];
+    const valuesToInsert = [maquina_id, estado_id, descripcion, personal_id, 0];
     
     // Agregar campos opcionales solo si están presentes
     if (bitacora_id) {

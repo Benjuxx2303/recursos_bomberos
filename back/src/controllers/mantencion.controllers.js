@@ -373,17 +373,28 @@ export const createMantencion = async (req, res) => {
     // Validar estados según las fechas proporcionadas
     let estado_id = estado_mantencion_id;
 
-    // Caso 1: Si hay fecha de término anterior a la fecha actual -> Completada
+    // Obtener fecha actual
+    const fechaActual = new Date();
+
+    // Caso 1: Si hay fecha de término -> verificar si es anterior a la fecha actual
     if (fec_termino && validateDate(fec_termino)) {
       const fechaTermino = new Date(formatDateTime(fec_termino));
-      const fechaActual = new Date();
       
       if (fechaTermino < fechaActual) {
+        // Si es anterior -> Completada
         const [estadoCompletada] = await pool.query(
           "SELECT id FROM estado_mantencion WHERE nombre = 'Completada' AND isDeleted = 0"
         );
         if (estadoCompletada.length > 0) {
           estado_id = estadoCompletada[0].id;
+        }
+      } else if (!fec_inicio) {
+        // Si es posterior y no hay fecha de inicio -> Programada
+        const [estadoProgramada] = await pool.query(
+          "SELECT id FROM estado_mantencion WHERE nombre = 'Programada' AND isDeleted = 0"
+        );
+        if (estadoProgramada.length > 0) {
+          estado_id = estadoProgramada[0].id;
         }
       }
     }
@@ -619,7 +630,7 @@ export const updateMantencion = async (req, res) => {
   try {
     // Verificar si la mantención existe (inicio)
     const [existing] = await pool.query(
-      "SELECT 1 FROM mantencion WHERE id = ?",
+      "SELECT fec_inicio, fec_termino FROM mantencion WHERE id = ?",
       [id]
     );
     if (existing.length === 0) {
@@ -691,26 +702,66 @@ export const updateMantencion = async (req, res) => {
       }
     }
 
-    // TODO: Usar "validateStartEndDate"
-    // Validar y agregar fec_inicio
+    // Validar fechas y actualizar estado según corresponda
+    let nuevaFecInicio = fec_inicio ? formatDateTime(fec_inicio) : existing[0].fec_inicio;
+    let nuevaFecTermino = fec_termino ? formatDateTime(fec_termino) : existing[0].fec_termino;
+
+    // Validar formato de fechas
     if (fec_inicio !== undefined) {
-      if (!validateDate(fec_inicio)) { // Cambié validación aquí
-        errors.push(
-          "El formato de la fecha de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa"
-        );
+      if (!validateDate(fec_inicio)) {
+        errors.push("El formato de la fecha de 'fec_inicio' es inválido. Debe ser dd-mm-aaaa");
       } else {
-        updates.fec_inicio = formatDateTime(fec_inicio); // Convertí la fecha a formato MySQL
+        updates.fec_inicio = nuevaFecInicio;
       }
     }
 
-    // Validar y agregar fec_termino
     if (fec_termino !== undefined) {
-      if (!validateDate(fec_termino)) { // Cambié validación aquí
-        errors.push(
-          "El formato de la fecha de 'fec_termino' es inválido. Debe ser dd-mm-aaaa"
-        );
+      if (!validateDate(fec_termino)) {
+        errors.push("El formato de la fecha de 'fec_termino' es inválido. Debe ser dd-mm-aaaa");
       } else {
-        updates.fec_termino = formatDateTime(fec_termino); // Convertí la fecha a formato MySQL
+        updates.fec_termino = nuevaFecTermino;
+      }
+    }
+
+    // Determinar estado según las fechas
+    if (!errors.length) {
+      const fechaActual = new Date();
+
+      // Caso 1: Si se proporciona fecha de término
+      if (fec_termino && validateDate(fec_termino)) {
+        const fechaTermino = new Date(formatDateTime(fec_termino));
+        
+        if (fechaTermino < fechaActual) {
+          // Si es anterior a la fecha actual -> Completada
+          const [estadoCompletada] = await pool.query(
+            "SELECT id FROM estado_mantencion WHERE nombre = 'Completada' AND isDeleted = 0"
+          );
+          if (estadoCompletada.length > 0) {
+            updates.estado_mantencion_id = estadoCompletada[0].id;
+          }
+        } else {
+          // Si es posterior a la fecha actual
+          const fechaInicio = nuevaFecInicio ? new Date(nuevaFecInicio) : null;
+          
+          if (fechaInicio && fechaInicio < fechaActual) {
+            // Si hay fecha de inicio y es anterior a la fecha actual -> En Proceso
+            const [estadoEnProceso] = await pool.query(
+              "SELECT id FROM estado_mantencion WHERE nombre = 'En Proceso' AND isDeleted = 0"
+            );
+            if (estadoEnProceso.length > 0) {
+              updates.estado_mantencion_id = estadoEnProceso[0].id;
+            }
+          }
+        }
+      }
+      // Caso 2: Si se proporciona/existe fecha de inicio pero no hay fecha de término -> En Proceso
+      else if (nuevaFecInicio && !nuevaFecTermino) {
+        const [estadoEnProceso] = await pool.query(
+          "SELECT id FROM estado_mantencion WHERE nombre = 'En Proceso' AND isDeleted = 0"
+        );
+        if (estadoEnProceso.length > 0) {
+          updates.estado_mantencion_id = estadoEnProceso[0].id;
+        }
       }
     }
 

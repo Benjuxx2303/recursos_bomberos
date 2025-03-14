@@ -183,6 +183,7 @@ export const getMaquinaById = async (req, res) => {
         m.disponible AS disponible,
         m.codigo AS codigo,
         m.patente AS patente,
+        mo.id as modelo_id,
         m.num_chasis AS num_chasis,
         m.vin AS vin,
         m.bomba AS bomba,
@@ -214,7 +215,8 @@ export const getMaquinaById = async (req, res) => {
           SELECT GROUP_CONCAT(
             JSON_OBJECT(
               'id', per.id,
-              'nombre', CONCAT(per.nombre, ' ', per.apellido)
+              'nombre', CONCAT(per.nombre, ' ', per.apellido),
+              'rut', per.rut
             )
           )
           FROM conductor_maquina cm

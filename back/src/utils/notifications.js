@@ -135,22 +135,23 @@ export const getNotificationTalleres = async (filters = {}) => {
  * Crea y envía una notificación individual a un usuario específico
  * Esta función es útil para notificaciones personalizadas o eventos específicos de un usuario
  * 
- * @param {number} userId - ID del usuario que recibirá la notificación
+ * @param {number} usuario_id - ID del usuario que recibirá la notificación
  * @param {string} contenido - Contenido de la notificación
  * @param {string} [tipo='general'] - Tipo de notificación
- * @returns {Promise<Object>} Objeto con la información de la alerta creada
- * @throws {Error} Si el usuario no existe o hay problemas al crear la alerta
+ * @param {string} [idLink=null] - ID de enlace asociado con la alerta (opcional)
+ * @returns {Promise<Object>} Objeto con la información de la alerta creada o existente
+ * @throws {Error} Si hay problemas al crear la alerta
  * @example
  * // Enviar una notificación general a un usuario
  * await saveAndEmitAlert(1, 'Tu solicitud ha sido aprobada');
  * 
  * // Enviar una notificación de un tipo específico
- * await saveAndEmitAlert(1, 'Nueva mantención asignada', 'mantencion');
+ * await saveAndEmitAlert(1, 'Nueva mantención asignada', 'mantencion', 'https://example.com');
  */
 /**
  * Guarda la alerta en la base de datos y la emite en tiempo real.
  */
-export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') => {
+export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general', idLink = null) => {
     try {
         if (!usuario_id || !contenido) {
             throw new Error('usuario_id y contenido son requeridos');
@@ -166,8 +167,10 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
             [usuario_id]
         );
 
+        // Si no se encuentra el usuario, se omite la creación de la alerta
         if (userInfo.length === 0) {
-            throw new Error(`Usuario no encontrado o inactivo: ${usuario_id}`);
+            console.log(`Usuario no encontrado o inactivo: ${usuario_id}. No se creará la alerta.`);
+            return null; // Omitir la creación de la alerta
         }
 
         // Verificar si ya existe una alerta con un contenido similar
@@ -176,29 +179,47 @@ export const saveAndEmitAlert = async (usuario_id, contenido, tipo = 'general') 
             [`%${contenido}%`] // Busca si hay alertas con contenido similar
         );
 
-        // Si existe una alerta similar, omitir la inserción
+        let alertaId;
+
         if (existingAlert.length > 0) {
-            console.log(`Alerta duplicada encontrada. No se insertará.`);
-            return null; // No se crea la alerta
+            // Si existe una alerta similar, usamos el ID de esa alerta
+            alertaId = existingAlert[0].id;
+            console.log(`❗❗Alerta duplicada encontrada. Usando alerta existente con ID: ${alertaId}`);
+        } else {
+            // Si no existe, se crea la alerta nueva
+            const [result] = await pool.query(
+                'INSERT INTO alerta (contenido, tipo, idLink, createdAt, isRead) VALUES (?, ?, ?, NOW(), false)',
+                [contenido, tipo, idLink]
+            );
+            alertaId = result.insertId;
+            console.log(`❗Alerta con ID "${alertaId}" creada para usuario "${usuario_id}": ${contenido}`);
         }
 
-        // Crear la alerta sin relacionar directamente con usuario_id
-        const [result] = await pool.query(
-            'INSERT INTO alerta (contenido, tipo, createdAt, isRead) VALUES (?, ?, NOW(), false)',
-            [contenido, tipo]
+        // Verificar si ya existe la relación usuario_alerta
+        const [existingRelation] = await pool.query(
+            'SELECT 1 FROM usuario_alerta WHERE usuario_id = ? AND alerta_id = ? LIMIT 1',
+            [usuario_id, alertaId]
         );
 
-        // Crear relación usuario-alerta
-        await pool.query(
-            'INSERT INTO usuario_alerta (usuario_id, alerta_id) VALUES (?, ?)',
-            [usuario_id, result.insertId]
-        );
+        // Si la relación ya existe, omitir la inserción
+        if (existingRelation.length > 0) {
+            console.log(`🛑Relación usuario_alerta ya existe. No se insertará.`);
+        } else {
+            // Crear relación usuario-alerta si no existe
+            await pool.query(
+                'INSERT INTO usuario_alerta (usuario_id, alerta_id) VALUES (?, ?)',
+                [usuario_id, alertaId]
+            );
+            console.log(`✅Relación usuario_alerta creada entre el usuario ${usuario_id} y la alerta ${alertaId}.`);
+        }
 
+        // Obtener los datos de la alerta (nuevo o existente)
         const alertaData = {
-            id: result.insertId,
+            id: alertaId,
             usuario_id,
             contenido,
             tipo,
+            idLink, // Se agrega el idLink a los datos de la alerta
             createdAt: new Date().toLocaleString('es-CL', { timeZone: 'America/Santiago' }),
             isRead: false
         };

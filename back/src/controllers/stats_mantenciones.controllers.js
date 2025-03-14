@@ -23,10 +23,13 @@ export const getCalendarMaintenances = async (req, res) => {
 
     const query = `
       SELECT 
+        m.id,
         m.fec_inicio as date,
         CONCAT('Mantención ', maq.codigo) as title,
         em.nombre as estado,
-        c.nombre as company
+        c.nombre as company,
+        c.id as company_id,
+        maq.compania_id
       FROM mantencion m
       JOIN maquina maq ON m.maquina_id = maq.id
       JOIN compania c ON maq.compania_id = c.id
@@ -35,25 +38,33 @@ export const getCalendarMaintenances = async (req, res) => {
       AND DATE_ADD(CURRENT_DATE, INTERVAL 2 MONTH)
       AND m.isDeleted = 0
       ${companyFilter}
+      ORDER BY m.fec_inicio ASC
     `;
+
+    console.log('Query:', query); // Para debugging
+    console.log('Params:', params); // Para debugging
 
     // Ejecutar la consulta con los parámetros seguros
     const [result] = await pool.query(query, params);
 
+    console.log('Resultados encontrados:', result.length); // Para debugging
+
     // Mapeo de resultados y asignación de colores de estado
     const response = result.map(row => ({
-      ...row,
-      date: new Date(row.date), // Asegurarse de que la fecha esté en formato Date
-      status: getStatusColor(row.estado) // Aplicar la lógica de color
+      id: row.id,
+      date: row.date,
+      title: row.title,
+      estado: row.estado,
+      company: row.company,
+      companyId: row.compania_id,
+      status: getStatusColor(row.estado)
     }));
 
     // Enviar la respuesta como JSON
     res.json(response);
   } catch (error) {
-    // Registrar error de forma detallada en el servidor (sin exponer detalles al cliente)
+    // Registrar error de forma detallada en el servidor
     console.error('Error al obtener las mantenimientos del calendario:', error);
-
-    // Devolver un mensaje de error genérico
     res.status(500).json({ message: 'Ocurrió un error en el servidor. Intente nuevamente más tarde.' });
   }
 };
@@ -63,8 +74,8 @@ const getStatusColor = (estado) => {
   switch (estado) {
     case 'Ingresada':
       return 'Ingresada';
-    case 'Preaprobada':
-      return 'Preaprobada';
+    case 'Evaluacion':
+      return 'Evaluacion';
     case 'Aprobada':
       return 'Aprobada';
     case 'En proceso':

@@ -426,6 +426,7 @@ export const getDriverData = async (req, res) => {
       SELECT
         CONCAT(p.nombre, ' ', p.apellido) AS conductor,
         c.nombre AS compania,
+        p.id AS id,
         COUNT(DISTINCT b.id) AS total_servicios,
         COUNT(DISTINCT b.maquina_id) AS maquinas_conducidas,
         ROUND(AVG(TIMESTAMPDIFF(MINUTE, b.fh_salida, b.fh_llegada)), 2) AS promedio_minutos_servicio

@@ -40,7 +40,7 @@ export const uploadFileToS3 = async (file, folder) => {
         console.log('Archivo recibido:', {
             nombre: file.originalname,
             tipo: file.mimetype,
-            tamaño: file.size,
+            tamaño: (file.size / 1024).toFixed(2) + ' KB',
             folder
         });
         

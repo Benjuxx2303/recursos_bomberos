@@ -1,8 +1,8 @@
-import { Upload } from "@aws-sdk/lib-storage";
 import { S3 } from "@aws-sdk/client-s3";
-import { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_BUCKET_NAME } from "../config.js";
-import { pool } from "../db.js";
+import { Upload } from "@aws-sdk/lib-storage";
 import sharp from 'sharp';
+import { AWS_ACCESS_KEY_ID, AWS_BUCKET_NAME, AWS_REGION, AWS_SECRET_ACCESS_KEY } from "../config.js";
+import { pool } from "../db.js";
 
 
 const now = new Date();
@@ -37,6 +37,13 @@ const s3 = new S3({
  */
 export const uploadFileToS3 = async (file, folder) => {
     try {
+        console.log('Archivo recibido:', {
+            nombre: file.originalname,
+            tipo: file.mimetype,
+            tamaño: file.size,
+            folder
+        });
+        
         let fileBuffer = file.buffer;
         let fileKey = `${folder}/${formattedDate}-${file.originalname}`;
 
@@ -59,8 +66,11 @@ export const uploadFileToS3 = async (file, folder) => {
 
         return await new Upload({ client: s3, params }).done();
     } catch (error) {
-        console.error("Error uploading file to S3:", error);
-        throw new Error("File upload failed");
+        console.error("Error detallado al subir archivo:", {
+            mensaje: error.message,
+            detalles: error
+        });
+        throw new Error(`File upload failed: ${error.message}`);
     }
 };
 

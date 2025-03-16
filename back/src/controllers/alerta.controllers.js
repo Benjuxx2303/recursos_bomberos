@@ -1,6 +1,6 @@
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from "../utils/mailer.js";
-import { saveAndEmitAlert, getNotificationUsers } from "../utils/notifications.js";
+import { getNotificationUsers, saveAndEmitAlert } from "../utils/notifications.js";
 
 // Función para obtener información del usuario
 const getUserInfo = async (usuario_id) => {
@@ -270,17 +270,17 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                 let contenidoTenienteMaquina;
 
                 if (hoy < dosMesesAntes) {
-                    contenido = `Hola ${nombre}, la revisión técnica está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
+                    contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
                     contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo con código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
                     contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
                     contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
                 } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
-                    contenido = `Hola ${nombre}, la revisión técnica está demasiado próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
+                    contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está demasiado próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
                     contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                     contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                     contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                 } else {
-                    contenido = `Hola ${nombre}, este vehículo ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
+                    contenido = `Hola ${nombre}, el vehículo código: ${codigo} - patente: ${patente} ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
                     contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
                     contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
                     contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
@@ -316,7 +316,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 
                 emailPromises.push(
                     sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent),
-                    saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica'),
+                    saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica', maquina_id),
                     ...cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
                         sendEmail(correoCargo, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCargoImportante, htmlContentCargoImportante)
                             .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'revision_tecnica', maquina_id))

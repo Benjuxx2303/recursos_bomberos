@@ -324,28 +324,38 @@ export const getBitacoraFull = async (req, res) => {
             params.push(itemsPerPage, offset);
         }
 
-        // Ejecutar la consulta
-        const [rows] = await pool.query(query, params);
-
-        // Obtener el total de registros si hay paginación
+        // Obtener el total de registros si hay paginación y el total general
         let total = 0;
+        let totalRows = 0;
+
+        // Primero obtener el total de registros sin filtros
+        const [totalResult] = await pool.query(
+            "SELECT COUNT(*) as total FROM bitacora WHERE isDeleted = 0"
+        );
+        totalRows = totalResult[0].total;
+
+        // Obtener el total de registros filtrados si hay paginación
         if (usePagination) {
             const countQuery = query.replace(/SELECT.*?FROM/, 'SELECT COUNT(*) as total FROM').split('ORDER BY')[0];
-            const [totalRows] = await pool.query(countQuery, params.slice(0, -2));
-            total = totalRows[0].total;
+            const [filteredRows] = await pool.query(countQuery, params);
+            total = filteredRows[0].total;
         }
 
-        // Retornar los resultados
+        // Ejecutar la consulta principal
+        const [rows] = await pool.query(query, params);
+
+        // Construir la respuesta
         const response = {
-            data: rows,
-            ...(usePagination && {
-                pagination: {
-                    total,
-                    page: currentPage,
+            pagination: {
+                totalRecords: totalRows,
+                ...(usePagination && {
+                    filteredRecords: total,
+                    currentPage: currentPage,
                     pageSize: itemsPerPage,
-                    totalPages: Math.ceil(total / itemsPerPage)
-                }
-            })
+                    totalPages: Math.ceil(total / itemsPerPage) || 0
+                })
+            },
+            data: rows
         };
 
         res.json(response);

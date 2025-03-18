@@ -98,8 +98,17 @@ export const getBitacora = async (req, res) => {
 
         // Filtro de disponibilidad
         if (disponible !== undefined) {
-            query += ` AND b.disponible = ?`;
-            params.push(disponible);
+            console.log("Aplicando filtro de disponibilidad:", disponible);
+            // Convertir a entero para asegurar comparación numérica en MySQL
+            const dispValue = parseInt(disponible);
+            console.log("Valor convertido:", dispValue);
+            
+            if (!isNaN(dispValue)) {
+                query += ` AND b.disponible = ?`;
+                params.push(dispValue);
+            } else {
+                console.warn("El valor de disponibilidad no es un número válido:", disponible);
+            }
         }
 
         // Ordenar y aplicar paginación
@@ -1028,6 +1037,26 @@ export const startServicioOld = async (req, res) => {
 
 export const updateBitacorasDisponibilidad = async (req, res) => {
     try {
+        console.log("Iniciando actualización de disponibilidad de bitácoras");
+        
+        // Primero verificamos cuántas bitácoras necesitan ser actualizadas
+        const [checkResult] = await pool.query(
+            `SELECT COUNT(*) as total 
+             FROM bitacora b 
+             WHERE b.id IN (
+                SELECT DISTINCT bitacora_id 
+                FROM (
+                    SELECT bitacora_id FROM mantencion WHERE bitacora_id IS NOT NULL
+                    UNION 
+                    SELECT bitacora_id FROM carga_combustible WHERE bitacora_id IS NOT NULL
+                ) AS subquery
+             )
+             AND (b.disponible IS NULL OR b.disponible = 1)
+             AND b.isDeleted = 0`
+        );
+        
+        console.log("Bitácoras que necesitan actualización:", checkResult[0].total);
+        
         // Consulta para actualizar las bitácoras que tienen registros en mantencion o carga_combustible
         const [result] = await pool.query(
             `UPDATE bitacora b 
@@ -1035,23 +1064,46 @@ export const updateBitacorasDisponibilidad = async (req, res) => {
              WHERE b.id IN (
                 SELECT DISTINCT bitacora_id 
                 FROM (
-                    SELECT bitacora_id FROM mantencion 
+                    SELECT bitacora_id FROM mantencion WHERE bitacora_id IS NOT NULL
                     UNION 
-                    SELECT bitacora_id FROM carga_combustible
+                    SELECT bitacora_id FROM carga_combustible WHERE bitacora_id IS NOT NULL
                 ) AS subquery
              )
              AND (b.disponible IS NULL OR b.disponible = 1)
              AND b.isDeleted = 0`
         );
 
+        // Verificar lo que queda después de la actualización
+        const [afterUpdateCheck] = await pool.query(
+            `SELECT COUNT(*) as remaining 
+             FROM bitacora b 
+             WHERE b.id IN (
+                SELECT DISTINCT bitacora_id 
+                FROM (
+                    SELECT bitacora_id FROM mantencion WHERE bitacora_id IS NOT NULL
+                    UNION 
+                    SELECT bitacora_id FROM carga_combustible WHERE bitacora_id IS NOT NULL
+                ) AS subquery
+             )
+             AND (b.disponible IS NULL OR b.disponible = 1)
+             AND b.isDeleted = 0`
+        );
+        
+        console.log("Bitácoras restantes después de la actualización:", afterUpdateCheck[0].remaining);
+        console.log("Filas afectadas según MySQL:", result.affectedRows);
+
         if (result.affectedRows > 0) {
             return res.json({ 
                 message: "Disponibilidad de bitácoras actualizada correctamente",
-                bitacorasActualizadas: result.affectedRows 
+                bitacorasActualizadas: result.affectedRows,
+                totalEncontradas: checkResult[0].total,
+                restantes: afterUpdateCheck[0].remaining
             });
         } else {
             return res.json({ 
-                message: "No se encontraron bitácoras para actualizar" 
+                message: "No se encontraron bitácoras para actualizar",
+                totalEncontradas: checkResult[0].total,
+                restantes: afterUpdateCheck[0].remaining
             });
         }
     } catch (error) {

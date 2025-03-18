@@ -317,6 +317,14 @@ export const createBitacora = async (req, res) => {
             );
         }
 
+        // Actualizar ultima_fec_servicio del personal si hay fecha de llegada
+        if (fh_llegada) {
+            await pool.query(
+                "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                [fh_llegada, personalIdNumber]
+            );
+        }
+
         // Responder con la bitácora creada
         res.status(201).json({
             id: rows.insertId,

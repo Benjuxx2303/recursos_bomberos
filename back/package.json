@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "devMon": "nodemon src/index.js",
+    "devWatch": "node --watch src/index.js",
+    "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "jest"
   },

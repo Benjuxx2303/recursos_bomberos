@@ -52,7 +52,7 @@ router.get(`${base_route}/verificar-licencia`, async (req, res) => {
     }
 });
 
-router.get(`${base_route}/update-last-service-date`, checkPermission("verPersonal"), updateUltimaFecServicio);
+router.get(`${base_route}/update-last-service-date`,updateUltimaFecServicio);
 
 // router.get(base_route, getPersonalWithDetails);
 router.get(base_route, checkPermission("verPersonal"), getPersonalWithDetailsPage); // con paginación

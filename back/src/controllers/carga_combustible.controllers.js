@@ -2,9 +2,9 @@ import { pool } from "../db.js";
 import {
     uploadFileToS3
 } from '../utils/fileUpload.js';
-import { createAndSendNotifications, getNotificationUsers} from '../utils/notifications.js';
-import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
 import { generatePDF } from "../utils/generatePDF.js";
+import { createAndSendNotifications, getNotificationUsers } from '../utils/notifications.js';
+import { validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
 
 // con parámetros de búsqueda 
 // Paginacion
@@ -221,6 +221,12 @@ export const createCargaCombustible = async (req, res) => {
     const [result] = await pool.query(
       "INSERT INTO carga_combustible (bitacora_id, litros, valor_mon, img_url, isDeleted) VALUES (?, ?, ?, ?, 0)",
       [bitacoraIdNumber, litrosNumber, valorMonNumber, img_url]
+    );
+
+    // Actualizar disponibilidad de la bitácora a 0
+    await pool.query(
+      "UPDATE bitacora SET disponible = 0 WHERE id = ? AND isDeleted = 0",
+      [bitacoraIdNumber]
     );
 
     // obtener datos para el pdf

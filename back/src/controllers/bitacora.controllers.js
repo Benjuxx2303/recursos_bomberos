@@ -1025,3 +1025,40 @@ export const startServicioOld = async (req, res) => {
         return res.status(500).json({ message: "Error al iniciar el servicio", error: error.message });
     }
 };
+
+export const updateBitacorasDisponibilidad = async (req, res) => {
+    try {
+        // Consulta para actualizar las bitácoras que tienen registros en mantencion o carga_combustible
+        const [result] = await pool.query(
+            `UPDATE bitacora b 
+             SET b.disponible = 0 
+             WHERE b.id IN (
+                SELECT DISTINCT bitacora_id 
+                FROM (
+                    SELECT bitacora_id FROM mantencion 
+                    UNION 
+                    SELECT bitacora_id FROM carga_combustible
+                ) AS subquery
+             )
+             AND (b.disponible IS NULL OR b.disponible = 1)
+             AND b.isDeleted = 0`
+        );
+
+        if (result.affectedRows > 0) {
+            return res.json({ 
+                message: "Disponibilidad de bitácoras actualizada correctamente",
+                bitacorasActualizadas: result.affectedRows 
+            });
+        } else {
+            return res.json({ 
+                message: "No se encontraron bitácoras para actualizar" 
+            });
+        }
+    } catch (error) {
+        console.error("Error al actualizar disponibilidad de bitácoras:", error);
+        return res.status(500).json({ 
+            message: "Error al actualizar la disponibilidad de las bitácoras", 
+            error: error.message 
+        });
+    }
+};

@@ -9,6 +9,7 @@ import {
   getLastBitacora,
   startServicio,
   updateBitacora,
+  updateBitacorasDisponibilidad
 } from "../controllers/bitacora.controllers.js";
 
 const router = Router();
@@ -31,5 +32,5 @@ router.delete(`${base_route}/:id`, checkPermission('eliminarServicio'),deleteBit
 router.patch(`${base_route}/:id`, checkPermission('actualizarServicio'),updateBitacora);
 router.post(`${base_route}/start`, checkPermission('actualizarServicio'), startServicio);
 router.patch(`${base_route}/:id/end`, checkPermission('actualizarServicio'), endServicio);
-
+router.put(`${base_route}/update-disponibilidad`, updateBitacorasDisponibilidad);
 export default router;

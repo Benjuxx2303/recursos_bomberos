@@ -5,7 +5,8 @@ import {
   deleteBitacora,
   endServicio,
   getBitacora,
-  getBitacoraById, // habilitado
+  getBitacoraById,
+  getBitacoraFull, // habilitado
   getLastBitacora,
   startServicio,
   updateBitacora,
@@ -22,7 +23,8 @@ router.get(`${base_route}/search`, checkPermission('verServicios'), getBitacora)
 // QueryParams:
 // page:              1
 // pageSize:          10
-
+router.get(`${base_route}/full`,  getBitacoraFull);
+// http://{url}/api/bitacora/full
 router.get(`${base_route}/:id`, checkPermission('verServicios'), getBitacoraById);
 router.get(`${base_route}/last`, checkPermission('verServicios'),  getLastBitacora);
 router.post(base_route, checkPermission('ingresarServicio'), createBitacora);

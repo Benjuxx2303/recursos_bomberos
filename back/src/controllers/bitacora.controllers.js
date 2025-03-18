@@ -124,6 +124,236 @@ export const getBitacora = async (req, res) => {
     }
 };
 
+
+// Bitacora con todos los filtros
+export const getBitacoraFull = async (req, res) => {
+    try {
+        // Obtener los parámetros de la query
+        const {
+            // Parámetros de paginación
+            page,
+            pageSize,
+            noPagination,
+            
+            // Parámetros de ordenamiento
+            orderBy = 'id',
+            orderDirection = 'DESC',
+            
+            // Parámetros de filtrado existentes
+            id,
+            compania,
+            rut_personal,
+            taller,
+            fecha_salida,
+            isCargaCombustible,
+            isMantencion,
+            disponible,
+            
+            // Nuevos parámetros de filtrado
+            startDate,
+            endDate,
+            dateField = 'fh_salida', // Campo por defecto para filtrado de fechas
+            personal_id,
+            maquina_id,
+            compania_id,
+            clave_id,
+            searchDireccion,
+            createdAtStart,
+            createdAtEnd
+        } = req.query;
+
+        // Configuración de paginación
+        const usePagination = noPagination !== '1';
+        const currentPage = parseInt(page) || 1;
+        const itemsPerPage = parseInt(pageSize) || 10;
+        const offset = (currentPage - 1) * itemsPerPage;
+
+        // Validar campo de ordenamiento permitido
+        const allowedOrderFields = [
+            'id', 'codigo_maquina', 'compania', 'rut_conductor', 
+            'nombre_conductor', 'apellido_conductor', 'patente_maquina', 
+            'tipo_maquina', 'fh_salida', 'fh_llegada', 'clave', 
+            'direccion', 'km_salida', 'km_llegada', 'km_recorrido',
+            'hmetro_salida', 'hmetro_llegada', 'hmetro_recorrido',
+            'hbomba_salida', 'hbomba_llegada', 'hbomba_recorrido',
+            'createdAt'
+        ];
+
+        const finalOrderBy = allowedOrderFields.includes(orderBy) ? orderBy : 'id';
+        const finalOrderDirection = orderDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        
+        // Base de la consulta
+        let query = `
+            SELECT b.id, 
+                   m.codigo AS 'codigo_maquina',
+                   m.id AS 'maquina_id',
+                   c.nombre AS compania, 
+                   c.id AS 'compania_id',
+                   p.id AS 'personal_id',
+                   p.rut AS "rut_conductor", 
+                   p.nombre AS "nombre_conductor", 
+                   p.apellido AS "apellido_conductor", 
+                   m.patente AS "patente_maquina", 
+                   tm.nombre AS tipo_maquina, 
+                   DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
+                   DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
+                   cl.id AS 'clave_id',
+                   cl.nombre AS clave, 
+                   b.direccion, 
+                   b.km_salida, 
+                   b.km_llegada, 
+                   CASE 
+                       WHEN b.km_llegada > b.km_salida AND b.km_salida IS NOT NULL AND b.km_llegada IS NOT NULL 
+                       THEN b.km_llegada - b.km_salida 
+                       ELSE NULL 
+                   END AS "km_recorrido",
+                   b.hmetro_salida, 
+                   b.hmetro_llegada, 
+                   CASE 
+                       WHEN b.hmetro_llegada > b.hmetro_salida AND b.hmetro_salida IS NOT NULL AND b.hmetro_llegada IS NOT NULL 
+                       THEN b.hmetro_llegada - b.hmetro_salida 
+                       ELSE NULL 
+                   END AS "hmetro_recorrido",
+                   b.hbomba_salida, 
+                   b.hbomba_llegada, 
+                   CASE 
+                       WHEN b.hbomba_llegada > b.hbomba_salida AND b.hbomba_salida IS NOT NULL AND b.hbomba_llegada IS NOT NULL 
+                       THEN b.hbomba_llegada - b.hbomba_salida 
+                       ELSE NULL 
+                   END AS "hbomba_recorrido",
+                   TIMESTAMPDIFF(MINUTE, b.fh_salida, b.fh_llegada) AS minutos_duracion,
+                   DATE_FORMAT(b.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
+                   b.obs 
+            FROM bitacora b 
+            INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0
+            INNER JOIN clave cl ON b.clave_id = cl.id AND cl.isDeleted = 0
+            INNER JOIN personal p ON b.personal_id = p.id AND p.isDeleted = 0
+            INNER JOIN maquina m ON b.maquina_id = m.id AND m.isDeleted = 0
+            INNER JOIN modelo mo ON m.modelo_id = mo.id
+            INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
+            WHERE b.isDeleted = 0
+        `;
+
+        const params = [];
+
+        // Filtros existentes
+        if (id) {
+            query += " AND b.id = ?";
+            params.push(id);
+        }
+        if (compania) {
+            query += " AND c.nombre LIKE ?";
+            params.push(`%${compania}%`);
+        }
+        if (rut_personal) {
+            query += " AND p.rut LIKE ?";
+            params.push(`%${rut_personal}%`);
+        }
+        if (taller) {
+            query += " AND tm.nombre LIKE ?";
+            params.push(`%${taller}%`);
+        }
+        if (fecha_salida) {
+            query += " AND DATE_FORMAT(b.fh_salida, '%d-%m-%Y') = ?";
+            params.push(fecha_salida);
+        }
+
+        // Nuevos filtros
+        if (startDate && endDate) {
+            query += ` AND b.${dateField} BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        if (createdAtStart && createdAtEnd) {
+            query += " AND b.createdAt BETWEEN ? AND ?";
+            params.push(createdAtStart, createdAtEnd);
+        }
+
+        if (personal_id) {
+            query += " AND b.personal_id = ?";
+            params.push(personal_id);
+        }
+
+        if (maquina_id) {
+            query += " AND b.maquina_id = ?";
+            params.push(maquina_id);
+        }
+
+        if (compania_id) {
+            query += " AND b.compania_id = ?";
+            params.push(compania_id);
+        }
+
+        if (clave_id) {
+            query += " AND b.clave_id = ?";
+            params.push(clave_id);
+        }
+
+        if (searchDireccion) {
+            query += " AND b.direccion LIKE ?";
+            params.push(`%${searchDireccion}%`);
+        }
+
+        // Filtros de carga de combustible y mantención
+        if (isCargaCombustible !== undefined) {
+            query += isCargaCombustible === "1" 
+                ? " AND EXISTS (SELECT 1 FROM carga_combustible cc WHERE cc.bitacora_id = b.id)"
+                : " AND NOT EXISTS (SELECT 1 FROM carga_combustible cc WHERE cc.bitacora_id = b.id)";
+        }
+
+        if (isMantencion !== undefined) {
+            query += isMantencion === "1" 
+                ? " AND EXISTS (SELECT 1 FROM mantencion m WHERE m.bitacora_id = b.id)"
+                : " AND NOT EXISTS (SELECT 1 FROM mantencion m WHERE m.bitacora_id = b.id)";
+        }
+
+        if (disponible !== undefined) {
+            const dispValue = parseInt(disponible);
+            if (!isNaN(dispValue)) {
+                query += ` AND b.disponible = ?`;
+                params.push(dispValue);
+            }
+        }
+
+        // Ordenamiento
+        query += ` ORDER BY ${finalOrderBy} ${finalOrderDirection}`;
+
+        // Paginación (si está habilitada)
+        if (usePagination) {
+            query += " LIMIT ? OFFSET ?";
+            params.push(itemsPerPage, offset);
+        }
+
+        // Ejecutar la consulta
+        const [rows] = await pool.query(query, params);
+
+        // Obtener el total de registros si hay paginación
+        let total = 0;
+        if (usePagination) {
+            const countQuery = query.replace(/SELECT.*?FROM/, 'SELECT COUNT(*) as total FROM').split('ORDER BY')[0];
+            const [totalRows] = await pool.query(countQuery, params.slice(0, -2));
+            total = totalRows[0].total;
+        }
+
+        // Retornar los resultados
+        const response = {
+            data: rows,
+            ...(usePagination && {
+                pagination: {
+                    total,
+                    page: currentPage,
+                    pageSize: itemsPerPage,
+                    totalPages: Math.ceil(total / itemsPerPage)
+                }
+            })
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error en getBitacora:', error);
+        return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+    }
+};
 // Obtener bitácora por ID
 export const getBitacoraById = async (req, res) => {
     const { id } = req.params;

@@ -183,7 +183,7 @@ export const getBitacoraFull = async (req, res) => {
         const finalOrderDirection = orderDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
         
         // Base de la consulta
-        let query = `
+        let baseQuery = `
             SELECT b.id, 
                    m.codigo AS 'codigo_maquina',
                    m.id AS 'maquina_id',
@@ -238,71 +238,71 @@ export const getBitacoraFull = async (req, res) => {
 
         // Filtros existentes
         if (id) {
-            query += " AND b.id = ?";
+            baseQuery += " AND b.id = ?";
             params.push(id);
         }
         if (compania) {
-            query += " AND c.nombre LIKE ?";
+            baseQuery += " AND c.nombre LIKE ?";
             params.push(`%${compania}%`);
         }
         if (rut_personal) {
-            query += " AND p.rut LIKE ?";
+            baseQuery += " AND p.rut LIKE ?";
             params.push(`%${rut_personal}%`);
         }
         if (taller) {
-            query += " AND tm.nombre LIKE ?";
+            baseQuery += " AND tm.nombre LIKE ?";
             params.push(`%${taller}%`);
         }
         if (fecha_salida) {
-            query += " AND DATE_FORMAT(b.fh_salida, '%d-%m-%Y') = ?";
+            baseQuery += " AND DATE_FORMAT(b.fh_salida, '%d-%m-%Y') = ?";
             params.push(fecha_salida);
         }
 
         // Nuevos filtros
         if (startDate && endDate) {
-            query += ` AND b.${dateField} BETWEEN ? AND ?`;
+            baseQuery += ` AND b.${dateField} BETWEEN ? AND ?`;
             params.push(startDate, endDate);
         }
 
         if (createdAtStart && createdAtEnd) {
-            query += " AND b.createdAt BETWEEN ? AND ?";
+            baseQuery += " AND b.createdAt BETWEEN ? AND ?";
             params.push(createdAtStart, createdAtEnd);
         }
 
         if (personal_id) {
-            query += " AND b.personal_id = ?";
+            baseQuery += " AND b.personal_id = ?";
             params.push(personal_id);
         }
 
         if (maquina_id) {
-            query += " AND b.maquina_id = ?";
+            baseQuery += " AND b.maquina_id = ?";
             params.push(maquina_id);
         }
 
         if (compania_id) {
-            query += " AND b.compania_id = ?";
+            baseQuery += " AND b.compania_id = ?";
             params.push(compania_id);
         }
 
         if (clave_id) {
-            query += " AND b.clave_id = ?";
+            baseQuery += " AND b.clave_id = ?";
             params.push(clave_id);
         }
 
         if (searchDireccion) {
-            query += " AND b.direccion LIKE ?";
+            baseQuery += " AND b.direccion LIKE ?";
             params.push(`%${searchDireccion}%`);
         }
 
         // Filtros de carga de combustible y mantención
         if (isCargaCombustible !== undefined) {
-            query += isCargaCombustible === "1" 
+            baseQuery += isCargaCombustible === "1" 
                 ? " AND EXISTS (SELECT 1 FROM carga_combustible cc WHERE cc.bitacora_id = b.id)"
                 : " AND NOT EXISTS (SELECT 1 FROM carga_combustible cc WHERE cc.bitacora_id = b.id)";
         }
 
         if (isMantencion !== undefined) {
-            query += isMantencion === "1" 
+            baseQuery += isMantencion === "1" 
                 ? " AND EXISTS (SELECT 1 FROM mantencion m WHERE m.bitacora_id = b.id)"
                 : " AND NOT EXISTS (SELECT 1 FROM mantencion m WHERE m.bitacora_id = b.id)";
         }
@@ -310,60 +310,47 @@ export const getBitacoraFull = async (req, res) => {
         if (disponible !== undefined) {
             const dispValue = parseInt(disponible);
             if (!isNaN(dispValue)) {
-                query += ` AND b.disponible = ?`;
+                baseQuery += ` AND b.disponible = ?`;
                 params.push(dispValue);
             }
         }
 
-        // Ordenamiento
-        query += ` ORDER BY ${finalOrderBy} ${finalOrderDirection}`;
+        // Obtener el total de registros filtrados
+        const countQuery = baseQuery.replace(/SELECT[\s\S]*?FROM/i, 'SELECT COUNT(*) as total FROM');
+        const [countResult] = await pool.query(countQuery, params);
+        const totalRecords = countResult[0]?.total || 0;
 
-        // Paginación (si está habilitada)
+        // Añadir ordenamiento y paginación a la consulta final
+        baseQuery += ` ORDER BY ${finalOrderBy} ${finalOrderDirection}`;
+
         if (usePagination) {
-            query += " LIMIT ? OFFSET ?";
+            baseQuery += " LIMIT ? OFFSET ?";
             params.push(itemsPerPage, offset);
         }
 
-        // Obtener el total de registros si hay paginación y el total general
-        let total = 0;
-        let totalRows = 0;
+        // Ejecutar la consulta final
+        const [rows] = await pool.query(baseQuery, params);
 
-        // Primero obtener el total de registros sin filtros
-        const [totalResult] = await pool.query(
-            "SELECT COUNT(*) as total FROM bitacora WHERE isDeleted = 0"
-        );
-        totalRows = totalResult[0].total;
-
-        // Obtener el total de registros filtrados si hay paginación
-        if (usePagination) {
-            const countQuery = query.replace(/SELECT.*?FROM/, 'SELECT COUNT(*) as total FROM').split('ORDER BY')[0];
-            const [filteredRows] = await pool.query(countQuery, params);
-            total = filteredRows[0].total;
-        }
-
-        // Ejecutar la consulta principal
-        const [rows] = await pool.query(query, params);
+        // Calcular totalPages
+        const totalPages = Math.max(1, Math.ceil(totalRecords / itemsPerPage));
 
         // Construir la respuesta
-        const response = {
+        res.json({
             pagination: {
-                totalRecords: totalRows,
-                ...(usePagination && {
-                    filteredRecords: total,
-                    currentPage: currentPage,
-                    pageSize: itemsPerPage,
-                    totalPages: Math.ceil(total / itemsPerPage) || 0
-                })
+                totalRecords,
+                currentPage,
+                pageSize: itemsPerPage,
+                totalPages
             },
             data: rows
-        };
+        });
 
-        res.json(response);
     } catch (error) {
         console.error('Error en getBitacora:', error);
         return res.status(500).json({ message: "Error interno del servidor", error: error.message });
     }
 };
+
 // Obtener bitácora por ID
 export const getBitacoraById = async (req, res) => {
     const { id } = req.params;

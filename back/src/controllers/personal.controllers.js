@@ -59,7 +59,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
     
         // Agregar filtros si se proporcionan
         if (search) {
-            query += ' AND (p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ? OR p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ?)';
+            query += ' AND (p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ?)';
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
 

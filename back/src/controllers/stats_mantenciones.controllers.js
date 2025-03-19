@@ -333,7 +333,7 @@ export const getMaintenanceHistory = async (req, res) => {
       type,
       orden,
       "maquina.patente": patente,
-      "maquina.nombre": maquinaNombre,
+      "maquina.codigo": maquinaNombre,
       estado,
       "personal.nombre": personalNombre,
       "personal.apellido": personalApellido,
@@ -371,7 +371,7 @@ export const getMaintenanceHistory = async (req, res) => {
       params.push(`%${patente}%`);
     }
     if (maquinaNombre) {
-      whereConditions.push('maq.nombre LIKE ?');
+      whereConditions.push('maq.codigo LIKE ?');
       params.push(`%${maquinaNombre}%`);
     }
     if (estado) {
@@ -496,7 +496,7 @@ export const getMaintenanceHistory = async (req, res) => {
           maq.id as 'maquina.id',
           maq.img_url as 'maquina.img_url',
           maq.patente as 'maquina.patente',
-          maq.nombre as 'maquina.nombre',
+          maq.codigo as 'maquina.codigo',
           tm.nombre as tipo,
           tm.id as 'tipo_mantencion.id',
           em.nombre as estado,

@@ -165,7 +165,7 @@ export const getBitacoraFull = async (req, res) => {
         // Configuración de paginación
         const usePagination = noPagination !== '1';
         const currentPage = parseInt(page) || 1;
-        const itemsPerPage = parseInt(pageSize) || 10;
+        const itemsPerPage = parseInt(pageSize) || 6;
         const offset = (currentPage - 1) * itemsPerPage;
 
         // Validar campo de ordenamiento permitido

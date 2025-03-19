@@ -2,25 +2,16 @@ import { pool } from "../db.js";
 
 // TODO: falta validacion de rol si es conductor
 
-// paginacion
 export const getConductorMaquinaPage = async (req, res) => {
   try {
-    // Obtener los parámetros de la página y el tamaño de página
-    const page = parseInt(req.query.page) || 1;  // Si no se proporciona, se asume la primera página
-    const pageSize = parseInt(req.query.pageSize) || 10;  // Si no se proporciona, se asume un tamaño de página de 10
-
-    // Calcular el offset para la paginación
-    const offset = (page - 1) * pageSize;
-
-    // Consulta con paginación
+    // Consulta sin paginación
     const query = `
       SELECT * 
       FROM conductor_maquina 
       WHERE isDeleted = 0
-      LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await pool.query(query, [pageSize, offset]);
+    const [rows] = await pool.query(query);
     res.json(rows);
 
   } catch (error) {

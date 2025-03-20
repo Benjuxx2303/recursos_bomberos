@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { checkPermission } from '../controllers/authMiddleware.js';
 import {
     getCompanyData,
     getDriverData,
@@ -12,11 +13,11 @@ const router = Router();
 
 const base_route = '/stats';
 
-router.get(`${base_route}/maintenance`,  getMaintenanceData);
-router.get(`${base_route}/service`, getServiceDataWithClaves);
-router.get(`${base_route}/fuel`, getFuelData);
-router.get(`${base_route}/company`,  getCompanyData);
-router.get(`${base_route}/driver`,  getDriverData);
-router.get(`${base_route}/summary`,  getSummaryData);
+router.get(`${base_route}/maintenance`,  getMaintenanceData , checkPermission("verMantenciones"));
+router.get(`${base_route}/service`, getServiceDataWithClaves, checkPermission("verMantenciones"));
+router.get(`${base_route}/fuel`, getFuelData, checkPermission("verMantenciones"));
+router.get(`${base_route}/company`,  getCompanyData, checkPermission("verMantenciones"));
+router.get(`${base_route}/driver`,  getDriverData, checkPermission("verMantenciones"));
+router.get(`${base_route}/summary`,  getSummaryData, checkPermission("verMantenciones"));
 
 export default router;

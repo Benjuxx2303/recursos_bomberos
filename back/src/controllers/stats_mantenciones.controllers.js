@@ -1,4 +1,5 @@
 import { addMonths, format, subMonths } from 'date-fns';
+import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 
 // Obtener mantenciones para el calendario
@@ -6,6 +7,9 @@ export const getCalendarMaintenances = async (req, res) => {
   try {
     // Validar el parametro compania_id
     let { companiaId } = req.query;
+
+    // Si hay un filtro de compañía del middleware, usarlo
+    companiaId = companiaId || req.companyFilter;
 
     // Validación de tipo y formato de compania_id
     if (companiaId && isNaN(companiaId)) {
@@ -41,8 +45,8 @@ export const getCalendarMaintenances = async (req, res) => {
       ORDER BY m.fec_inicio ASC
     `;
 
-    console.log('Query:', query); // Para debugging
-    console.log('Params:', params); // Para debugging
+/*     console.log('Query:', query); // Para debugging
+    console.log('Params:', params); // Para debugging */
 
     // Ejecutar la consulta con los parámetros seguros
     const [result] = await pool.query(query, params);
@@ -65,6 +69,9 @@ export const getCalendarMaintenances = async (req, res) => {
   } catch (error) {
     // Registrar error de forma detallada en el servidor
     console.error('Error al obtener las mantenimientos del calendario:', error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(403).json({ error: 'Token inválido' });
+    }
     res.status(500).json({ message: 'Ocurrió un error en el servidor. Intente nuevamente más tarde.' });
   }
 };
@@ -92,6 +99,10 @@ const getStatusColor = (estado) => {
 export const getMonthlyStats = async (req, res) => {
   try {
     const { companiaId, startDate, endDate } = req.query;
+
+    // Si hay un filtro de compañía del middleware, usarlo
+    const finalCompaniaId = companiaId || req.companyFilter;
+
     const params = [];
 
     // Mapa de números de mes a abreviaturas en español
@@ -136,13 +147,13 @@ export const getMonthlyStats = async (req, res) => {
       JOIN tipo_mantencion tm ON m.tipo_mantencion_id = tm.id
       WHERE m.isDeleted = 0
       ${dateFilter}
-      ${companiaId ? 'AND c.id = ?' : ''}
+      ${finalCompaniaId ? 'AND c.id = ?' : ''}
       GROUP BY CAST(DATE_FORMAT(m.fec_inicio, '%Y-%m-01') AS DATE)
       ORDER BY month ASC
     `;
 
-    if (companiaId) {
-      params.push(companiaId);
+    if (finalCompaniaId) {
+      params.push(finalCompaniaId);
     }
 
     const [result] = await pool.query(query, params);
@@ -197,6 +208,10 @@ export const getMonthlyStats = async (req, res) => {
 export const getKPIs = async (req, res) => {
   try {
     const { companiaId } = req.query;
+
+    // Si hay un filtro de compañía del middleware, usarlo
+    const finalCompaniaId = companiaId || req.companyFilter;
+
     const currentMonth = format(new Date(), 'yyyy-MM');
     const previousMonth = format(subMonths(new Date(), 1), 'yyyy-MM');
 
@@ -206,7 +221,7 @@ export const getKPIs = async (req, res) => {
         COUNT(DISTINCT CASE WHEN maq.disponible = 1 THEN maq.id END) as current,
         COUNT(DISTINCT maq.id) as total
       FROM maquina maq
-      WHERE ${companiaId ? 'maq.compania_id = ? AND' : ''} maq.isDeleted = 0
+      WHERE ${finalCompaniaId ? 'maq.compania_id = ? AND' : ''} maq.isDeleted = 0
     `;
 
     // Query para mantenciones en proceso y completadas del mes actual
@@ -218,7 +233,7 @@ export const getKPIs = async (req, res) => {
       JOIN maquina maq ON m.maquina_id = maq.id
       JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
       WHERE DATE_FORMAT(m.fec_inicio, '%Y-%m') = ?
-      ${companiaId ? 'AND maq.compania_id = ?' : ''}
+      ${finalCompaniaId ? 'AND maq.compania_id = ?' : ''}
       AND m.isDeleted = 0
     `;
 
@@ -229,7 +244,7 @@ export const getKPIs = async (req, res) => {
         COALESCE(SUM(CASE WHEN DATE_FORMAT(m.fec_inicio, '%Y-%m') = ? THEN m.cost_ser ELSE 0 END), 0) as previousCosts
       FROM mantencion m
       JOIN maquina maq ON m.maquina_id = maq.id
-      WHERE ${companiaId ? 'maq.compania_id = ? AND' : ''} m.isDeleted = 0
+      WHERE ${finalCompaniaId ? 'maq.compania_id = ? AND' : ''} m.isDeleted = 0
     `;
 
     // Query para revisiones técnicas vencidas
@@ -237,7 +252,7 @@ export const getKPIs = async (req, res) => {
       SELECT COUNT(*) as overdueReviews
       FROM maquina maq
       WHERE maq.ven_rev_tec < CURRENT_DATE
-      ${companiaId ? 'AND maq.compania_id = ?' : ''}
+      ${finalCompaniaId ? 'AND maq.compania_id = ?' : ''}
       AND maq.isDeleted = 0
     `;
 
@@ -249,21 +264,21 @@ export const getKPIs = async (req, res) => {
       JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
       WHERE m.fec_inicio <= CURRENT_DATE
       AND em.nombre NOT IN ('En Proceso', 'Completada')
-      ${companiaId ? 'AND maq.compania_id = ?' : ''}
+      ${finalCompaniaId ? 'AND maq.compania_id = ?' : ''}
       AND m.isDeleted = 0
     `;
 
-    const [activeMachines] = await pool.query(activeMachinesQuery, companiaId ? [companiaId] : []);
+    const [activeMachines] = await pool.query(activeMachinesQuery, finalCompaniaId ? [finalCompaniaId] : []);
     const [maintenanceStatus] = await pool.query(
       maintenanceStatusQuery, 
-      companiaId ? [currentMonth, companiaId] : [currentMonth]
+      finalCompaniaId ? [currentMonth, finalCompaniaId] : [currentMonth]
     );
     const [costs] = await pool.query(
       costsQuery, 
-      companiaId ? [currentMonth, previousMonth, companiaId] : [currentMonth, previousMonth]
+      finalCompaniaId ? [currentMonth, previousMonth, finalCompaniaId] : [currentMonth, previousMonth]
     );
-    const [overdueReviews] = await pool.query(overdueReviewsQuery, companiaId ? [companiaId] : []);
-    const [overdueMaintenances] = await pool.query(overdueMaintenancesQuery, companiaId ? [companiaId] : []);
+    const [overdueReviews] = await pool.query(overdueReviewsQuery, finalCompaniaId ? [finalCompaniaId] : []);
+    const [overdueMaintenances] = await pool.query(overdueMaintenancesQuery, finalCompaniaId ? [finalCompaniaId] : []);
 
     res.json({
       activeMachines: {
@@ -287,7 +302,11 @@ export const getKPIs = async (req, res) => {
 // Obtener mantenciones por compañía
 export const getMaintenanceByCompany = async (req, res) => {
   try {
-    const { companiaId } = req.query; // Recibimos el filtro por compañia desde los query params
+    const { companiaId } = req.query;
+
+    // Si hay un filtro de compañía del middleware, usarlo
+    const finalCompaniaId = companiaId || req.companyFilter;
+
     let query = `
       SELECT 
         c.id,
@@ -302,10 +321,10 @@ export const getMaintenanceByCompany = async (req, res) => {
 
     const params = []; // Para almacenar los parámetros de la consulta
 
-    // Si se ha proporcionado un companiaId, agregamos el filtro a la consulta
-    if (companiaId) {
+    // Si hay un filtro de compañía, agregarlo a la consulta
+    if (finalCompaniaId) {
       query += ' AND c.id = ?';
-      params.push(companiaId);
+      params.push(finalCompaniaId);
     }
 
     query += `
@@ -350,13 +369,16 @@ export const getMaintenanceHistory = async (req, res) => {
     
     const offset = (page - 1) * limit;
 
+    // Si hay un filtro de compañía del middleware, usarlo
+    const finalCompaniaId = companiaId || req.companyFilter;
+
     let whereConditions = ['m.isDeleted = 0'];
     let params = [];
 
     // Filtros existentes
-    if (companiaId) {
+    if (finalCompaniaId) {
       whereConditions.push('c.id = ?');
-      params.push(companiaId);
+      params.push(finalCompaniaId);
     }
     if (month) {
       whereConditions.push('DATE_FORMAT(m.fec_inicio, "%Y-%m") = ?');

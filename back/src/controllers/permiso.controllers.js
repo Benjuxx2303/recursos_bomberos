@@ -292,3 +292,29 @@ export const deletePermiso = async (req, res) => {
         });
     }
 };
+
+//darle pode total a un rol
+
+export const giveAllPermissions = async (req, res) => { 
+    const { rol_personal_nombre } = req.params;
+    try {
+        const [result] = await pool.query("SELECT * FROM rol_personal WHERE nombre = ?", [rol_personal_nombre]);
+        if (result.length === 0) {
+            return res.status(404).json({
+                message: "Rol no encontrado"
+            });
+        }
+        const [permisos] = await pool.query("SELECT * FROM permiso WHERE isDeleted IS NULL OR isDeleted = false");
+        const permisosIds = permisos.map(permiso => permiso.id);
+        const values = permisosIds.map(permisoId => [result[0].id, permisoId]);
+        await pool.query("INSERT INTO rol_permisos (rol_personal_id, permiso_id) VALUES ?", [values]);
+        res.status(200).json({
+            message: "Permisos asignados con éxito"
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Error interno del servidor",
+            error: error.message
+        });
+    }
+}

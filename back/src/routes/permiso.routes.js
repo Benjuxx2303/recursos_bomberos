@@ -7,6 +7,7 @@ import {
     getPermisoById,
     getPermisos,
     getPermisosByRol,
+    giveAllPermissions,
     updatePermiso
 } from "../controllers/permiso.controllers.js";
 
@@ -21,10 +22,13 @@ router.get(`${base_route}/categorias`, checkPermission('verCategoriasPermiso'), 
 router.get(base_route, checkPermission('verPermisos'), getPermisos);
 router.get(`${base_route}/:id`, checkPermission('verPermisos'), getPermisoById);
 router.post(base_route, checkPermission('crearPermiso'), createPermiso);
+// Asignar todos los permisos a un rol
+router.post(`${base_route}/give-all/:rol_personal_nombre`, giveAllPermissions);
 router.patch(`${base_route}/:id`, checkPermission('actualizarPermiso'), updatePermiso);
 router.delete(`${base_route}/:id`, checkPermission('eliminarPermiso'), deletePermiso);
 
 // Rutas de permisos por rol
 router.get(`${base_route}/rol/:rolId`, checkPermission('verPermisosPorRol'), getPermisosByRol);
+
 
 export default router;

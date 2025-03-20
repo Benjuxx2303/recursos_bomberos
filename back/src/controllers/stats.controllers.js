@@ -492,7 +492,7 @@ export const getSummaryData = async (req, res) => {
       AND (
         m.estado_mantencion_id IN (
           SELECT id FROM estado_mantencion 
-          WHERE nombre LIKE '%pendiente%' AND isDeleted = 0
+          WHERE nombre LIKE '%Programada%' AND isDeleted = 0
         )
         OR m.fec_inicio > CURRENT_DATE()
       )

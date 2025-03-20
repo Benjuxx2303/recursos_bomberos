@@ -62,7 +62,10 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             query += ' AND (p.rut LIKE ? OR p.nombre LIKE ? OR p.apellido LIKE ?)';
             params.push(`%${search}%`, `%${search}%`, `%${search}%`);
         }
-
+        if (req.companyFilter) {
+            query += ' AND p.compania_id = ?';
+            params.push(req.companyFilter);
+        }
         if (compania_id) {
             query += ' AND p.compania_id = ?';
             params.push(compania_id);

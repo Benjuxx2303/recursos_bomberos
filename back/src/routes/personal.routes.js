@@ -16,6 +16,7 @@ import {
     updateUltimaFecServicio,
     verificarVencimientoLicencia
 } from "../controllers/personal.controllers.js";
+import { filterByCompany } from "../middlewares/companyFilter.js";
 
 // Configuración de multer
 const storage = multer.memoryStorage();
@@ -55,13 +56,21 @@ router.get(`${base_route}/verificar-licencia`, async (req, res) => {
 router.get(`${base_route}/update-last-service-date`,updateUltimaFecServicio);
 
 // router.get(base_route, getPersonalWithDetails);
-router.get(base_route, checkPermission("verPersonal"), getPersonalWithDetailsPage); // con paginación
+router.get(base_route, 
+    checkPermission("verPersonal"), 
+    filterByCompany, 
+    getPersonalWithDetailsPage
+);
 // http://{url}/api/personal/
 // QueryParams:
 // id:          61
 // rut:         23904666-5
 
-router.get(`${base_route}/low-data`, checkPermission("verPersonal"), getPersonalLowData);
+router.get(`${base_route}/low-data`, 
+    checkPermission("verPersonal"), 
+    filterByCompany, 
+    getPersonalLowData
+);
 router.patch(`${base_route}/activate`, checkPermission('actualizarPersonal'), activatePersonal);
 // http://{url}/api/personal/activate
 // QueryParams:

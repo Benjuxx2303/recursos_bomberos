@@ -169,7 +169,7 @@ export const getServiceData = async (req, res) => {
 
 export const getServiceDataWithClaves = async (req, res) => {
   try {
-    const { startDate, endDate, companiaId, maquinaId } = req.query;
+    const { startDate, endDate, companiaId, maquinaId, soloTotal } = req.query;
     const params = [];
 
     const dateFilter = startDate && endDate ? 
@@ -180,7 +180,6 @@ export const getServiceDataWithClaves = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    // Si hay un filtro de compañía desde el middleware, lo usamos
     const companyFilter = req.companyFilter ? 'AND b.compania_id = ?' : companiaId ? 'AND b.compania_id = ?' : '';
     if (req.companyFilter) {
       params.push(req.companyFilter);
@@ -191,7 +190,65 @@ export const getServiceDataWithClaves = async (req, res) => {
     const machineFilter = maquinaId ? 'AND b.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
 
-    // First, get all tipos_clave
+    // Función auxiliar para convertir a camelCase
+    const toCamelCase = (str) => {
+      return str
+        .toLowerCase()
+        .replace(/[^a-zA-Z0-9]+(.)/g, (m, chr) => chr.toUpperCase())
+        .replace(/[^a-zA-Z0-9]/g, '');
+    };
+
+    // Query para obtener totales por mes
+    const totalQuery = `
+      SELECT
+        MONTH(b.fh_salida) AS mes,
+        COUNT(*) AS total
+      FROM
+        bitacora b
+      WHERE
+        b.isDeleted = 0
+        ${dateFilter}
+        ${companyFilter}
+        ${machineFilter}
+      GROUP BY
+        mes
+      ORDER BY
+        mes
+    `;
+
+    const [totalRows] = await pool.query(totalQuery, params);
+
+    // Si solo se solicitan totales, retornamos solo eso
+    if (soloTotal === 'true') {
+      const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const monthsArray = [];
+      
+      for (let i = 5; i >= 0; i--) {
+        let monthIndex = currentMonth - i;
+        if (monthIndex < 0) {
+          monthIndex = 12 + monthIndex;
+        }
+        monthsArray.push({
+          month: meses[monthIndex],
+          total: 0
+        });
+      }
+
+      totalRows.forEach((row) => {
+        const monthIndex = monthsArray.findIndex(
+          item => item.month === meses[row.mes - 1]
+        );
+        if (monthIndex !== -1) {
+          monthsArray[monthIndex].total = row.total;
+        }
+      });
+
+      return res.json({ data: monthsArray });
+    }
+
+    // Si no es solo total, continuamos con la lógica original
     const [tiposClaves] = await pool.query(
       'SELECT id, nombre FROM tipo_clave WHERE isDeleted = 0'
     );
@@ -223,7 +280,7 @@ export const getServiceDataWithClaves = async (req, res) => {
     const defaultTypes = {};
     tiposClaves.forEach(tipo => {
       if (tipo.nombre) {
-        defaultTypes[tipo.nombre.toLowerCase()] = 0;
+        defaultTypes[toCamelCase(tipo.nombre)] = 0;
       }
     });
 
@@ -238,16 +295,28 @@ export const getServiceDataWithClaves = async (req, res) => {
       }
       monthsArray.push({
         month: meses[monthIndex],
+        total: 0,
         ...defaultTypes
       });
     }
 
+    // Asignar totales por mes
+    totalRows.forEach((row) => {
+      const monthIndex = monthsArray.findIndex(
+        item => item.month === meses[row.mes - 1]
+      );
+      if (monthIndex !== -1) {
+        monthsArray[monthIndex].total = row.total;
+      }
+    });
+
+    // Asignar totales por tipo
     rows.forEach((row) => {
       const monthIndex = monthsArray.findIndex(
         item => item.month === meses[row.mes - 1]
       );
       if (monthIndex !== -1) {
-        const tipo = row.tipo_clave ? row.tipo_clave.toLowerCase() : null;
+        const tipo = row.tipo_clave ? toCamelCase(row.tipo_clave) : null;
         if (tipo && monthsArray[monthIndex].hasOwnProperty(tipo)) {
           monthsArray[monthIndex][tipo] = row.total;
         }

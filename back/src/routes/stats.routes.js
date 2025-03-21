@@ -4,6 +4,7 @@ import {
     getDriverData,
     getFuelData,
     getMaintenanceData,
+    getServiceData,
     getServiceDataWithClaves,
     getSummaryData
 } from '../controllers/stats.controllers.js';
@@ -18,5 +19,5 @@ router.get(`${base_route}/fuel`,filterByCompany, getFuelData);
 router.get(`${base_route}/company`,filterByCompany,  getCompanyData);
 router.get(`${base_route}/driver`,filterByCompany,  getDriverData);
 router.get(`${base_route}/summary`,filterByCompany,  getSummaryData);
-
+router.get(`${base_route}/serviceData`,filterByCompany,  getServiceData);
 export default router;

@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { checkPermission } from '../controllers/authMiddleware.js';
 import {
     getCompanyData,
     getDriverData,
@@ -8,16 +7,16 @@ import {
     getServiceDataWithClaves,
     getSummaryData
 } from '../controllers/stats.controllers.js';
-
+import { filterByCompany } from '../middlewares/companyFilter.js';
 const router = Router();
 
 const base_route = '/stats';
 
-router.get(`${base_route}/maintenance`,  getMaintenanceData , checkPermission("verMantenciones"));
-router.get(`${base_route}/service`, getServiceDataWithClaves, checkPermission("verMantenciones"));
-router.get(`${base_route}/fuel`, getFuelData, checkPermission("verMantenciones"));
-router.get(`${base_route}/company`,  getCompanyData, checkPermission("verMantenciones"));
-router.get(`${base_route}/driver`,  getDriverData, checkPermission("verMantenciones"));
-router.get(`${base_route}/summary`,  getSummaryData, checkPermission("verMantenciones"));
+router.get(`${base_route}/maintenance`,filterByCompany,  getMaintenanceData);
+router.get(`${base_route}/service`,filterByCompany, getServiceDataWithClaves);
+router.get(`${base_route}/fuel`,filterByCompany, getFuelData);
+router.get(`${base_route}/company`,filterByCompany,  getCompanyData);
+router.get(`${base_route}/driver`,filterByCompany,  getDriverData);
+router.get(`${base_route}/summary`,filterByCompany,  getSummaryData);
 
 export default router;

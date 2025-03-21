@@ -13,8 +13,13 @@ export const getMaintenanceData = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
+    // Si hay un filtro de compañía desde el middleware, lo usamos
+    const companyFilter = req.companyFilter ? 'AND b.compania_id = ?' : companiaId ? 'AND b.compania_id = ?' : '';
+    if (req.companyFilter) {
+      params.push(req.companyFilter);
+    } else if (companiaId) {
+      params.push(companiaId);
+    }
 
     const machineFilter = maquinaId ? 'AND m.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
@@ -50,15 +55,13 @@ export const getMaintenanceData = async (req, res) => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const defaultTypes = {};
     maintenanceTypes.forEach(type => {
-      // Asegurarse de que type.nombre no sea undefined o null
       if (type.nombre) {
         defaultTypes[type.nombre.toLowerCase()] = 0;
       }
     });
 
-    // Crear array con los últimos 6 meses
     const today = new Date();
-    const currentMonth = today.getMonth(); // 0-11
+    const currentMonth = today.getMonth();
     const monthsArray = [];
     
     for (let i = 5; i >= 0; i--) {
@@ -72,14 +75,12 @@ export const getMaintenanceData = async (req, res) => {
       });
     }
 
-    // Llenar los datos
     rows.forEach((row) => {
       const monthIndex = monthsArray.findIndex(
         item => item.month === meses[row.mes - 1]
       );
       if (monthIndex !== -1) {
         const tipo = row.tipo_mantencion ? row.tipo_mantencion.toLowerCase() : null;
-        // Solo asignamos el valor si tipo_mantencion es válido
         if (tipo && monthsArray[monthIndex].hasOwnProperty(tipo)) {
           monthsArray[monthIndex][tipo] = row.total;
         }
@@ -106,8 +107,13 @@ export const getServiceData = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
+    // Si hay un filtro de compañía desde el middleware, lo usamos
+    const companyFilter = req.companyFilter ? 'AND b.compania_id = ?' : companiaId ? 'AND b.compania_id = ?' : '';
+    if (req.companyFilter) {
+      params.push(req.companyFilter);
+    } else if (companiaId) {
+      params.push(companiaId);
+    }
 
     const machineFilter = maquinaId ? 'AND b.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
@@ -174,8 +180,13 @@ export const getServiceDataWithClaves = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
+    // Si hay un filtro de compañía desde el middleware, lo usamos
+    const companyFilter = req.companyFilter ? 'AND b.compania_id = ?' : companiaId ? 'AND b.compania_id = ?' : '';
+    if (req.companyFilter) {
+      params.push(req.companyFilter);
+    } else if (companiaId) {
+      params.push(companiaId);
+    }
 
     const machineFilter = maquinaId ? 'AND b.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
@@ -209,18 +220,15 @@ export const getServiceDataWithClaves = async (req, res) => {
 
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     
-    // Create default structure with all tipos_clave set to 0
     const defaultTypes = {};
     tiposClaves.forEach(tipo => {
-      // Verificar que tipo.nombre no sea undefined o null
       if (tipo.nombre) {
         defaultTypes[tipo.nombre.toLowerCase()] = 0;
       }
     });
 
-    // Crear array con los últimos 6 meses
     const today = new Date();
-    const currentMonth = today.getMonth(); // 0-11
+    const currentMonth = today.getMonth();
     const monthsArray = [];
     
     for (let i = 5; i >= 0; i--) {
@@ -234,13 +242,11 @@ export const getServiceDataWithClaves = async (req, res) => {
       });
     }
 
-    // Llenar los datos
     rows.forEach((row) => {
       const monthIndex = monthsArray.findIndex(
         item => item.month === meses[row.mes - 1]
       );
       if (monthIndex !== -1) {
-        // Validar que row.tipo_clave no sea undefined o null antes de usar toLowerCase()
         const tipo = row.tipo_clave ? row.tipo_clave.toLowerCase() : null;
         if (tipo && monthsArray[monthIndex].hasOwnProperty(tipo)) {
           monthsArray[monthIndex][tipo] = row.total;
@@ -268,8 +274,13 @@ export const getFuelData = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    const companyFilter = companiaId ? 'AND b.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
+    // Si hay un filtro de compañía desde el middleware, lo usamos
+    const companyFilter = req.companyFilter ? 'AND b.compania_id = ?' : companiaId ? 'AND b.compania_id = ?' : '';
+    if (req.companyFilter) {
+      params.push(req.companyFilter);
+    } else if (companiaId) {
+      params.push(companiaId);
+    }
 
     const machineFilter = maquinaId ? 'AND b.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
@@ -300,9 +311,8 @@ export const getFuelData = async (req, res) => {
 
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     
-    // Crear array con los últimos 6 meses
     const today = new Date();
-    const currentMonth = today.getMonth(); // 0-11
+    const currentMonth = today.getMonth();
     const monthsArray = [];
     
     for (let i = 5; i >= 0; i--) {
@@ -316,7 +326,6 @@ export const getFuelData = async (req, res) => {
       });
     }
 
-    // Llenar los datos
     rows.forEach((row) => {
       const monthIndex = monthsArray.findIndex(
         item => item.month === meses[row.mes - 1]
@@ -365,15 +374,18 @@ export const getCompanyData = async (req, res) => {
     // Condición para el rango de fechas
     if (startDate && endDate) {
       query += ' AND b.fh_salida BETWEEN ? AND ?';
-      params.push(startDate, endDate); // Agregar startDate y endDate a los parámetros
+      params.push(startDate, endDate);
     } else {
       query += ' AND (b.fh_salida >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) OR b.fh_salida IS NULL)';
     }
 
-    // Condición para companiaId
-    if (companiaId) {
-      query += ' AND b.compania_id = ?';
-      params.push(companiaId); // Agregar companiaId a los parámetros
+    // Si hay un filtro de compañía desde el middleware, lo usamos
+    if (req.companyFilter) {
+      query += ' AND c.id = ?';
+      params.push(req.companyFilter);
+    } else if (companiaId) {
+      query += ' AND c.id = ?';
+      params.push(companiaId);
     }
 
     query += `
@@ -393,7 +405,7 @@ export const getCompanyData = async (req, res) => {
       maquinas: row.total_maquinas,
       personal: row.total_personal,
       promedioMinutosServicio: row.promedio_minutos_servicio,
-      color: "#FF6384" // Asignar un color fijo para cada compañía
+      color: "#FF6384"
     }));
 
     res.json({ data: companyData });
@@ -416,8 +428,13 @@ export const getDriverData = async (req, res) => {
       params.push(startDate, endDate);
     }
 
-    const companyFilter = companiaId ? 'AND p.compania_id = ?' : '';
-    if (companiaId) params.push(companiaId);
+    // Si hay un filtro de compañía desde el middleware, lo usamos
+    const companyFilter = req.companyFilter ? 'AND p.compania_id = ?' : companiaId ? 'AND p.compania_id = ?' : '';
+    if (req.companyFilter) {
+      params.push(req.companyFilter);
+    } else if (companiaId) {
+      params.push(companiaId);
+    }
 
     const machineFilter = maquinaId ? 'AND b.maquina_id = ?' : '';
     if (maquinaId) params.push(maquinaId);
@@ -465,9 +482,10 @@ export const getDriverData = async (req, res) => {
 
 export const getSummaryData = async (req, res) => {
   try {
-    const { companiaId } = req.query;
+    // Si hay un filtro de compañía desde el middleware, lo usamos en lugar del companiaId del query
+    const companiaId = req.companyFilter || req.query.companiaId;
 
-    // Validar que companiaId sea numérico
+    // Validar que companiaId sea numérico si existe
     if (companiaId && isNaN(companiaId)) {
       return res.status(400).json({
         success: false,
@@ -477,9 +495,9 @@ export const getSummaryData = async (req, res) => {
 
     const params = [];
 
-    // Si existe companiaId en los query params, lo agregamos a las consultas
+    // Si existe companiaId, lo agregamos a las consultas
     if (companiaId) {
-      params.push(Number(companiaId));  // Convertir el valor a número para evitar problemas
+      params.push(Number(companiaId));
     }
 
     // Obtener mantenimientos pendientes y programados

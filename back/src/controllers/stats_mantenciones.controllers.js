@@ -9,10 +9,10 @@ export const getCalendarMaintenances = async (req, res) => {
     let { companiaId } = req.query;
 
     // Si hay un filtro de compañía del middleware, usarlo
-    companiaId = companiaId || req.companyFilter;
+    const finalCompaniaId = companiaId || req.companyFilter;
 
     // Validación de tipo y formato de compania_id
-    if (companiaId && isNaN(companiaId)) {
+    if (finalCompaniaId && isNaN(finalCompaniaId)) {
       return res.status(400).json({ message: 'El parametro compania_id debe ser un número' });
     }
 
@@ -20,9 +20,9 @@ export const getCalendarMaintenances = async (req, res) => {
     let companyFilter = ''; 
 
     // Si compania_id es válido, agregar el filtro en la consulta
-    if (companiaId) {
+    if (finalCompaniaId) {
       companyFilter = 'AND maq.compania_id = ?';
-      params.push(companiaId); // Añadir el parametro compania_id
+      params.push(finalCompaniaId);
     }
 
     const query = `
@@ -60,14 +60,13 @@ export const getCalendarMaintenances = async (req, res) => {
       title: row.title,
       estado: row.estado,
       company: row.company,
-      companyId: row.compania_id,
+      companyId: String(row.company_id), // Asegurar que companyId sea string
       status: getStatusColor(row.estado)
     }));
 
     // Enviar la respuesta como JSON
     res.json(response);
   } catch (error) {
-    // Registrar error de forma detallada en el servidor
     console.error('Error al obtener las mantenimientos del calendario:', error);
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(403).json({ error: 'Token inválido' });

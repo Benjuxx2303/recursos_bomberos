@@ -14,6 +14,12 @@ export const getPersonalWithDetailsPage = async (req, res) => {
         // Nuevos filtros opcionales
         const { compania_id, maquina_id, rol_personal_id, nombre, disponible, rut, esConductor, isDeleted, search } = req.query;
 
+        // Aplicar filtro de compañía desde el middleware si existe y no hay un compania_id específico
+        let companiaIdFilter = compania_id;
+        if (req.companyFilter && !compania_id) {
+            companiaIdFilter = req.companyFilter;
+        }
+
         // Inicializar la consulta y los parámetros
         let query = `
             SELECT p.id, p.disponible, p.rut, p.nombre AS nombre, p.apellido,
@@ -66,9 +72,9 @@ export const getPersonalWithDetailsPage = async (req, res) => {
             query += ' AND p.compania_id = ?';
             params.push(req.companyFilter);
         }
-        if (compania_id) {
+        if (companiaIdFilter) {
             query += ' AND p.compania_id = ?';
-            params.push(compania_id);
+            params.push(companiaIdFilter);
         }
 
         if (rol_personal_id) {
@@ -135,6 +141,12 @@ export const getPersonalLowData = async (req, res) => {
     try {
         const { compania_id } = req.query;
 
+        // Aplicar filtro de compañía desde el middleware si existe y no hay un compania_id específico
+        let companiaIdFilter = compania_id;
+        if (req.companyFilter && !compania_id) {
+            companiaIdFilter = req.companyFilter;
+        }
+
         let query = `
             SELECT p.id, p.rut, p.nombre, p.apellido, 
                    rp.nombre AS rol_personal, 
@@ -148,9 +160,9 @@ export const getPersonalLowData = async (req, res) => {
 
         const params = [];
 
-        if (compania_id) {
+        if (companiaIdFilter) {
             query += ' AND p.compania_id = ?';
-            params.push(compania_id);
+            params.push(companiaIdFilter);
         }
 
         query += ' ORDER BY p.id DESC';

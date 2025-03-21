@@ -69,6 +69,11 @@ export const getMaquinasDetailsPage = async (req, res) => {
     const search = req.query.search || '';
     let { disponible, modelo_id, compania_id, codigo, patente, procedencia_id, personal_id } = req.query;
 
+    // Aplicar filtro de compañía desde el middleware si existe y no hay un compania_id específico
+    if (req.companyFilter) {
+        compania_id = req.companyFilter;
+    }
+
     let query = `
       SELECT DISTINCT
         m.*,

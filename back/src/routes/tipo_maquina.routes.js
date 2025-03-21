@@ -1,26 +1,26 @@
 import { Router } from "express";
+import { checkPermission } from "../controllers/authMiddleware.js";
 import {
-    // getTiposMaquinas,
-    getTiposMaquinasPage,
-    getTipoMaquinaById,
     createTipoMaquina,
     deleteTipoMaquina,
+    getTipoMaquinaById,
+    // getTiposMaquinas,
+    getTiposMaquinasPage,
     updateTipoMaquina
 } from "../controllers/tipo_maquina.controllers.js";
-import { checkPermission } from "../controllers/authMiddleware.js";
 
 const router = Router();
 
 const base_route = "/tipo_maquina";
 
 // router.get(base_route, getTiposMaquinas);
-router.get(base_route, checkPermission('getTipo_maquina'), getTiposMaquinasPage); // paginado
+router.get(base_route, checkPermission('verModelos'), getTiposMaquinasPage); // paginado
 // http://{url}/api/tipo_maquina
 // QueryParams:
 // page:              1
 // pageSize:          10
 
-router.get(`${base_route}/:id`, checkPermission('getTipo_maquina'), getTipoMaquinaById);
+router.get(`${base_route}/:id`, checkPermission('verTiposMaquina'), getTipoMaquinaById);
 
 router.post(base_route, checkPermission('createTipo_maquina'), createTipoMaquina);
 

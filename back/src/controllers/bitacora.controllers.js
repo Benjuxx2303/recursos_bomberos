@@ -10,6 +10,9 @@ export const getBitacora = async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 10;
         const { id, compania, rut_personal, taller, fecha_salida, isCargaCombustible, isMantencion, disponible } = req.query;
 
+        // Aplicar filtro de compañía desde el middleware
+        const companiaFilter = req.companyFilter;
+
         const offset = (page - 1) * pageSize;
         
         // Base de la consulta
@@ -57,7 +60,7 @@ export const getBitacora = async (req, res) => {
             INNER JOIN modelo mo ON m.modelo_id = mo.id
             INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
             WHERE b.isDeleted = 0
-            `;
+        `;
 
         const params = [];
 
@@ -69,6 +72,11 @@ export const getBitacora = async (req, res) => {
         if (compania) {
             query += " AND c.nombre LIKE ?";
             params.push(`%${compania}%`);
+        }
+        // Aplicar filtro de compañía desde el middleware si existe
+        if (companiaFilter) {
+            query += " AND c.id = ?";
+            params.push(companiaFilter);
         }
         if (rut_personal) {
             query += " AND p.rut LIKE ?";
@@ -235,6 +243,14 @@ export const getBitacoraFull = async (req, res) => {
         `;
 
         const params = [];
+        let companiaId = null;
+
+            // Aplicar filtro de compañía desde el middleware si existe y no hay un compania_id específico
+        if (req.companyFilter) {
+        companiaId = req.companyFilter;
+        baseQuery += " AND b.compania_id = ?";
+        params.push(companiaId);
+        }
 
         // Filtros existentes
         if (id) {

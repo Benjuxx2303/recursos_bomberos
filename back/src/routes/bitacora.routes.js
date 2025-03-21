@@ -12,18 +12,18 @@ import {
   updateBitacora,
   updateBitacorasDisponibilidad
 } from "../controllers/bitacora.controllers.js";
-
+import { filterByCompany } from "../middlewares/companyFilter.js";
 const router = Router();
 
 const base_route = "/bitacora";
 
 router.get(base_route, checkPermission('verServicios'), getBitacora); // paginado
-router.get(`${base_route}/search`, checkPermission('verServicios'), getBitacora); // nueva ruta de búsqueda
+router.get(`${base_route}/search`, checkPermission('verServicios'), filterByCompany, getBitacora); // nueva ruta de búsqueda
 // http://{url}/api/bitacora
 // QueryParams:
 // page:              1
 // pageSize:          10
-router.get(`${base_route}/full`,  getBitacoraFull);
+router.get(`${base_route}/full`, filterByCompany, getBitacoraFull);
 // http://{url}/api/bitacora/full
 router.get(`${base_route}/:id`, checkPermission('verServicios'), getBitacoraById);
 router.get(`${base_route}/last`, checkPermission('verServicios'),  getLastBitacora);

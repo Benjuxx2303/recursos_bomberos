@@ -13,7 +13,7 @@ import {
     verificarEstadoMantencion,
     verificarEstadoPermisoCirculacion,
 } from "../controllers/maquina.controllers.js";
-
+import { filterByCompany } from "../middlewares/companyFilter.js";
 // Configuración de multer
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -75,7 +75,7 @@ router.get(`${base_route}/verificar-permiso-circulacion`, async (req, res) => {
 });
 
 // router.get(base_route, getMaquinasDetails);
-router.get(base_route, checkPermission('verMaquinas'), getMaquinasDetailsPage); // paginado
+router.get(base_route, checkPermission('verMaquinas'), filterByCompany, getMaquinasDetailsPage); // paginado
 // http://{url}/api/maquina
 // QueryParams:
 // page:              1

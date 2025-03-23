@@ -252,11 +252,18 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
 
             const conductoresArray = JSON.parse(`[${conductores}]`);
             const fechaVencimiento = new Date(ven_rev_tec);
+            fechaVencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
             const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
             const dosMesesAntes = new Date(fechaVencimiento);
-            dosMesesAntes.setMonth(fechaVencimiento.getMonth() - 2);
+            dosMesesAntes.setMonth(dosMesesAntes.getMonth() - 2); // Restar 2 meses
+            dosMesesAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
             const tresSemanasAntes = new Date(fechaVencimiento);
-            tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
+            tresSemanasAntes.setDate(tresSemanasAntes.getDate() - 21); // Restar 21 días (3 semanas)
+            tresSemanasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
             for (const conductor of conductoresArray) {
                 const { id: usuario_id, nombre, correo, compania, rol } = conductor;
@@ -275,7 +282,7 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                     contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
                     contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
                 } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
-                    contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está demasiado próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
+                    contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
                     contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                     contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                     contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;

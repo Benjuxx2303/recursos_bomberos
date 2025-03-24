@@ -124,7 +124,9 @@ export const getCargaCombustibleFull = async (req, res) => {
                 cc.img_url, 
                 cc.createdAt as cc_createdAt,
                 b.compania_id, b.personal_id,
-                b.maquina_id, b.clave_id, b.direccion,
+                b.maquina_id, 
+                m.patente, m.codigo, 
+                b.clave_id, b.direccion,
                 DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') as fh_salida,
                 DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') as fh_llegada,
 
@@ -135,6 +137,7 @@ export const getCargaCombustibleFull = async (req, res) => {
             FROM carga_combustible cc
             INNER JOIN bitacora b ON cc.bitacora_id = b.id
             INNER JOIN personal p ON b.personal_id = p.id
+            INNER JOIN maquina m ON b.maquina_id = m.id
             WHERE cc.isDeleted = 0 AND b.isDeleted = 0
         `;
 
@@ -184,10 +187,6 @@ export const getCargaCombustibleFull = async (req, res) => {
         if (direccion) {
             query += ` AND b.direccion LIKE ?`;
             validatedParams.push(`%${direccion}%`);
-        }
-        if (obs) {
-            query += ` AND b.obs LIKE ?`;
-            validatedParams.push(`%${obs}%`);
         }
 
         // Validación de fechas

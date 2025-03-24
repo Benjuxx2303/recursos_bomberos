@@ -85,6 +85,188 @@ export const getCargaCombustibleDetailsSearch = async (req, res) => {
     }
 };
 
+export const getCargaCombustibleFull = async (req, res) => {
+    try {
+        let {
+            page = 1,
+            limit = 10,
+            sortBy = 'cc.createdAt',
+            sortOrder = 'DESC',
+            // Filtros de carga_combustible
+            litros,
+            valor_mon,
+            // Filtros de bitacora
+            compania_id,
+            personal_id,
+            maquina_id,
+            clave_id,
+            direccion,
+            fh_salida,
+            fh_llegada,
+            km_salida,
+            km_llegada,
+            hmetro_salida,
+            hmetro_llegada,
+            hbomba_salida,
+            hbomba_llegada,
+            obs,
+            fecha_inicio,
+            fecha_fin
+        } = req.query;
+
+        // Validación inicial de tipos de datos
+        try {
+            page = parseInt(page);
+            limit = parseInt(limit);
+            
+            if (isNaN(page) || page < 1) throw new Error('Página inválida');
+            if (isNaN(limit) || limit < 1) throw new Error('Límite inválido');
+            
+        } catch (error) {
+            return res.status(400).json({ 
+                message: "Tipo de datos inválido",
+                detail: error.message 
+            });
+        }
+
+        const offset = (page - 1) * limit;
+        const validatedParams = [];
+        
+        let query = `
+            SELECT 
+                cc.id, 
+                cc.bitacora_id, 
+                cc.litros,
+                cc.valor_mon,
+                cc.img_url, 
+                cc.isDeleted as cc_isDeleted, 
+                DATE_FORMAT(cc.createdAt, '%Y-%m-%d %H:%i:%s') as cc_createdAt,
+                b.id as b_id, 
+                b.compania_id, 
+                b.personal_id,
+                b.maquina_id, 
+                b.clave_id, 
+                b.direccion,
+                DATE_FORMAT(b.fh_salida, '%Y-%m-%d %H:%i:%s') as fh_salida,
+                DATE_FORMAT(b.fh_llegada, '%Y-%m-%d %H:%i:%s') as fh_llegada,
+                b.km_salida,
+                b.km_llegada,
+                b.hmetro_salida,
+                b.hmetro_llegada,
+                b.hbomba_salida,
+                b.hbomba_llegada,
+                b.obs, 
+                b.isDeleted as b_isDeleted,
+                DATE_FORMAT(b.createdAt, '%Y-%m-%d %H:%i:%s') as b_createdAt,
+                b.disponible, 
+                b.enCurso,
+                b.minutos_duracion
+            FROM carga_combustible cc
+            LEFT JOIN bitacora b ON cc.bitacora_id = b.id
+            WHERE cc.isDeleted = 0 AND b.isDeleted = 0
+        `;
+
+        // Validar y agregar filtros numéricos
+        const numericFilters = {
+            litros: { value: litros, field: 'cc.litros', parser: parseFloat },
+            valor_mon: { value: valor_mon, field: 'cc.valor_mon', parser: parseInt },
+            compania_id: { value: compania_id, field: 'b.compania_id', parser: parseInt },
+            personal_id: { value: personal_id, field: 'b.personal_id', parser: parseInt },
+            maquina_id: { value: maquina_id, field: 'b.maquina_id', parser: parseInt },
+            clave_id: { value: clave_id, field: 'b.clave_id', parser: parseInt },
+            km_salida: { value: km_salida, field: 'b.km_salida', parser: parseFloat },
+            km_llegada: { value: km_llegada, field: 'b.km_llegada', parser: parseFloat },
+            hmetro_salida: { value: hmetro_salida, field: 'b.hmetro_salida', parser: parseFloat },
+            hmetro_llegada: { value: hmetro_llegada, field: 'b.hmetro_llegada', parser: parseFloat },
+            hbomba_salida: { value: hbomba_salida, field: 'b.hbomba_salida', parser: parseFloat },
+            hbomba_llegada: { value: hbomba_llegada, field: 'b.hbomba_llegada', parser: parseFloat }
+        };
+
+        Object.entries(numericFilters).forEach(([key, { value, field, parser }]) => {
+            if (value !== undefined && value !== '') {
+                const parsedValue = parser(value);
+                if (!isNaN(parsedValue)) {
+                    query += ` AND ${field} = ?`;
+                    validatedParams.push(parsedValue);
+                }
+            }
+        });
+
+        // Filtros de texto
+        if (direccion) {
+            query += ` AND b.direccion LIKE ?`;
+            validatedParams.push(`%${direccion}%`);
+        }
+        if (obs) {
+            query += ` AND b.obs LIKE ?`;
+            validatedParams.push(`%${obs}%`);
+        }
+
+        // Validación y filtros de fechas
+        if (fecha_inicio || fecha_fin) {
+            try {
+                if (fecha_inicio) {
+                    const fechaInicio = new Date(fecha_inicio);
+                    if (isNaN(fechaInicio.getTime())) throw new Error('Fecha inicial inválida');
+                    query += ` AND cc.createdAt >= ?`;
+                    validatedParams.push(fechaInicio);
+                }
+                if (fecha_fin) {
+                    const fechaFin = new Date(fecha_fin);
+                    if (isNaN(fechaFin.getTime())) throw new Error('Fecha final inválida');
+                    query += ` AND cc.createdAt <= ?`;
+                    validatedParams.push(fechaFin);
+                }
+            } catch (error) {
+                return res.status(400).json({ 
+                    message: "Tipo de datos inválido",
+                    detail: "Formato de fecha inválido" 
+                });
+            }
+        }
+
+        // Validar columna de ordenamiento
+        const validColumns = [
+            'cc.id', 'cc.litros', 'cc.valor_mon', 'cc.createdAt',
+            'b.compania_id', 'b.personal_id', 'b.maquina_id', 'b.clave_id',
+            'b.fh_salida', 'b.fh_llegada', 'b.km_salida', 'b.km_llegada',
+            'b.hmetro_salida', 'b.hmetro_llegada', 'b.hbomba_salida', 'b.hbomba_llegada'
+        ];
+
+        if (!validColumns.includes(sortBy)) {
+            sortBy = 'cc.createdAt';
+        }
+
+        sortOrder = ['ASC', 'DESC'].includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+
+        // Consulta para contar el total
+        const countQuery = `SELECT COUNT(*) as total FROM (${query}) as subquery`;
+        const [countResult] = await pool.query(countQuery, validatedParams);
+        const total = parseInt(countResult[0].total);
+
+        // Agregar ordenamiento y paginación
+        query += ` ORDER BY ${sortBy} ${sortOrder} LIMIT ? OFFSET ?`;
+        validatedParams.push(limit, offset);
+
+        // Ejecutar consulta principal
+        const [rows] = await pool.query(query, validatedParams);
+
+        return res.json({
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+            data: rows
+        });
+
+    } catch (error) {
+        console.error('Error en getCargaCombustibleFull:', error);
+        return res.status(500).json({
+            message: 'Error al obtener las cargas de combustible',
+            error: error.message
+        });
+    }
+};
+
 // Obtener carga de combustible por ID
 export const getCargaCombustibleByID = async (req, res) => {
     const { id } = req.params;

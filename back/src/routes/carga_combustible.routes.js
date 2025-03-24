@@ -7,6 +7,7 @@ import {
     downCargaCombustible,
     getCargaCombustibleByID,
     getCargaCombustibleDetailsSearch,
+    getCargaCombustibleFull,
     updateCargaCombustible
 } from "../controllers/carga_combustible.controllers.js";
 
@@ -22,17 +23,17 @@ const uploadFields = upload.fields([
 const router = Router();
 const base_route = '/carga_combustible';
 
-// router.get(base_route, getCargasCombustible);
-router.get(base_route, checkPermission('verCargasCombustible'), getCargaCombustibleDetailsSearch); // paginado
-// http://{url}/api/carga_combustible
-// QueryParams:
-// page:              1
-// pageSize:          10
+// Rutas GET (ordenadas de más específica a menos específica)
+router.get(`${base_route}/full`, checkPermission('verCargasCombustible'), getCargaCombustibleFull);
+router.get(`${base_route}/:id`, checkPermission('getCarga_cumbustible'), getCargaCombustibleByID);
+router.get(base_route, checkPermission('verCargasCombustible'), getCargaCombustibleDetailsSearch);
 
-router.get(`${base_route}/:id`, checkPermission('getCarga_cumbustible'), getCargaCombustibleByID); // Obtener una carga de combustible por ID
-router.post(`${base_route}/simple`, checkPermission('ingresarCargaCombustible'), uploadFields, createCargaCombustible); // Crear una nueva carga de combustible
-router.post(base_route, checkPermission('ingresarCargaCombustible'), uploadFields, createCargaCombustibleBitacora); // Crear una nueva carga de combustible
-router.delete(`${base_route}/:id`, checkPermission('eliminarCargaCombustible'), downCargaCombustible); // dar de baja una carga de combustible
-router.patch(`${base_route}/:id`, checkPermission('actualizarCargaCombustible'), uploadFields, updateCargaCombustible); // actualizar la carga de combustible
+// Rutas POST
+router.post(`${base_route}/simple`, checkPermission('ingresarCargaCombustible'), uploadFields, createCargaCombustible);
+router.post(base_route, checkPermission('ingresarCargaCombustible'), uploadFields, createCargaCombustibleBitacora);
+
+// Rutas DELETE y PATCH
+router.delete(`${base_route}/:id`, checkPermission('eliminarCargaCombustible'), downCargaCombustible);
+router.patch(`${base_route}/:id`, checkPermission('actualizarCargaCombustible'), uploadFields, updateCargaCombustible);
 
 export default router;

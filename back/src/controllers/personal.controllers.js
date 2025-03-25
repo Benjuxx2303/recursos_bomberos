@@ -224,7 +224,7 @@ export const getPersonalbyID = async (req, res) => {
             FROM personal p
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
-            LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
+            LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id and cm.isDeleted = 0
             LEFT JOIN maquina m ON cm.maquina_id = m.id
             WHERE p.id = ? AND p.isDeleted = 0
             GROUP BY p.id

@@ -195,6 +195,10 @@ export const loginUser = async (req, res) => {
         if (username.length < 4 || username.length > 50) {
             errors.push("El nombre de usuario o correo debe tener entre 4 y 50 caracteres");
         }
+        // Elimina espacios en blanco al inicio y al final del username
+        username = username.trim();
+        // Eliminar espacios en blanco al inicio y al final de la contraseña
+        contrasena = contrasena.trim();
 
         // Validar existencia del usuario por username o correo
         const [rows] = await pool.query( // al usar  el * se estaba tomando el id como de la tabla personal en vez de la tabla usuario.
@@ -210,8 +214,7 @@ export const loginUser = async (req, res) => {
             return res.status(400).json({ errors });
         }
 
-        // Eliminar espacios en blanco al inicio y al final de la contraseña
-        contrasena = contrasena.trim();
+   
 
         const user = rows[0];
         const isMatch = await bcrypt.compare(contrasena, user.contrasena);

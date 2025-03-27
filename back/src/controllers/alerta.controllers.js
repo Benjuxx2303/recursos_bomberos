@@ -109,31 +109,40 @@ export const sendVencimientoAlerts = async (req, res) => {
 
             // Convertir la fecha de vencimiento de la licencia a un objeto Date
             const fechaVencimiento = new Date(ven_licencia);
+            fechaVencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
             const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            // Calcular la fecha que representa dos meses antes del vencimiento
             const dosMesesAntes = new Date(fechaVencimiento);
-            dosMesesAntes.setMonth(fechaVencimiento.getMonth() - 2);
+            dosMesesAntes.setMonth(dosMesesAntes.getMonth() - 2);
+            dosMesesAntes.setHours(0, 0, 0, 0);
 
-            // Calcular la fecha que representa tres semanas antes del vencimiento
             const tresSemanasAntes = new Date(fechaVencimiento);
-            tresSemanasAntes.setDate(fechaVencimiento.getDate() - 21);
+            tresSemanasAntes.setDate(tresSemanasAntes.getDate() - 21);
+            tresSemanasAntes.setHours(0, 0, 0, 0);
 
-            // Variable para almacenar el contenido del correo
             let contenido;
             let contenidoCargoImportante;
             let contenidoCapitan;
 
-            // Verifica las diferentes condiciones para determinar el tipo de recordatorio
-            if (hoy < dosMesesAntes) {
-                contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
-                contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
-                contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
-            } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
-                contenido = `Hola ${nombre} ${apellido}, tu licencia está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
-                contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+            // Si la fecha de vencimiento es futura
+            if (fechaVencimiento > hoy) {
+                if (hoy < dosMesesAntes) {
+                    contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
+                    contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
+                    contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
+                } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
+                    contenido = `Hola ${nombre} ${apellido}, tu licencia está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
+                    contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                    contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                } else {
+                    contenido = `Hola ${nombre} ${apellido}, tu licencia está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
+                    contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                    contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                }
             } else {
+                // Si la fecha de vencimiento ya pasó
                 contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
                 contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
                 contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
@@ -276,17 +285,26 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                 let contenidoCapitan;
                 let contenidoTenienteMaquina;
 
-                if (hoy < dosMesesAntes) {
-                    contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
-                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo con código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
-                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
-                } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
-                    contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
-                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                // Si la fecha de vencimiento es futura
+                if (fechaVencimiento > hoy) {
+                    if (hoy < dosMesesAntes) {
+                        contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
+                        contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo con código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
+                        contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
+                        contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
+                    } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
+                        contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
+                        contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                        contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                        contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                    } else {
+                        contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
+                        contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                        contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                        contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                    }
                 } else {
+                    // Si la fecha de vencimiento ya pasó
                     contenido = `Hola ${nombre}, el vehículo código: ${codigo} - patente: ${patente} ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
                     contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
                     contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;

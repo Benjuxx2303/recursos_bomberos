@@ -497,6 +497,7 @@ export const createBitacora = async (req, res) => {
         // Procesar fechas y horas
         let fh_salida = null;
         let fh_llegada = null;
+        let minutos_duracion = null;
 
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
@@ -508,6 +509,18 @@ export const createBitacora = async (req, res) => {
             const error = validateDate(f_llegada, h_llegada);
             if (error === false) errors.push("Fecha y hora de llegada inválida");
             else fh_llegada = formatDateTime(f_llegada, h_llegada);
+        }
+
+        // Calcular minutos_duracion si ambas fechas están presentes
+        if (fh_salida && fh_llegada) {
+            const isValidStartEnd = validateStartEndDate(fh_salida, fh_llegada);
+            if (!isValidStartEnd) {
+                errors.push("La fecha de salida no puede ser posterior a la fecha de llegada");
+            } else {
+                const salida = new Date(fh_salida);
+                const llegada = new Date(fh_llegada);
+                minutos_duracion = Math.round((llegada - salida) / (1000 * 60));
+            }
         }
 
         // Validar longitud de la dirección
@@ -535,8 +548,9 @@ export const createBitacora = async (req, res) => {
                 hbomba_salida,
                 hbomba_llegada,
                 obs,
+                minutos_duracion,
                 isDeleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 companiaIdNumber,
                 personalIdNumber,
@@ -552,6 +566,7 @@ export const createBitacora = async (req, res) => {
                 hbomba_salida || null,
                 hbomba_llegada || null,
                 obs || null,
+                minutos_duracion || null,
                 0
             ]
         );
@@ -699,7 +714,7 @@ export const updateBitacora = async (req, res) => {
             const fh_salida = `${f_salida} ${h_salida}`;
             if (!validateDate(f_salida, h_salida)) errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
             else {
-                transformedFhSalida = formatDateTime(f_salida, h_salida); // Modificado: Transformación de la fecha y hora de salida
+                transformedFhSalida = formatDateTime(f_salida, h_salida);
                 if (transformedFhSalida) {
                     updates.push("fh_salida = ?");
                     values.push(transformedFhSalida);
@@ -710,10 +725,9 @@ export const updateBitacora = async (req, res) => {
         }
 
         if (f_llegada !== undefined && h_llegada !== undefined) {
-            // const fh_llegada = `${f_llegada} ${h_llegada}`;
             if (!validateDate(f_llegada, h_llegada)) errors.push('El formato de la fecha o la hora de llegada es inválido. Deben ser dd-mm-aaaa y HH:mm');
             else {
-                transformedFhLlegada = formatDateTime(f_llegada, h_llegada); // Modificado: Transformación de la fecha y hora de llegada
+                transformedFhLlegada = formatDateTime(f_llegada, h_llegada);
                 if (transformedFhLlegada) {
                     updates.push("fh_llegada = ?");
                     values.push(transformedFhLlegada);
@@ -723,13 +737,22 @@ export const updateBitacora = async (req, res) => {
             }
         }
 
-        // Validar que la fecha de salida no sea posterior a la fecha de llegada
+        // Calcular minutos_duracion si ambas fechas están presentes
         if (transformedFhSalida && transformedFhLlegada) {
             try {
-                const isValidStartEnd = validateStartEndDate(transformedFhSalida, transformedFhLlegada); // Modificado: Validación de fechas de salida y llegada
+                const isValidStartEnd = validateStartEndDate(transformedFhSalida, transformedFhLlegada);
                 if (!isValidStartEnd) errors.push('La fecha de salida no puede ser posterior a la fecha de llegada');
+                else {
+                    // Calcular diferencia en minutos
+                    const salida = new Date(transformedFhSalida);
+                    const llegada = new Date(transformedFhLlegada);
+                    const minutosDuracion = Math.round((llegada - salida) / (1000 * 60));
+                    
+                    updates.push("minutos_duracion = ?");
+                    values.push(minutosDuracion);
+                }
             } catch (err) {
-                errors.push(err.message); // Error de validación de fechas
+                errors.push(err.message);
             }
         }
 

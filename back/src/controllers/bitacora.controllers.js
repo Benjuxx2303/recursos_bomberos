@@ -1380,3 +1380,65 @@ export const updateBitacorasDisponibilidad = async (req, res) => {
         });
     }
 };
+
+export const updateMinutosDuracion = async (req, res) => {
+    try {
+        console.log("Iniciando actualización de minutos_duracion");
+        
+        // Primero verificamos cuántos registros necesitan ser actualizados
+        const [checkResult] = await pool.query(
+            `SELECT COUNT(*) as total 
+             FROM bitacora 
+             WHERE minutos_duracion IS NULL 
+             AND fh_salida IS NOT NULL 
+             AND fh_llegada IS NOT NULL 
+             AND isDeleted = 0`
+        );
+        
+        console.log("Registros que necesitan actualización:", checkResult[0].total);
+        
+        // Consulta para actualizar los minutos_duracion
+        const [result] = await pool.query(
+            `UPDATE bitacora 
+             SET minutos_duracion = TIMESTAMPDIFF(MINUTE, fh_salida, fh_llegada)
+             WHERE minutos_duracion IS NULL 
+             AND fh_salida IS NOT NULL 
+             AND fh_llegada IS NOT NULL 
+             AND isDeleted = 0`
+        );
+
+        // Verificar lo que queda después de la actualización
+        const [afterUpdateCheck] = await pool.query(
+            `SELECT COUNT(*) as remaining 
+             FROM bitacora 
+             WHERE minutos_duracion IS NULL 
+             AND fh_salida IS NOT NULL 
+             AND fh_llegada IS NOT NULL 
+             AND isDeleted = 0`
+        );
+        
+        console.log("Registros restantes después de la actualización:", afterUpdateCheck[0].remaining);
+        console.log("Filas afectadas según MySQL:", result.affectedRows);
+
+        if (result.affectedRows > 0) {
+            return res.json({ 
+                message: "Minutos de duración actualizados correctamente",
+                registrosActualizados: result.affectedRows,
+                totalEncontrados: checkResult[0].total,
+                restantes: afterUpdateCheck[0].remaining
+            });
+        } else {
+            return res.json({ 
+                message: "No se encontraron registros para actualizar",
+                totalEncontrados: checkResult[0].total,
+                restantes: afterUpdateCheck[0].remaining
+            });
+        }
+    } catch (error) {
+        console.error("Error al actualizar minutos de duración:", error);
+        return res.status(500).json({ 
+            message: "Error al actualizar los minutos de duración", 
+            error: error.message 
+        });
+    }
+};

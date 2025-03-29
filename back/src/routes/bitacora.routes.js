@@ -10,7 +10,8 @@ import {
   getLastBitacora,
   startServicio,
   updateBitacora,
-  updateBitacorasDisponibilidad
+  updateBitacorasDisponibilidad,
+  updateMinutosDuracion
 } from "../controllers/bitacora.controllers.js";
 import { filterByCompany } from "../middlewares/companyFilter.js";
 const router = Router();
@@ -35,4 +36,6 @@ router.patch(`${base_route}/:id`, checkPermission('actualizarServicio'),updateBi
 router.post(`${base_route}/start`, checkPermission('actualizarServicio'), startServicio);
 router.patch(`${base_route}/:id/end`, checkPermission('actualizarServicio'), endServicio);
 router.put(`${base_route}/update-disponibilidad`, updateBitacorasDisponibilidad);
+router.put(`${base_route}/update-minutos-duracion`, checkPermission('actualizarServicio'), updateMinutosDuracion);
+
 export default router;

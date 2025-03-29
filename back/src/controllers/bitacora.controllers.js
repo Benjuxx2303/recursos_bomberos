@@ -520,6 +520,12 @@ export const createBitacora = async (req, res) => {
                 const salida = new Date(fh_salida);
                 const llegada = new Date(fh_llegada);
                 minutos_duracion = Math.round((llegada - salida) / (1000 * 60));
+
+                // Actualizar minutos conducidos del personal
+                await pool.query(
+                    "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
+                    [minutos_duracion, personalIdNumber]
+                );
             }
         }
 
@@ -750,6 +756,21 @@ export const updateBitacora = async (req, res) => {
                     
                     updates.push("minutos_duracion = ?");
                     values.push(minutosDuracion);
+
+                    // Obtener el personal_id de la bitácora actual
+                    const [currentBitacora] = await pool.query(
+                        "SELECT personal_id FROM bitacora WHERE id = ?",
+                        [id]
+                    );
+
+                    if (currentBitacora.length > 0) {
+                        const personal_id = currentBitacora[0].personal_id;
+                        // Actualizar minutos conducidos del personal
+                        await pool.query(
+                            "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
+                            [minutosDuracion, personal_id]
+                        );
+                    }
                 }
             } catch (err) {
                 errors.push(err.message);
@@ -1085,7 +1106,7 @@ export const endServicio = async (req, res) => {
     try {
         // Verificar existencia de la bitácora y que esté en curso
         const [bitacora] = await pool.query(
-            "SELECT personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida, enCurso FROM bitacora WHERE id = ? AND isDeleted = 0",
+            "SELECT personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida, enCurso, fh_salida FROM bitacora WHERE id = ? AND isDeleted = 0",
             [id]
         );
 
@@ -1093,7 +1114,7 @@ export const endServicio = async (req, res) => {
             return res.status(404).json({ message: "Bitácora no encontrada o eliminada." });
         }
 
-        const { personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida, enCurso } = bitacora[0];
+        const { personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida, enCurso, fh_salida } = bitacora[0];
 
         // Verificar que la bitácora esté en curso
         if (enCurso !== 1) {
@@ -1114,6 +1135,14 @@ export const endServicio = async (req, res) => {
 
         // Si hay errores en la fecha, devolver error
         if (errors.length > 0) return res.status(400).json({ errors });
+
+        // Calcular minutos_duracion
+        let minutosDuracion = null;
+        if (fh_salida && mysqlFechaHora) {
+            const salida = new Date(fh_salida);
+            const llegada = new Date(mysqlFechaHora);
+            minutosDuracion = Math.round((llegada - salida) / (1000 * 60));
+        }
 
         // Validar km_llegada, hmetro_llegada, hbomba_llegada si se proporcionan
         if (km_llegada !== undefined) {
@@ -1174,6 +1203,11 @@ export const endServicio = async (req, res) => {
         const updateFields = ['fh_llegada = ?', 'enCurso = 0'];
         const updateValues = [mysqlFechaHora];
         
+        if (minutosDuracion !== null) {
+            updateFields.push('minutos_duracion = ?');
+            updateValues.push(minutosDuracion);
+        }
+        
         if (km_llegada !== undefined) {
             updateFields.push('km_llegada = ?');
             updateValues.push(km_llegada);
@@ -1222,6 +1256,14 @@ export const endServicio = async (req, res) => {
         
         // Actualizar la ultima fecha de servicio del personal
         await pool.query("UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?", [mysqlFechaHora, personal_id]);
+
+        // Actualizar minutos conducidos del personal si hay minutos_duracion
+        if (minutosDuracion !== null) {
+            await pool.query(
+                "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
+                [minutosDuracion, personal_id]
+            );
+        }
         
         res.json({ message: "Servicio finalizado correctamente." });
     } catch (error) {

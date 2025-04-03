@@ -12,6 +12,7 @@ import {
     getPersonalWithDetailsPage,
     getPersonalbyID,
     quitarMaquinas,
+    updateMinutosConducidos,
     updatePersonal,
     updateUltimaFecServicio,
     verificarVencimientoLicencia
@@ -93,5 +94,6 @@ router.post(`${base_route}/:personal_id/maquinas`, checkPermission('actualizarPe
 
 //Quitar asignacion de maquinas
 router.delete(`${base_route}/:personal_id/maquinas/:maquina_id`, checkPermission('actualizarPersonal'), quitarMaquinas);
-
+//Actualizar minutos conducidos para todo el personal que tenga bitacoras 
+router.put(`${base_route}/update-minutos-conducidos`, checkPermission('actualizarPersonal'), updateMinutosConducidos);
 export default router;  

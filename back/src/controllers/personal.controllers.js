@@ -26,6 +26,7 @@ export const getPersonalWithDetailsPage = async (req, res) => {
                    DATE_FORMAT(p.fec_nac, '%d-%m-%Y') AS fec_nac,
                    DATE_FORMAT(p.fec_ingreso, '%d-%m-%Y') AS fec_ingreso,
                    p.img_url, p.obs, p.isDeleted,
+                   p.minutosConducidos,
                    rp.nombre AS rol_personal,
                    c.nombre AS compania,
                    p.compania_id, p.rol_personal_id, DATE_FORMAT(p.ven_licencia, '%d-%m-%Y') AS ven_licencia, p.imgLicencia, 
@@ -197,6 +198,7 @@ export const getPersonalbyID = async (req, res) => {
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
                    p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia,
+                   p.minutosConducidos,
                    DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
                    TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
@@ -1133,5 +1135,72 @@ export const verificarVencimientoLicencia = async () => {
       }
     } catch (error) {
       console.error("Error al verificar vencimiento de licencia:", error);
+    }
+};
+
+export const updateMinutosConducidos = async (req, res) => {
+    try {
+        console.log("Iniciando actualización de minutos conducidos");
+        
+        // Primero verificamos cuántos registros de personal tienen bitácoras asociadas
+        const [checkResult] = await pool.query(
+            `SELECT COUNT(DISTINCT p.id) as total 
+             FROM personal p
+             INNER JOIN bitacora b ON p.id = b.personal_id
+             WHERE p.isDeleted = 0 
+             AND b.isDeleted = 0
+             AND b.minutos_duracion IS NOT NULL`
+        );
+        
+        console.log("Registros de personal que necesitan actualización:", checkResult[0].total);
+        
+        // Consulta para actualizar los minutos conducidos
+        const [result] = await pool.query(
+            `UPDATE personal p
+             INNER JOIN (
+                SELECT personal_id, SUM(minutos_duracion) as total_minutos
+                FROM bitacora
+                WHERE isDeleted = 0
+                AND minutos_duracion IS NOT NULL
+                GROUP BY personal_id
+             ) b ON p.id = b.personal_id
+             SET p.minutosConducidos = b.total_minutos
+             WHERE p.isDeleted = 0`
+        );
+
+        // Verificar lo que queda después de la actualización
+        const [afterUpdateCheck] = await pool.query(
+            `SELECT COUNT(DISTINCT p.id) as remaining 
+             FROM personal p
+             INNER JOIN bitacora b ON p.id = b.personal_id
+             WHERE p.isDeleted = 0 
+             AND b.isDeleted = 0
+             AND b.minutos_duracion IS NOT NULL
+             AND p.minutosConducidos IS NULL`
+        );
+        
+        console.log("Registros restantes después de la actualización:", afterUpdateCheck[0].remaining);
+        console.log("Filas afectadas según MySQL:", result.affectedRows);
+
+        if (result.affectedRows > 0) {
+            return res.json({ 
+                message: "Minutos conducidos actualizados correctamente",
+                registrosActualizados: result.affectedRows,
+                totalEncontrados: checkResult[0].total,
+                restantes: afterUpdateCheck[0].remaining
+            });
+        } else {
+            return res.json({ 
+                message: "No se encontraron registros para actualizar",
+                totalEncontrados: checkResult[0].total,
+                restantes: afterUpdateCheck[0].remaining
+            });
+        }
+    } catch (error) {
+        console.error("Error al actualizar minutos conducidos:", error);
+        return res.status(500).json({ 
+            message: "Error al actualizar los minutos conducidos", 
+            error: error.message 
+        });
     }
 };

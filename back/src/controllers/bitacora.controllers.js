@@ -202,7 +202,8 @@ export const getBitacoraFull = async (req, res) => {
                    p.nombre AS "nombre_conductor", 
                    p.apellido AS "apellido_conductor", 
                    m.patente AS "patente_maquina", 
-                   tm.nombre AS tipo_maquina, 
+                   tm.nombre AS tipo_maquina,
+                   b.minutos_duracion, 
                    DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS fh_salida, 
                    DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS fh_llegada, 
                    cl.id AS 'clave_id',
@@ -375,9 +376,16 @@ export const getBitacoraById = async (req, res) => {
             `SELECT b.id, 
                     c.nombre AS compania,
                     p.rut AS 'rut_conductor',
-                    b.personal_id , 
+                    b.personal_id ,
+                    CONCAT(p.nombre, ' ', p.apellido) AS 'conductor_nombre',
+                    p.nombre as 'nombre_conductor',
+                    p.apellido as 'apellido_conductor',
                     b.maquina_id,
+                    m.codigo AS 'codigo_maquina',
+                    m.patente AS 'patente_maquina',
                     b.clave_id,
+                    cl.nombre AS clave,
+                    b.direccion,
                     m.codigo AS 'codigo_maquina',
                     m.patente AS 'patente_maquina',
                     tm.nombre AS tipo_maquina, 
@@ -387,6 +395,7 @@ export const getBitacoraById = async (req, res) => {
                     b.direccion, 
                     b.km_salida, 
                     b.km_llegada,
+                    b.minutos_duracion,
                     CASE 
                         WHEN b.km_llegada > b.km_salida AND b.km_salida IS NOT NULL AND b.km_llegada IS NOT NULL 
                         THEN b.km_llegada - b.km_salida 
@@ -406,6 +415,7 @@ export const getBitacoraById = async (req, res) => {
                         THEN b.hbomba_llegada - b.hbomba_salida 
                         ELSE NULL 
                     END AS "hbomba_recorrido",
+                    b.createdAt as 'fecha_ingreso',
                     b.obs 
              FROM bitacora b 
              INNER JOIN compania c ON b.compania_id = c.id AND c.isDeleted = 0

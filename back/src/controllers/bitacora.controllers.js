@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { pool } from "../db.js";
 import { checkIfDeletedById } from '../utils/queries.js';
 import { formatDateTime, validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
@@ -463,6 +464,21 @@ export const createBitacora = async (req, res) => {
     const errors = [];
 
     try {
+        // Obtener el token y decodificarlo
+        const token = req.headers.authorization?.split(' ')[1];
+        const decodedToken = jwt.verify(token, SECRET_JWT_KEY);
+        const { rol_personal, compania_id: tokenCompaniaId, personal_id: tokenPersonalId } = decodedToken;
+
+        // Validar campos obligatorios según el rol
+        if (rol_personal === 'Conductor') {
+            // Para conductores, usar los datos del token
+            compania_id = tokenCompaniaId;
+            personal_id = tokenPersonalId;
+        } else if (rol_personal === 'Capitan') {
+            // Para capitanes, usar la compañía del token
+            compania_id = tokenCompaniaId;
+        }
+
         // Validar campos obligatorios
         if (!compania_id) errors.push("ID de compañía es obligatorio");
         if (!personal_id) errors.push("ID de personal es obligatorio");
@@ -477,6 +493,18 @@ export const createBitacora = async (req, res) => {
 
         if (isNaN(companiaIdNumber) || isNaN(maquinaIdNumber) || isNaN(personalIdNumber)) {
             errors.push("IDs inválidos");
+        }
+
+        // Validar que el conductor pertenezca a la compañía si no es TELECOM
+        if (rol_personal !== 'TELECOM') {
+            const [personalData] = await pool.query(
+                "SELECT compania_id FROM personal WHERE id = ?",
+                [personalIdNumber]
+            );
+
+            if (!personalData || personalData[0].compania_id !== companiaIdNumber) {
+                errors.push("El conductor no pertenece a la compañía especificada");
+            }
         }
 
         // Validar existencia en la base de datos

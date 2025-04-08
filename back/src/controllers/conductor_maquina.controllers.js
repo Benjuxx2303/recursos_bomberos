@@ -4,14 +4,26 @@ import { pool } from "../db.js";
 
 export const getConductorMaquinaPage = async (req, res) => {
   try {
-    // Consulta sin paginación
-    const query = `
+    let query = `
       SELECT * 
       FROM conductor_maquina 
       WHERE isDeleted = 0
     `;
+    const params = [];
 
-    const [rows] = await pool.query(query);
+    // Aplicar filtro por compañía si existe
+    if (req.companyFilter) {
+      query += ' AND compania_id = ?';
+      params.push(req.companyFilter);
+    }
+
+    // Aplicar filtro por personal si existe
+    if (req.personalFilter) {
+      query += ' AND personal_id = ?';
+      params.push(req.personalFilter);
+    }
+
+    const [rows] = await pool.query(query, params);
     res.json(rows);
 
   } catch (error) {

@@ -142,6 +142,11 @@ export const getMaquinasDetailsPage = async (req, res) => {
       query += " AND m.procedencia_id = ?";
       params.push(procedencia_id);
     }
+        // Aplicar filtro por personal si existe
+    if (req.personalFilter) {
+      query += ' AND personal_id = ?';
+      params.push(req.personalFilter);       
+    }
 
     if (!req.query.page) {
       query += " ORDER BY m.id DESC";

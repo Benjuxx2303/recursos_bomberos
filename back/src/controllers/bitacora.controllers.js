@@ -466,12 +466,18 @@ export const createBitacora = async (req, res) => {
     try {
         // Obtener el token y decodificarlo
         const token = req.headers.authorization?.split(' ')[1];
-        const decodedToken = jwt.verify(token, SECRET_JWT_KEY);
-        const { rol_personal, compania_id: tokenCompaniaId, personal_id: tokenPersonalId } = decodedToken;
+
+        if (!token) {
+            return res.status(403).json({ error: 'Token no proporcionado' });
+        }
+
+        // Decodificar el token
+        const decoded = jwt.verify(token, process.env.SECRET_JWT_KEY);
+        const { rol_personal, compania_id: tokenCompaniaId, personal_id: tokenPersonalId } = decoded;
 
         // Validar campos obligatorios según el rol
-        if (rol_personal === 'Conductor') {
-            // Para conductores, usar los datos del token
+        if (rol_personal === 'Maquinista') {
+            // Para maquinistas, usar los datos del token
             compania_id = tokenCompaniaId;
             personal_id = tokenPersonalId;
         } else if (rol_personal === 'Capitan') {

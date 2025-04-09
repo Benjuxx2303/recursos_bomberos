@@ -563,18 +563,21 @@ export const updatePersonal = async (req, res) => {
         // Validaciones
         const updates = {};
         if (rol_personal_id !== undefined) {
+            console.log('Intentando actualizar rol_personal_id:', rol_personal_id);
             const rolPersonalIdNumber = parseInt(rol_personal_id);
             if (isNaN(rolPersonalIdNumber)) {
+                console.error('Error: rol_personal_id no es un número válido:', rol_personal_id);
                 errors.push("Tipo de dato inválido para 'rol_personal_id'");
             }
 
             const [rolPersonalExists] = await pool.query("SELECT 1 FROM rol_personal WHERE id = ? AND isDeleted = 0", [rolPersonalIdNumber]);
             if (rolPersonalExists.length === 0) {
+                console.error('Error: rol_personal no existe o está eliminado:', rolPersonalIdNumber);
                 errors.push("rol_personal no existe o está eliminado");
+            } else {
+                console.log('Rol personal válido encontrado:', rolPersonalIdNumber);
+                updates.rol_personal_id = rolPersonalIdNumber;
             }
-
-            updates.rol_personal_id = rolPersonalIdNumber;
-
         }
         if (correo !== undefined) {
             correo = String(correo).trim();

@@ -18,7 +18,7 @@ const router = Router();
 
 const base_route = "/bitacora";
 
-router.get(base_route, checkPermission('verServicios'), getBitacora); // paginado
+router.get(base_route, checkPermission('verServicios'), filterByCompany, getBitacora); // paginado
 router.get(`${base_route}/search`, checkPermission('verServicios'), filterByCompany, getBitacora); // nueva ruta de búsqueda
 // http://{url}/api/bitacora
 // QueryParams:

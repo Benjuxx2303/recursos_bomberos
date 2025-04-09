@@ -74,7 +74,12 @@ export const getBitacora = async (req, res) => {
             query += " AND c.nombre LIKE ?";
             params.push(`%${compania}%`);
         }
-        // Aplicar filtro de compañía desde el middleware si existe
+                // Aplicar filtro por personal si existe
+          if (req.personalFilter) {
+        query += ' AND personal_id = ?';
+        params.push(req.personalFilter);       
+       }
+         // Aplicar filtro de compañía desde el middleware si existe
         if (companiaFilter) {
             query += " AND c.id = ?";
             params.push(companiaFilter);
@@ -474,7 +479,7 @@ export const createBitacora = async (req, res) => {
         // Decodificar el token
         const decoded = jwt.verify(token, process.env.SECRET_JWT_KEY);
         const { rol_personal, compania_id: tokenCompaniaId, personal_id: tokenPersonalId } = decoded;
-
+        console.log(tokenCompaniaId, tokenPersonalId);
         // Validar campos obligatorios según el rol
         if (rol_personal === 'Maquinista') {
             // Para maquinistas, usar los datos del token

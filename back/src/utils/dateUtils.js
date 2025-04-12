@@ -8,6 +8,22 @@
 export const convertDateFormat = (dateString, fromFormat = 'dd-MM-yyyy', toFormat = 'yyyy-MM-dd') => {
     if (!dateString) return null;
 
+    // Si la fecha ya está en el formato deseado, la devolvemos sin cambios
+    if (fromFormat === toFormat) {
+        // Validar que la fecha tenga el formato correcto antes de devolverla
+        let isValid = false;
+        
+        if (fromFormat === 'dd-MM-yyyy' && /^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+            isValid = true;
+        } else if (fromFormat === 'yyyy-MM-dd' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            isValid = true;
+        }
+        
+        if (isValid) {
+            return dateString;
+        }
+    }
+
     try {
         let day, month, year;
 

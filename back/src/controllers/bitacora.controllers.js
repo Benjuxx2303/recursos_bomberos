@@ -485,7 +485,7 @@ export const createBitacora = async (req, res) => {
             // Para maquinistas, usar los datos del token
             compania_id = tokenCompaniaId;
             personal_id = tokenPersonalId;
-        } else if (rol_personal === 'Capitan' || rol_personal === 'Teniente de Maquina') {
+        } else if (rol_personal === 'Capitan' || rol_personal === 'Teniente de Máquina') {
             // Para capitanes, usar la compañía del token
             compania_id = tokenCompaniaId;
         }

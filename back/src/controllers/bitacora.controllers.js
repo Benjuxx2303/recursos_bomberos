@@ -641,10 +641,30 @@ export const createBitacora = async (req, res) => {
 
         // Actualizar ultima_fec_servicio del personal si hay fecha de llegada
         if (fh_llegada) {
-            await pool.query(
-                "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
-                [fh_llegada, personalIdNumber]
+            // Verificar si esta es la última fecha de servicio para el personal
+            const [ultimasFechas] = await pool.query(
+                "SELECT MAX(fh_llegada) as ultima_fecha FROM bitacora WHERE personal_id = ? AND isDeleted = 0",
+                [personalIdNumber]
             );
+            
+            if (ultimasFechas[0]?.ultima_fecha) {
+                const ultimaFecha = new Date(ultimasFechas[0].ultima_fecha);
+                const fechaActual = new Date(fh_llegada);
+                
+                // Solo actualizar si esta fecha es posterior a la última registrada
+                if (fechaActual >= ultimaFecha) {
+                    await pool.query(
+                        "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                        [fh_llegada, personalIdNumber]
+                    );
+                }
+            } else {
+                // Si no hay fecha previa, actualizar de todos modos
+                await pool.query(
+                    "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                    [fh_llegada, personalIdNumber]
+                );
+            }
         }
 
         // Responder con la bitácora creada
@@ -745,11 +765,24 @@ export const updateBitacora = async (req, res) => {
 
     try {
         // Obtener la bitácora existente
-        const [current] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
+        const [current] = await pool.query(`
+            SELECT b.*
+            FROM bitacora b
+            WHERE b.id = ? AND b.isDeleted = 0`, 
+            [id]
+        );
+        
         if (current.length === 0) return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
-
+        
+        const bitacoraActual = current[0];
+        // Guardar los valores antiguos para calcular diferencias posteriormente
+        const oldMinutosDuracion = bitacoraActual.minutos_duracion || 0;
+        const oldPersonalId = bitacoraActual.personal_id;
+        
         const updates = [];
         const values = [];
+        let needToRecalculateMinutos = false;
+        let newPersonalId = personal_id;
 
         // Actualizar solo los campos que están en el body
         if (direccion !== undefined) {
@@ -765,6 +798,7 @@ export const updateBitacora = async (req, res) => {
         let transformedFhSalida = null;
         let transformedFhLlegada = null;
 
+        // Verificar si hay cambios en las fechas
         if (f_salida !== undefined && h_salida !== undefined) {
             const fh_salida = `${f_salida} ${h_salida}`;
             if (!validateDate(f_salida, h_salida)) errors.push('El formato de la fecha o la hora de salida es inválido. Deben ser dd-mm-aaaa y HH:mm');
@@ -773,10 +807,14 @@ export const updateBitacora = async (req, res) => {
                 if (transformedFhSalida) {
                     updates.push("fh_salida = ?");
                     values.push(transformedFhSalida);
+                    needToRecalculateMinutos = true;
                 } else {
                     errors.push('Fecha de salida no válida');
                 }
             }
+        } else if (bitacoraActual.fh_salida) {
+            // Usar el valor actual si no se proporciona uno nuevo
+            transformedFhSalida = bitacoraActual.fh_salida;
         }
 
         if (f_llegada !== undefined && h_llegada !== undefined) {
@@ -786,14 +824,19 @@ export const updateBitacora = async (req, res) => {
                 if (transformedFhLlegada) {
                     updates.push("fh_llegada = ?");
                     values.push(transformedFhLlegada);
+                    needToRecalculateMinutos = true;
                 } else {
                     errors.push('Fecha de llegada no válida');
                 }
             }
+        } else if (bitacoraActual.fh_llegada) {
+            // Usar el valor actual si no se proporciona uno nuevo
+            transformedFhLlegada = bitacoraActual.fh_llegada;
         }
 
         // Calcular minutos_duracion si ambas fechas están presentes
-        if (transformedFhSalida && transformedFhLlegada) {
+        let minutosDuracion = null;
+        if (transformedFhSalida && transformedFhLlegada && needToRecalculateMinutos) {
             try {
                 const isValidStartEnd = validateStartEndDate(transformedFhSalida, transformedFhLlegada);
                 if (!isValidStartEnd) errors.push('La fecha de salida no puede ser posterior a la fecha de llegada');
@@ -801,25 +844,10 @@ export const updateBitacora = async (req, res) => {
                     // Calcular diferencia en minutos
                     const salida = new Date(transformedFhSalida);
                     const llegada = new Date(transformedFhLlegada);
-                    const minutosDuracion = Math.round((llegada - salida) / (1000 * 60));
+                    minutosDuracion = Math.round((llegada - salida) / (1000 * 60));
                     
                     updates.push("minutos_duracion = ?");
                     values.push(minutosDuracion);
-
-                    // Obtener el personal_id de la bitácora actual
-                    const [currentBitacora] = await pool.query(
-                        "SELECT personal_id FROM bitacora WHERE id = ?",
-                        [id]
-                    );
-
-                    if (currentBitacora.length > 0) {
-                        const personal_id = currentBitacora[0].personal_id;
-                        // Actualizar minutos conducidos del personal
-                        await pool.query(
-                            "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
-                            [minutosDuracion, personal_id]
-                        );
-                    }
                 }
             } catch (err) {
                 errors.push(err.message);
@@ -897,7 +925,10 @@ export const updateBitacora = async (req, res) => {
             else {
                 updates.push("personal_id = ?");
                 values.push(personal_id);
+                newPersonalId = personal_id;
             }
+        } else {
+            newPersonalId = oldPersonalId;
         }
 
         if (maquina_id !== undefined) {
@@ -950,8 +981,67 @@ export const updateBitacora = async (req, res) => {
 
         if (result.affectedRows === 0) return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
 
+        // Actualizar minutos conducidos si hubo cambio en los minutos
+        if (needToRecalculateMinutos && minutosDuracion !== null) {
+            // Si el personal es el mismo, actualizamos los minutos
+            if (oldPersonalId === newPersonalId) {
+                // Restar los minutos antiguos y sumar los nuevos
+                await pool.query(
+                    "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) - ? + ? WHERE id = ?",
+                    [oldMinutosDuracion, minutosDuracion, oldPersonalId]
+                );
+            } else {
+                // Si cambió el personal, restar del antiguo
+                if (oldPersonalId) {
+                    await pool.query(
+                        "UPDATE personal SET minutosConducidos = GREATEST(COALESCE(minutosConducidos, 0) - ?, 0) WHERE id = ?",
+                        [oldMinutosDuracion, oldPersonalId]
+                    );
+                }
+                // Y sumar al nuevo
+                if (newPersonalId) {
+                    await pool.query(
+                        "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
+                        [minutosDuracion, newPersonalId]
+                    );
+                }
+            }
+        }
+
+        // Actualizar ultima_fec_servicio del personal si hay fecha de llegada
+        if (transformedFhLlegada && newPersonalId) {
+            // Verificar si esta es la última fecha de servicio para el personal
+            const [ultimasFechas] = await pool.query(
+                "SELECT MAX(fh_llegada) as ultima_fecha FROM bitacora WHERE personal_id = ? AND isDeleted = 0",
+                [newPersonalId]
+            );
+            
+            if (ultimasFechas[0]?.ultima_fecha) {
+                const ultimaFecha = new Date(ultimasFechas[0].ultima_fecha);
+                const fechaActual = new Date(transformedFhLlegada);
+                
+                // Solo actualizar si esta fecha es posterior a la última registrada
+                if (fechaActual >= ultimaFecha) {
+                    await pool.query(
+                        "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                        [transformedFhLlegada, newPersonalId]
+                    );
+                }
+            } else {
+                // Si no hay fecha previa, actualizar de todos modos
+                await pool.query(
+                    "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                    [transformedFhLlegada, newPersonalId]
+                );
+            }
+        }
+
         // Devolver la bitácora actualizada
-        const [updatedRows] = await pool.query("SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", [id]);
+        const [updatedRows] = await pool.query(
+            "SELECT * FROM bitacora WHERE id = ? AND isDeleted = 0", 
+            [id]
+        );
+        
         res.json(updatedRows[0]);
     } catch (error) {
         console.error(error); // Para depuración
@@ -1304,7 +1394,32 @@ export const endServicio = async (req, res) => {
         await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
         
         // Actualizar la ultima fecha de servicio del personal
-        await pool.query("UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?", [mysqlFechaHora, personal_id]);
+        if (mysqlFechaHora) {
+            // Verificar si esta es la última fecha de servicio para el personal
+            const [ultimasFechas] = await pool.query(
+                "SELECT MAX(fh_llegada) as ultima_fecha FROM bitacora WHERE personal_id = ? AND isDeleted = 0",
+                [personal_id]
+            );
+            
+            if (ultimasFechas[0]?.ultima_fecha) {
+                const ultimaFecha = new Date(ultimasFechas[0].ultima_fecha);
+                const fechaActual = new Date(mysqlFechaHora);
+                
+                // Solo actualizar si esta fecha es posterior a la última registrada
+                if (fechaActual >= ultimaFecha) {
+                    await pool.query(
+                        "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                        [mysqlFechaHora, personal_id]
+                    );
+                }
+            } else {
+                // Si no hay fecha previa, actualizar de todos modos
+                await pool.query(
+                    "UPDATE personal SET ultima_fec_servicio = ? WHERE id = ?",
+                    [mysqlFechaHora, personal_id]
+                );
+            }
+        }
 
         // Actualizar minutos conducidos del personal si hay minutos_duracion
         if (minutosDuracion !== null) {

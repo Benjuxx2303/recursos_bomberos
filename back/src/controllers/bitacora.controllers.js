@@ -481,7 +481,7 @@ export const createBitacora = async (req, res) => {
         const { rol_personal, compania_id: tokenCompaniaId, personal_id: tokenPersonalId } = decoded;
         console.log(tokenCompaniaId, tokenPersonalId);
         // Validar campos obligatorios según el rol
-        if (rol_personal === 'Maquinista') {
+        if (rol_personal === 'Maquinista' || rol_personal === 'Conductor Rentado') {
             // Para maquinistas, usar los datos del token
             compania_id = tokenCompaniaId;
             personal_id = tokenPersonalId;

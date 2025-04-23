@@ -1007,6 +1007,64 @@ export const updateBitacora = async (req, res) => {
                 }
             }
         }
+        
+        // Obtener el maquina_id de la bitácora actual
+        const bitacoraMaquinaId = bitacoraActual.maquina_id;
+        
+        // Actualizar datos de la máquina si se actualizaron datos de llegada
+        if (bitacoraMaquinaId && (km_llegada !== undefined || hmetro_llegada !== undefined || hbomba_llegada !== undefined)) {
+            // Verificar si esta es la última bitácora para esta máquina
+            const [ultimaBitacora] = await pool.query(
+                `SELECT MAX(id) as ultima_id 
+                 FROM bitacora 
+                 WHERE maquina_id = ? AND isDeleted = 0`,
+                [bitacoraMaquinaId]
+            );
+
+            // Si es la última bitácora, actualizamos los datos de la máquina
+            if (ultimaBitacora[0]?.ultima_id === parseInt(id)) {
+                // Obtener datos actuales de la máquina
+                const [maquinaData] = await pool.query(
+                    `SELECT bomba, kmetraje, hmetro_motor, hmetro_bomba 
+                     FROM maquina 
+                     WHERE id = ? AND isDeleted = 0`,
+                    [bitacoraMaquinaId]
+                );
+
+                if (maquinaData.length > 0) {
+                    const { bomba, kmetraje, hmetro_motor, hmetro_bomba } = maquinaData[0];
+                    const updateMaquinaFields = [];
+                    const updateMaquinaValues = [];
+
+                    // Actualizar kilómetros si se proporcionaron y son mayores que los actuales
+                    if (km_llegada !== undefined && parseFloat(km_llegada) > parseFloat(kmetraje || 0)) {
+                        updateMaquinaFields.push("kmetraje = ?");
+                        updateMaquinaValues.push(km_llegada);
+                    }
+                    
+                    // Actualizar horómetro motor si se proporcionó y es mayor que el actual
+                    if (hmetro_llegada !== undefined && parseFloat(hmetro_llegada) > parseFloat(hmetro_motor || 0)) {
+                        updateMaquinaFields.push("hmetro_motor = ?");
+                        updateMaquinaValues.push(hmetro_llegada);
+                    }
+                    
+                    // Actualizar horómetro bomba sólo si la máquina tiene bomba y se proporcionó un valor mayor
+                    if (bomba === 1 && hbomba_llegada !== undefined && parseFloat(hbomba_llegada) > parseFloat(hmetro_bomba || 0)) {
+                        updateMaquinaFields.push("hmetro_bomba = ?");
+                        updateMaquinaValues.push(hbomba_llegada);
+                    }
+                    
+                    // Actualizar máquina si hay campos para actualizar
+                    if (updateMaquinaFields.length > 0) {
+                        updateMaquinaValues.push(bitacoraMaquinaId);
+                        await pool.query(
+                            `UPDATE maquina SET ${updateMaquinaFields.join(", ")} WHERE id = ?`,
+                            updateMaquinaValues
+                        );
+                    }
+                }
+            }
+        }
 
         // Actualizar ultima_fec_servicio del personal si hay fecha de llegada
         if (transformedFhLlegada && newPersonalId) {

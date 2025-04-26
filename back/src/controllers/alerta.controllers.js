@@ -74,12 +74,10 @@ export const getAlertasByUsuario = async (req, res) => {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Función para enviar alertas de vencimiento de licencias
-// TODO: Pulir contenido visual del correo y que se vea más profesional y añadir enlace al sistema (botón acceder).
 export const sendVencimientoAlerts = async (req, res) => {
     try {
         // Obtener los correos de los cargos importantes
         const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
-        // console.log(cargosImportantes);
 
         // Crear un conjunto para almacenar los correos ya enviados
         const correosEnviados = new Set();
@@ -114,90 +112,94 @@ export const sendVencimientoAlerts = async (req, res) => {
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            const dosMesesAntes = new Date(fechaVencimiento);
-            dosMesesAntes.setMonth(dosMesesAntes.getMonth() - 2);
-            dosMesesAntes.setHours(0, 0, 0, 0);
+            const quinceDiasAntes = new Date(fechaVencimiento);
+            quinceDiasAntes.setDate(quinceDiasAntes.getDate() - 15); // Restar 15 días
+            quinceDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            const tresSemanasAntes = new Date(fechaVencimiento);
-            tresSemanasAntes.setDate(tresSemanasAntes.getDate() - 21);
-            tresSemanasAntes.setHours(0, 0, 0, 0);
+            const cincoDiasAntes = new Date(fechaVencimiento);
+            cincoDiasAntes.setDate(cincoDiasAntes.getDate() - 5); // Restar 5 días
+            cincoDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
             let contenido;
             let contenidoCargoImportante;
-            let contenidoCapitan;
+            let contenidoTenienteMaquina;
 
             // Si la fecha de vencimiento es futura
             if (fechaVencimiento > hoy) {
-                if (hoy < dosMesesAntes) {
+                if (hoy < quinceDiasAntes) {
                     contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
                     contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
-                    contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
-                } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
+                    contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
+                } else if (hoy >= quinceDiasAntes && hoy < cincoDiasAntes) {
                     contenido = `Hola ${nombre} ${apellido}, tu licencia está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
                     contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
                 } else {
                     contenido = `Hola ${nombre} ${apellido}, tu licencia está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
                     contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
                 }
             } else {
                 // Si la fecha de vencimiento ya pasó
                 contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
                 contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                contenidoCapitan = `Capitán, el personal ${nombre} ${apellido} de su compañía tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
             }
 
             // Generar el contenido HTML para el correo electrónico usando una plantilla
             const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
-                contenido,  // Cuerpo del correo
-                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
-                `Acceder`  // Texto del enlace en el correo
+                "Recordatorio: Vencimiento de Licencia",
+                contenido,
+                `${process.env.FRONTEND_URL}`,
+                "Acceder"
             );
 
             // Generar el contenido HTML para el correo de cargos importantes
             const htmlContentCargoImportante = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
-                contenidoCargoImportante,  // Cuerpo del correo
-                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
-                `Acceder`  // Texto del enlace en el correo
+                "Recordatorio: Vencimiento de Licencia",
+                contenidoCargoImportante,
+                `${process.env.FRONTEND_URL}`,
+                "Acceder"
             );
 
-            // Generar el contenido HTML para el correo del capitán
-            const htmlContentCapitan = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",  // Asunto del correo
-                contenidoCapitan,  // Cuerpo del correo
-                `${process.env.FRONTEND_URL}`,  // URL de redirección en el correo
-                `Acceder`  // Texto del enlace en el correo
+            // Generar el contenido HTML para el correo del teniente de máquina
+            const htmlContentTenienteMaquina = generateEmailTemplate(
+                "Recordatorio: Vencimiento de Licencia",
+                contenidoTenienteMaquina,
+                `${process.env.FRONTEND_URL}`,
+                "Acceder"
             );
 
             // Agregar a las promesas de correo
             emailPromises.push(
                 // Enviar el correo al usuario
                 sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
-                // Enviar los correos a los cargos importantes
-                ...cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
-                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoCargoImportante, htmlContentCargoImportante)
-                        .then(() => {
-                            // Guardar alerta en la base de datos para cada cargo importante (TELECOM, Comandante, Inspector Material Mayor)
-                            return saveAndEmitAlert(cargoId, contenidoCargoImportante, 'vencimiento', personal_id);
-                        })
-                ),
-                // Enviar correo al capitán de la compañía del usuario
-                ...(await getNotificationUsers({ compania_id: compania_id, rol: 'Capitán' })).map(({ correo: correoCapitan, id: capitanId }) =>
-                    sendEmail(correoCapitan, "Recordatorio: Vencimiento de Licencia", contenidoCapitan, htmlContentCapitan)
-                        .then(() => {
-                            // Guardar alerta en la base de datos para el capitán
-                            return saveAndEmitAlert(capitanId, contenidoCapitan, 'vencimiento', personal_id);
-                        })
-                ),
                 // Guardar y emitir la alerta de vencimiento para el usuario
                 saveAndEmitAlert(usuario_id, contenido, 'vencimiento', personal_id)
             );
 
-            // Aplicar un pequeño delay entre los envíos
-            await delay(200); // 200ms de retraso entre cada correo
+            // Enviar notificaciones a cargos importantes
+            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
+                if (correosEnviados.has(correoCargo)) continue;
+                correosEnviados.add(correoCargo);
+
+                emailPromises.push(
+                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoCargoImportante, htmlContentCargoImportante),
+                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'vencimiento', personal_id)
+                );
+            }
+
+            // Enviar notificaciones a Tenientes de Máquina
+            const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
+            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
+                if (correosEnviados.has(correoTeniente)) continue;
+                correosEnviados.add(correoTeniente);
+
+                emailPromises.push(
+                    sendEmail(correoTeniente, "Recordatorio: Vencimiento de Licencia", contenidoTenienteMaquina, htmlContentTenienteMaquina),
+                    saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'vencimiento', personal_id)
+                );
+            }
         }
 
         // Ejecutar todas las promesas de correo en paralelo
@@ -214,7 +216,7 @@ export const sendVencimientoAlerts = async (req, res) => {
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
     try {
-        // Obtener los correos de los cargos importantes
+        // Obtener los correos de los cargos importantes (escalafón alto)
         const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
 
         // Crear un conjunto para almacenar los correos ya enviados
@@ -227,24 +229,10 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
                 m.codigo,
                 m.patente,
                 m.ven_rev_tec,
-                (
-                    SELECT GROUP_CONCAT(
-                        JSON_OBJECT(
-                            'id', u.id,
-                            'nombre', CONCAT(p.nombre, ' ', p.apellido),
-                            'correo', u.correo,
-                            'compania', c.nombre,
-                            'rol', rp.nombre
-                        )
-                    )
-                    FROM conductor_maquina cm
-                    INNER JOIN personal p ON cm.personal_id = p.id
-                    INNER JOIN usuario u ON p.id = u.personal_id
-                    INNER JOIN compania c ON p.compania_id = c.id
-                    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-                    WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND p.isDeleted = 0 AND u.isDeleted = 0
-                ) AS conductores
+                c.id AS compania_id,
+                c.nombre AS compania_nombre
             FROM maquina m
+            INNER JOIN compania c ON m.compania_id = c.id
             WHERE m.isDeleted = 0 
               AND m.ven_rev_tec IS NOT NULL
         `);
@@ -256,113 +244,136 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
         const emailPromises = [];
 
         for (const maquina of rows) {
-            const { conductores, ven_rev_tec, codigo, patente, maquina_id } = maquina;
-            if (!conductores) continue;
-
-            const conductoresArray = JSON.parse(`[${conductores}]`);
+            const { ven_rev_tec, codigo, patente, maquina_id, compania_id, compania_nombre } = maquina;
+            
             const fechaVencimiento = new Date(ven_rev_tec);
             fechaVencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            const dosMesesAntes = new Date(fechaVencimiento);
-            dosMesesAntes.setMonth(dosMesesAntes.getMonth() - 2); // Restar 2 meses
-            dosMesesAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
+            const quinceDiasAntes = new Date(fechaVencimiento);
+            quinceDiasAntes.setDate(quinceDiasAntes.getDate() - 15); // Restar 15 días
+            quinceDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            const tresSemanasAntes = new Date(fechaVencimiento);
-            tresSemanasAntes.setDate(tresSemanasAntes.getDate() - 21); // Restar 21 días (3 semanas)
-            tresSemanasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
+            const cincoDiasAntes = new Date(fechaVencimiento);
+            cincoDiasAntes.setDate(cincoDiasAntes.getDate() - 5); // Restar 5 días
+            cincoDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            for (const conductor of conductoresArray) {
-                const { id: usuario_id, nombre, correo, compania, rol } = conductor;
+            // Obtener usuarios que no sean Maquinista ni Conductor Rentado
+            const usuariosNotificables = await getNotificationUsers({ 
+                compania_id: compania_id,
+                exclude_roles: ['Maquinista', 'Conductor Rentado']
+            });
 
+            let contenido;
+            let contenidoCargoImportante;
+            let contenidoCapitan;
+            let contenidoTenienteMaquina;
+
+            // Si la fecha de vencimiento es futura
+            if (fechaVencimiento > hoy) {
+                if (hoy < quinceDiasAntes) {
+                    contenido = `La revisión técnica del vehículo código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realícela con anticipación.`;
+                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo con código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realícela con anticipación.`;
+                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
+                } else if (hoy >= quinceDiasAntes && hoy < cincoDiasAntes) {
+                    contenido = `La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
+                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
+                } else {
+                    contenido = `La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
+                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                }
+            } else {
+                // Si la fecha de vencimiento ya pasó
+                contenido = `El vehículo código: ${codigo} - patente: ${patente} ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
+                contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+                contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
+            }
+
+            const htmlContent = generateEmailTemplate(
+                "Recordatorio: Vencimiento de Revisión Técnica",
+                contenido,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
+
+            const htmlContentCargoImportante = generateEmailTemplate(
+                "Recordatorio: Vencimiento de Revisión Técnica",
+                contenidoCargoImportante,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
+
+            const htmlContentCapitan = generateEmailTemplate(
+                "Recordatorio: Vencimiento de Revisión Técnica",
+                contenidoCapitan,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
+
+            const htmlContentTenienteMaquina = generateEmailTemplate(
+                "Recordatorio: Vencimiento de Revisión Técnica",
+                contenidoTenienteMaquina,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
+
+            // Enviar notificaciones a usuarios notificables
+            for (const usuario of usuariosNotificables) {
+                const { correo, id: usuario_id } = usuario;
                 if (correosEnviados.has(correo)) continue;
                 correosEnviados.add(correo);
 
-                let contenido;
-                let contenidoCargoImportante;
-                let contenidoCapitan;
-                let contenidoTenienteMaquina;
-
-                // Si la fecha de vencimiento es futura
-                if (fechaVencimiento > hoy) {
-                    if (hoy < dosMesesAntes) {
-                        contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
-                        contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo con código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realízala con anticipación.`;
-                        contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
-                        contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
-                    } else if (hoy >= dosMesesAntes && hoy < tresSemanasAntes) {
-                        contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
-                        contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                        contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                        contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    } else {
-                        contenido = `Hola ${nombre}, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
-                        contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                        contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                        contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    }
-                } else {
-                    // Si la fecha de vencimiento ya pasó
-                    contenido = `Hola ${nombre}, el vehículo código: ${codigo} - patente: ${patente} ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
-                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                }
-
-                const htmlContent = generateEmailTemplate(
-                    "Recordatorio: Vencimiento de Revisión Técnica",
-                    contenido,
-                    `${process.env.FRONTEND_URL}`,
-                    "Ver Detalles"
-                );
-
-                const htmlContentCargoImportante = generateEmailTemplate(
-                    "Recordatorio: Vencimiento de Revisión Técnica",
-                    contenidoCargoImportante,
-                    `${process.env.FRONTEND_URL}`,
-                    "Ver Detalles"
-                );
-
-                const htmlContentCapitan = generateEmailTemplate(
-                    "Recordatorio: Vencimiento de Revisión Técnica",
-                    contenidoCapitan,
-                    `${process.env.FRONTEND_URL}`,
-                    "Ver Detalles"
-                );
-
-                const htmlContentTenienteMaquina = generateEmailTemplate(
-                    "Recordatorio: Vencimiento de Revisión Técnica",
-                    contenidoTenienteMaquina,
-                    `${process.env.FRONTEND_URL}`,
-                    "Ver Detalles"
-                );
-
                 emailPromises.push(
                     sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent),
-                    saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica', maquina_id),
-                    ...cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
-                        sendEmail(correoCargo, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCargoImportante, htmlContentCargoImportante)
-                            .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'revision_tecnica', maquina_id))
-                    ),
-                    ...(await getNotificationUsers({ compania_id: compania, rol: 'Capitán' })).map(({ correo: correoCapitan, id: capitanId }) =>
-                        sendEmail(correoCapitan, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCapitan, htmlContentCapitan)
-                            .then(() => saveAndEmitAlert(capitanId, contenidoCapitan, 'revision_tecnica', maquina_id))
-                    ),
-                    ...(await getNotificationUsers({ compania_id: compania, rol: 'Teniente de Máquina' })).map(({ correo: correoTeniente, id: tenienteId }) =>
-                        sendEmail(correoTeniente, "Recordatorio: Vencimiento de Revisión Técnica", contenidoTenienteMaquina, htmlContentTenienteMaquina)
-                            .then(() => saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'revision_tecnica', maquina_id))
-                    )
+                    saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica', maquina_id)
+                );
+            }
+
+            // Enviar notificaciones a cargos importantes (escalafón alto)
+            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
+                if (correosEnviados.has(correoCargo)) continue;
+                correosEnviados.add(correoCargo);
+
+                emailPromises.push(
+                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCargoImportante, htmlContentCargoImportante),
+                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'revision_tecnica', maquina_id)
+                );
+            }
+
+            // Enviar notificaciones a Capitanes de la compañía
+            const capitanes = await getNotificationUsers({ compania_id: compania_id, rol: 'Capitán' });
+            for (const { correo: correoCapitan, id: capitanId } of capitanes) {
+                if (correosEnviados.has(correoCapitan)) continue;
+                correosEnviados.add(correoCapitan);
+
+                emailPromises.push(
+                    sendEmail(correoCapitan, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCapitan, htmlContentCapitan),
+                    saveAndEmitAlert(capitanId, contenidoCapitan, 'revision_tecnica', maquina_id)
+                );
+            }
+
+            // Enviar notificaciones a Tenientes de Máquina
+            const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
+            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
+                if (correosEnviados.has(correoTeniente)) continue;
+                correosEnviados.add(correoTeniente);
+
+                emailPromises.push(
+                    sendEmail(correoTeniente, "Recordatorio: Vencimiento de Revisión Técnica", contenidoTenienteMaquina, htmlContentTenienteMaquina),
+                    saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'revision_tecnica', maquina_id)
                 );
             }
         }
 
         await Promise.all(emailPromises);
-
-        // Agregar un timeout de 500ms después de procesar todos los correos
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
     } catch (error) {
         res.status(500).json({ message: "Error interno del servidor.", error: error.message });
@@ -413,45 +424,107 @@ export const sendMantencionAlerts = async (req, res) => {
             if (!responsable_correo || correosEnviados.has(responsable_correo)) return;
             correosEnviados.add(responsable_correo);
 
-            const fechaMantencion = new Date(fec_inicio).toLocaleDateString("es-ES");
+            const fechaMantencion = new Date(fec_inicio);
+            fechaMantencion.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            // Contenido para el usuario común
-            const contenido = `Hola ${responsable_nombre}, la mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion}. Por favor, prepárate con anticipación. Descripción: (${descripcion})`;
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            // Contenido para cargos importantes
-            const contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion}. Por favor, coordinar recursos. Descripción: (${descripcion})`;
+            const quinceDiasAntes = new Date(fechaMantencion);
+            quinceDiasAntes.setDate(quinceDiasAntes.getDate() - 15); // Restar 15 días
+            quinceDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            // Contenido para el capitán
-            const contenidoCapitan = `Capitán, la mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion}. Por favor, coordinar recursos. Descripción: (${descripcion})`;
+            const cincoDiasAntes = new Date(fechaMantencion);
+            cincoDiasAntes.setDate(cincoDiasAntes.getDate() - 5); // Restar 5 días
+            cincoDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
 
-            // Generar contenido HTML
-            const htmlContent = generateEmailTemplate("Recordatorio: Mantención Programada", contenido, `${process.env.FRONTEND_URL}`, "Ver Detalles");
-            const htmlContentCargoImportante = generateEmailTemplate("Recordatorio: Mantención Programada", contenidoCargoImportante, `${process.env.FRONTEND_URL}`, "Ver Detalles");
-            const htmlContentCapitan = generateEmailTemplate("Recordatorio: Mantención Programada", contenidoCapitan, `${process.env.FRONTEND_URL}`, "Ver Detalles");
+            // Obtener usuarios que no sean Maquinista ni Conductor Rentado
+            const usuariosNotificables = await getNotificationUsers({ 
+                compania_id: compania_id,
+                exclude_roles: ['Maquinista', 'Conductor Rentado']
+            });
 
-            // Enviar correo al responsable
-            await sendEmail(responsable_correo, "Recordatorio: Mantención Programada", contenido, htmlContent);
-            await saveAndEmitAlert(responsable_id, contenido, 'mantencion', mantencion_id);
+            let contenido;
+            let contenidoCargoImportante;
+            let contenidoTenienteMaquina;
 
-            // Enviar correos a cargos importantes
-            await Promise.all(cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
-                sendEmail(correoCargo, "Recordatorio: Mantención Programada", contenidoCargoImportante, htmlContentCargoImportante)
-                    .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id))
-            ));
+            // Si la fecha de mantención es futura
+            if (fechaMantencion > hoy) {
+                if (hoy < quinceDiasAntes) {
+                    contenido = `La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, prepárese con anticipación. Descripción: (${descripcion})`;
+                    contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, coordinar recursos. Descripción: (${descripcion})`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, coordinar recursos. Descripción: (${descripcion})`;
+                } else if (hoy >= quinceDiasAntes && hoy < cincoDiasAntes) {
+                    contenido = `La mantención del vehículo ${codigo_maquina} está próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia. Descripción: (${descripcion})`;
+                    contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con urgencia. Descripción: (${descripcion})`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} está próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con urgencia. Descripción: (${descripcion})`;
+                } else {
+                    contenido = `La mantención del vehículo ${codigo_maquina} está muy próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad. Descripción: (${descripcion})`;
+                    contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está muy próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
+                    contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} está muy próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
+                }
+            } else {
+                // Si la fecha de mantención ya pasó
+                contenido = `La mantención del vehículo ${codigo_maquina} ya debería haberse realizado el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad. Descripción: (${descripcion})`;
+                contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} ya debería haberse realizado el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
+                contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} ya debería haberse realizado el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
+            }
 
-            // Enviar correo al capitán de la compañía del responsable
-            const capitanes = await getNotificationUsers({ compania_id: compania_id, rol: 'Capitán' });
-            await Promise.all(capitanes.map(({ correo: correoCapitan, id: capitanId }) =>
-                sendEmail(correoCapitan, "Recordatorio: Mantención Programada", contenidoCapitan, htmlContentCapitan)
-                    .then(() => saveAndEmitAlert(capitanId, contenidoCapitan, 'mantencion', mantencion_id))
-            ));
+            const htmlContent = generateEmailTemplate(
+                "Recordatorio: Mantención Programada",
+                contenido,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
 
-            // Enviar correo al teniente de máquina
+            const htmlContentCargoImportante = generateEmailTemplate(
+                "Recordatorio: Mantención Programada",
+                contenidoCargoImportante,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
+
+            const htmlContentTenienteMaquina = generateEmailTemplate(
+                "Recordatorio: Mantención Programada",
+                contenidoTenienteMaquina,
+                `${process.env.FRONTEND_URL}`,
+                "Ver Detalles"
+            );
+
+            // Enviar notificaciones a usuarios notificables
+            for (const usuario of usuariosNotificables) {
+                const { correo, id: usuario_id } = usuario;
+                if (correosEnviados.has(correo)) continue;
+                correosEnviados.add(correo);
+
+                emailPromises.push(
+                    sendEmail(correo, "Recordatorio: Mantención Programada", contenido, htmlContent),
+                    saveAndEmitAlert(usuario_id, contenido, 'mantencion', mantencion_id)
+                );
+            }
+
+            // Enviar notificaciones a cargos importantes
+            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
+                if (correosEnviados.has(correoCargo)) continue;
+                correosEnviados.add(correoCargo);
+
+                emailPromises.push(
+                    sendEmail(correoCargo, "Recordatorio: Mantención Programada", contenidoCargoImportante, htmlContentCargoImportante),
+                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id)
+                );
+            }
+
+            // Enviar notificaciones a Tenientes de Máquina
             const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
-            await Promise.all(tenientes.map(({ correo: correoTeniente, id: tenienteId }) =>
-                sendEmail(correoTeniente, "Recordatorio: Mantención Programada", contenidoCapitan, htmlContentCapitan)
-                    .then(() => saveAndEmitAlert(tenienteId, contenidoCapitan, 'mantencion', mantencion_id))
-            ));
+            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
+                if (correosEnviados.has(correoTeniente)) continue;
+                correosEnviados.add(correoTeniente);
+
+                emailPromises.push(
+                    sendEmail(correoTeniente, "Recordatorio: Mantención Programada", contenidoTenienteMaquina, htmlContentTenienteMaquina),
+                    saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'mantencion', mantencion_id)
+                );
+            }
         });
 
         await Promise.all(emailPromises);
@@ -474,7 +547,12 @@ export const sendProximaMantencionAlerts = async (req, res) => {
         // Obtener mantenciones próximas
         const [mantenciones] = await pool.query(`
             SELECT 
-                m.id AS mantencion_id, m.descripcion, m.fec_inicio, maq.codigo, maq.compania_id
+                m.id AS mantencion_id, 
+                m.descripcion, 
+                m.fec_inicio, 
+                maq.codigo, 
+                maq.compania_id,
+                m.personal_responsable_id
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN maquina maq ON b.maquina_id = maq.id
@@ -493,13 +571,17 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             const contenidoBase = `Mantención próxima a realizarse: Máquina: ${mantencion.codigo} Fecha: ${fechaFormateada} Descripción: ${mantencion.descripcion}`;
             const url = `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`;
 
-            // Obtener usuarios comunes de la compañía de la mantención
-            const usuariosComunes = await getNotificationUsers({ compania_id: mantencion.compania_id });
+            // Obtener usuarios que no sean Maquinista ni Conductor Rentado
+            const usuariosNotificables = await getNotificationUsers({ 
+                compania_id: mantencion.compania_id,
+                exclude_roles: ['Maquinista', 'Conductor Rentado']
+            });
 
-            const { mantencion_id } = mantencion;
+            const { mantencion_id, personal_responsable_id } = mantencion;
 
-            for (const usuario of usuariosComunes) {
-                const { nombre, correo, id: usuario_id, rol } = usuario;
+            // Enviar notificaciones a usuarios notificables
+            for (const usuario of usuariosNotificables) {
+                const { correo, id: usuario_id, rol } = usuario;
 
                 // Si ya se ha enviado un correo a este usuario, se salta el registro
                 if (correosEnviados.has(correo)) continue;
@@ -511,38 +593,52 @@ export const sendProximaMantencionAlerts = async (req, res) => {
                     sendEmail(correo, 'Próxima Mantención Programada', contenidoBase, htmlContent),
                     saveAndEmitAlert(usuario_id, contenidoBase, 'mantencion', mantencion_id)
                 );
-
-                // Enviar correos a cargos importantes
-                if (rol === 'Capitán') {
-                    const contenidoCapitan = `Capitán, la mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
-                    const htmlContentCapitan = generateEmailTemplate('Próxima Mantención Programada', contenidoCapitan, url, 'Acceder');
-                    emailPromises.push(
-                        ...cargosImportantes.map(({ correo: correoCargo, id: cargoId }) =>
-                            sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoCapitan, htmlContentCapitan)
-                                .then(() => saveAndEmitAlert(cargoId, contenidoCapitan, 'mantencion', mantencion_id))
-                        )
-                    );
-                }
-
-                // Enviar correo al Teniente de Máquina
-                if (rol === 'Teniente de Máquina') {
-                    const contenidoTeniente = `Teniente, la mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
-                    const htmlContentTeniente = generateEmailTemplate('Próxima Mantención Programada', contenidoTeniente, url, 'Acceder');
-                    emailPromises.push(
-                        sendEmail(correo, 'Próxima Mantención Programada', contenidoTeniente, htmlContentTeniente)
-                            .then(() => saveAndEmitAlert(usuario_id, contenidoTeniente, 'mantencion', mantencion_id))
-                    );
-                }
             }
 
-            // Enviar alertas a cargos importantes
+            // Enviar notificaciones a cargos importantes
             for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
+                if (correosEnviados.has(correoCargo)) continue;
+                correosEnviados.add(correoCargo);
+
                 const contenidoCargoImportante = `¡Aviso! La mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
                 const htmlContentCargoImportante = generateEmailTemplate('Próxima Mantención Programada', contenidoCargoImportante, url, 'Acceder');
                 emailPromises.push(
-                    sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoCargoImportante, htmlContentCargoImportante)
-                        .then(() => saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id))
+                    sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoCargoImportante, htmlContentCargoImportante),
+                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id)
                 );
+            }
+
+            // Enviar notificaciones a Tenientes de Máquina
+            const tenientes = await getNotificationUsers({ compania_id: mantencion.compania_id, rol: 'Teniente de Máquina' });
+            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
+                if (correosEnviados.has(correoTeniente)) continue;
+                correosEnviados.add(correoTeniente);
+
+                const contenidoTeniente = `Teniente de Máquina, la mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
+                const htmlContentTeniente = generateEmailTemplate('Próxima Mantención Programada', contenidoTeniente, url, 'Acceder');
+                emailPromises.push(
+                    sendEmail(correoTeniente, 'Próxima Mantención Programada', contenidoTeniente, htmlContentTeniente),
+                    saveAndEmitAlert(tenienteId, contenidoTeniente, 'mantencion', mantencion_id)
+                );
+            }
+
+            // Si el responsable es Maquinista o Conductor Rentado, enviar notificación solo a él
+            if (personal_responsable_id) {
+                const responsable = await getNotificationUsers({ personal_id: personal_responsable_id });
+                if (responsable.length > 0) {
+                    const { correo: correoResponsable, id: responsableId, rol: rolResponsable } = responsable[0];
+                    if (['Maquinista', 'Conductor Rentado'].includes(rolResponsable)) {
+                        if (!correosEnviados.has(correoResponsable)) {
+                            correosEnviados.add(correoResponsable);
+                            const contenidoResponsable = `Hola, la mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
+                            const htmlContentResponsable = generateEmailTemplate('Próxima Mantención Programada', contenidoResponsable, url, 'Acceder');
+                            emailPromises.push(
+                                sendEmail(correoResponsable, 'Próxima Mantención Programada', contenidoResponsable, htmlContentResponsable),
+                                saveAndEmitAlert(responsableId, contenidoResponsable, 'mantencion', mantencion_id)
+                            );
+                        }
+                    }
+                }
             }
         }
 

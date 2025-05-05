@@ -15,7 +15,9 @@ import {
     updateMinutosConducidos,
     updatePersonal,
     updateUltimaFecServicio,
-    verificarVencimientoLicencia
+    verificarVencimientoLicencia,
+    getDeletedPersonal,
+    restorePersonal
 } from "../controllers/personal.controllers.js";
 import { filterByCompany } from "../middlewares/companyFilter.js";
 
@@ -67,6 +69,9 @@ router.get(base_route,
 // id:          61
 // rut:         23904666-5
 
+// Personal eliminado
+router.get(`${base_route}/eliminados`, getDeletedPersonal);
+
 router.get(`${base_route}/low-data`, 
     checkPermission("verPersonal"), 
     filterByCompany, 
@@ -87,6 +92,8 @@ router.patch(`${base_route}/deactivate`, checkPermission('actualizarPersonal'), 
 router.get(`${base_route}/:id`, checkPermission("verPersonal"), getPersonalbyID); // Obtener un personal por ID
 router.post(base_route, checkPermission('ingresarPersonal'), uploadFields, createPersonal); // Crear un nuevo personal
 router.delete(`${base_route}/:id`, checkPermission('eliminarPersonal'), downPersonal); // dar de baja un personal
+// Restaurar personal eliminado
+router.patch(`${base_route}/restaurar`, restorePersonal);
 router.patch(`${base_route}/:id`, checkPermission('actualizarPersonal'), uploadFields, updatePersonal); // actualizar el personal
 
 // Agregar la ruta para asignar máquinas con middleware de autenticación

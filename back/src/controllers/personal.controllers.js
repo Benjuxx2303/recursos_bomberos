@@ -850,6 +850,151 @@ export const fetchConductoresByCompania = async (req, res) => {
     }
 };
 
+// Obtener personal eliminado (isDeleted = 1)
+export const getDeletedPersonal = async (req, res) => {
+    try {
+        // Verificar estructura de la tabla personal
+        const [columns] = await pool.query(`
+            SELECT COLUMN_NAME, DATA_TYPE 
+            FROM information_schema.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = 'personal'
+        `);
+        
+        // Verificar el tipo de dato de isDeleted
+        const isDeletedColumn = columns.find(col => col.COLUMN_NAME === 'isDeleted');
+        if (!isDeletedColumn) {
+            return res.status(400).json({ 
+                message: 'La columna isDeleted no existe en la tabla personal',
+                columns: columns.map(c => ({ name: c.COLUMN_NAME, type: c.DATA_TYPE }))
+            });
+        }
+
+        // Verificar registros con isDeleted = 1
+        const [testResult] = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM personal 
+            WHERE isDeleted = 1
+            ORDER BY id DESC
+            LIMIT 1
+        `);
+        
+        if (testResult.length === 0) {
+            return res.status(200).json([]); // Retornar array vacío si no hay registros
+        }
+
+        // Si hay registros, intentar con la consulta completa
+        const query = `
+            SELECT 
+                p.id,
+                p.disponible,
+                p.rol_personal_id,
+                p.compania_id,
+                p.nombre,
+                p.apellido,
+                p.rut,
+                p.correo,
+                p.celular,
+                p.fec_nac,
+                p.fec_ingreso,
+                p.ultima_fec_servicio,
+                p.obs,
+                p.ven_licencia,
+                p.imgLicencia,
+                p.img_url,
+                p.isDeleted,
+                p.minutosConducidos,
+                c.nombre AS compania_nombre,
+                rp.nombre AS rol_nombre
+            FROM personal p
+            LEFT JOIN compania c ON p.compania_id = c.id
+            LEFT JOIN rol_personal rp ON p.rol_personal_id = rp.id
+            WHERE p.isDeleted = 1
+            ORDER BY p.id DESC
+        `;
+
+        const [rows] = await pool.query(query);
+        console.log('Consulta ejecutada:', query);
+        console.log('Registros obtenidos:', rows.length);
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error('Error al obtener personal eliminado:', error);
+        
+        // Intentar obtener información más detallada del error
+        if (error.code === 'ER_BAD_FIELD_ERROR') {
+            return res.status(400).json({ 
+                message: 'Error en la consulta: campo no encontrado',
+                error: error.message
+            });
+        }
+        
+        res.status(500).json({ 
+            message: 'Error interno al obtener personal eliminado',
+            error: error.message
+        });
+    }
+};
+
+// Restaurar personal (isDeleted = 0)
+export const restorePersonal = async (req, res) => {
+    try {
+        // Verificar que se recibió el ID
+        const { id } = req.body;
+        if (!id || typeof id !== 'number') {
+            return res.status(400).json({ 
+                message: 'ID inválido',
+                error: 'El ID debe ser un número'
+            });
+        }
+
+        // Verificar que el registro existe antes de actualizar
+        const [personalExists] = await pool.query(
+            'SELECT id FROM personal WHERE id = ? AND isDeleted = 1',
+            [id]
+        );
+
+        if (personalExists.length === 0) {
+            return res.status(404).json({ 
+                message: 'No se puede restaurar el personal',
+                error: 'El registro no existe o ya está activo'
+            });
+        }
+
+        // Actualizar el registro
+        const [result] = await pool.query(
+            'UPDATE personal SET isDeleted = 0 WHERE id = ?',
+            [id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                message: 'No se pudo restaurar el personal',
+                error: 'No se actualizaron registros'
+            });
+        }
+
+        res.status(200).json({ 
+            message: 'Personal restaurado exitosamente',
+            id: id
+        });
+    } catch (error) {
+        console.error('Error al restaurar personal:', error);
+        
+        // Proporcionar mensajes de error más descriptivos
+        if (error.code === 'ER_BAD_FIELD_ERROR') {
+            return res.status(400).json({ 
+                message: 'Error en la estructura de la base de datos',
+                error: error.message
+            });
+        }
+        
+        res.status(500).json({ 
+            message: 'Error interno al restaurar personal',
+            error: error.message
+        });
+    }
+};
+
 // Activar personal por ID o RUT
 export const activatePersonal = async (req, res) => {
     const { id, rut } = req.query;

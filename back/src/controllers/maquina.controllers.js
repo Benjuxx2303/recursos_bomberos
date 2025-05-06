@@ -245,13 +245,33 @@ export const getMaquinaById = async (req, res) => {
       return res.status(404).json({ message: "Máquina no encontrada" });
     }
 
-    const formattedRow = {
-      ...rows[0],
-      ven_patente: rows[0].ven_patente ? format(new Date(rows[0].ven_patente), "dd-MM-yyyy") : null,
-      ven_rev_tec: rows[0].ven_rev_tec ? format(new Date(rows[0].ven_rev_tec), "dd-MM-yyyy") : null,
-      ven_seg_auto: rows[0].ven_seg_auto ? format(new Date(rows[0].ven_seg_auto), "dd-MM-yyyy") : null,
-      conductores: rows[0].conductores ? JSON.parse(`[${rows[0].conductores}]`) : []
-    };
+    try {
+      const rawConductores = rows[0].conductores;
+      console.log(`Raw conductores string for maquina ${id}:`, rawConductores);
+      
+      // Validar si el string está vacío o null
+      const conductores = rawConductores 
+        ? JSON.parse(`[${rawConductores}]`)
+        : [];
+
+      const formattedRow = {
+        ...rows[0],
+        ven_patente: rows[0].ven_patente ? format(new Date(rows[0].ven_patente), "dd-MM-yyyy") : null,
+        ven_rev_tec: rows[0].ven_rev_tec ? format(new Date(rows[0].ven_rev_tec), "dd-MM-yyyy") : null,
+        ven_seg_auto: rows[0].ven_seg_auto ? format(new Date(rows[0].ven_seg_auto), "dd-MM-yyyy") : null,
+        conductores
+      };
+
+      res.json(formattedRow);
+    } catch (parseError) {
+      console.error(`Error parsing conductores JSON for maquina ${id}:`, parseError);
+      console.error(`Raw conductores string:`, rows[0].conductores);
+      return res.status(500).json({ 
+        message: "Error interno del servidor",
+        error: "Error al procesar los conductores de la máquina",
+        details: parseError.message
+      });
+    }
 
     res.json(formattedRow);
   } catch (error) {

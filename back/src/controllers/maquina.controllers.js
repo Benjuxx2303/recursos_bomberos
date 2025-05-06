@@ -187,7 +187,8 @@ export const getMaquinasDetailsPage = async (req, res) => {
 export const getMaquinaById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query(`
+    // Primero obtenemos la información básica de la máquina
+    const [machineRow] = await pool.query(`
       SELECT
         m.id AS id,
         m.disponible AS disponible,
@@ -220,19 +221,7 @@ export const getMaquinaById = async (req, res) => {
         m.imgFrontal AS imgFrontal,
         m.imgLateralDerecha AS imgLateralDerecha,
         m.imgLateralIzquierda AS imgLateralIzquierda,
-        m.imgTrasera AS imgTrasera,
-        (
-          SELECT GROUP_CONCAT(
-            JSON_OBJECT(
-              'id', per.id,
-              'nombre', CONCAT(per.nombre, ' ', per.apellido),
-              'rut', per.rut
-            )
-          )
-          FROM conductor_maquina cm
-          JOIN personal per ON cm.personal_id = per.id
-          WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND per.isDeleted = 0
-        ) as conductores
+        m.imgTrasera AS imgTrasera
       FROM maquina m
       INNER JOIN modelo mo ON m.modelo_id = mo.id
       INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
@@ -241,37 +230,28 @@ export const getMaquinaById = async (req, res) => {
       WHERE m.id = ? AND m.isDeleted = 0
     `, [id]);
 
-    if (rows.length <= 0) {
+    if (machineRow.length <= 0) {
       return res.status(404).json({ message: "Máquina no encontrada" });
     }
 
-    try {
-      const rawConductores = rows[0].conductores;
-      console.log(`Raw conductores string for maquina ${id}:`, rawConductores);
-      
-      // Validar si el string está vacío o null
-      const conductores = rawConductores 
-        ? JSON.parse(`[${rawConductores}]`)
-        : [];
+    // Luego obtenemos los conductores en una consulta separada
+    const [conductoresRow] = await pool.query(`
+      SELECT 
+        per.id,
+        CONCAT(per.nombre, ' ', per.apellido) as nombre,
+        per.rut
+      FROM conductor_maquina cm
+      JOIN personal per ON cm.personal_id = per.id
+      WHERE cm.maquina_id = ? AND cm.isDeleted = 0 AND per.isDeleted = 0
+    `, [id]);
 
-      const formattedRow = {
-        ...rows[0],
-        ven_patente: rows[0].ven_patente ? format(new Date(rows[0].ven_patente), "dd-MM-yyyy") : null,
-        ven_rev_tec: rows[0].ven_rev_tec ? format(new Date(rows[0].ven_rev_tec), "dd-MM-yyyy") : null,
-        ven_seg_auto: rows[0].ven_seg_auto ? format(new Date(rows[0].ven_seg_auto), "dd-MM-yyyy") : null,
-        conductores
-      };
-
-      res.json(formattedRow);
-    } catch (parseError) {
-      console.error(`Error parsing conductores JSON for maquina ${id}:`, parseError);
-      console.error(`Raw conductores string:`, rows[0].conductores);
-      return res.status(500).json({ 
-        message: "Error interno del servidor",
-        error: "Error al procesar los conductores de la máquina",
-        details: parseError.message
-      });
-    }
+    const formattedRow = {
+      ...machineRow[0],
+      ven_patente: machineRow[0].ven_patente ? format(new Date(machineRow[0].ven_patente), "dd-MM-yyyy") : null,
+      ven_rev_tec: machineRow[0].ven_rev_tec ? format(new Date(machineRow[0].ven_rev_tec), "dd-MM-yyyy") : null,
+      ven_seg_auto: machineRow[0].ven_seg_auto ? format(new Date(machineRow[0].ven_seg_auto), "dd-MM-yyyy") : null,
+      conductores: conductoresRow
+    };
 
     res.json(formattedRow);
   } catch (error) {

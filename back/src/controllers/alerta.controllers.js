@@ -409,9 +409,11 @@ export const sendMantencionAlerts = async (req, res) => {
             INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
             INNER JOIN compania c ON p.compania_id = c.id
             LEFT JOIN usuario u ON p.id = u.personal_id
+            LEFT JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             WHERE m.isDeleted = 0 
               AND m.fec_inicio IS NOT NULL
               AND u.id IS NOT NULL
+              AND (em.nombre IS NULL OR em.nombre != 'Completada')
         `);
 
         if (rows.length === 0) {

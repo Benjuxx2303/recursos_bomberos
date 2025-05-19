@@ -96,7 +96,7 @@ export const getMaquinasDetailsPage = async (req, res) => {
           )
           FROM conductor_maquina cm
           LEFT JOIN personal per ON cm.personal_id = per.id
-          WHERE cm.maquina_id = m.id AND cm.isDeleted = 0 AND per.isDeleted = 0
+          WHERE cm.maquina_id = m.id AND per.isDeleted = 0
         ) as conductores
       FROM maquina m
       INNER JOIN modelo mo ON m.modelo_id = mo.id
@@ -286,7 +286,7 @@ export const getMaquinaById = async (req, res) => {
         per.rut
       FROM conductor_maquina cm
       JOIN personal per ON cm.personal_id = per.id
-      WHERE cm.maquina_id = ? AND cm.isDeleted = 0 AND per.isDeleted = 0
+      WHERE cm.maquina_id = ? AND per.isDeleted = 0
     `, [id]);
 
     const formattedRow = {

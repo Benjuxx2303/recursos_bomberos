@@ -46,7 +46,7 @@ export const getConductorMaquinaById = async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      "SELECT * FROM conductor_maquina WHERE id = ? AND isDeleted = 0",
+      "SELECT * FROM conductor_maquina WHERE id = ?",
       [idNumber]
     );
     

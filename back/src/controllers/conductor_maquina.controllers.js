@@ -7,7 +7,6 @@ export const getConductorMaquinaPage = async (req, res) => {
     let query = `
       SELECT * 
       FROM conductor_maquina 
-      WHERE isDeleted = 0
     `;
     const params = [];
 
@@ -96,7 +95,7 @@ export const createConductorMaquina = async (req, res) => {
 
     // Inserción en la base de datos
     const [rows] = await pool.query(
-      "INSERT INTO conductor_maquina (personal_id, maquina_id, isDeleted) VALUES (?, ?, 0)",
+      "INSERT INTO conductor_maquina (personal_id, maquina_id) VALUES (?, ?)",
       [personalIdNumber, maquinaIdNumber]
     );
 

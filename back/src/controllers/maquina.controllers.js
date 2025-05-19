@@ -749,7 +749,7 @@ export const asignarConductores = async (req, res) => {
     // Realizar las asignaciones
     for (const conductor_id of conductores) {
       await pool.query(
-        "INSERT INTO conductor_maquina (personal_id, maquina_id, isDeleted) VALUES (?, ?, 0)",
+        "INSERT INTO conductor_maquina (personal_id, maquina_id) VALUES (?, ?)",
         [conductor_id, maquina_id]
       );
     }

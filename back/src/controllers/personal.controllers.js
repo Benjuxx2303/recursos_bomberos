@@ -1166,9 +1166,8 @@ export const asignarMaquinas = async (req, res) => {
 
             // Insertar nueva asignación
             await pool.query(
-                `INSERT INTO conductor_maquina (personal_id, maquina_id, isDeleted) 
-                 VALUES (?, ?, 0)
-                 ON DUPLICATE KEY UPDATE isDeleted = 0`,
+                `INSERT INTO conductor_maquina (personal_id, maquina_id) 
+                 VALUES (?, ?)`,
                 [personalIdNumber, maquinaIdNumber]
             );
         }

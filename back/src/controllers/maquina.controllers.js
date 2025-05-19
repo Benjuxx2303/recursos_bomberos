@@ -127,7 +127,8 @@ export const getMaquinasDetailsPage = async (req, res) => {
       params.push(modelo_id);
     }
     if (compania_id) {
-      query += " AND m.compania_id = ?";
+      // Mostrar siempre las maquinas de Comandancia para cualquier usuario
+      query += " AND (m.compania_id = ? OR c.nombre = 'Comandancia')";
       params.push(compania_id);
     }
     if (codigo) {
@@ -154,11 +155,54 @@ export const getMaquinasDetailsPage = async (req, res) => {
       const formattedRows = rows.map(formatDates);
       return res.json(formattedRows);
     }
-    let countQuery = "SELECT COUNT(*) as total FROM maquina m INNER JOIN conductor_maquina cm ON m.id = cm.maquina_id WHERE m.isDeleted = 0";
+    // Ajustar el conteo para la paginación (debe coincidir con el filtro principal)
+    let countQuery = `SELECT COUNT(DISTINCT m.id) as total
+      FROM maquina m
+      INNER JOIN modelo mo ON m.modelo_id = mo.id
+      INNER JOIN tipo_maquina tm ON mo.tipo_maquina_id = tm.id
+      INNER JOIN marca ma ON mo.marca_id = ma.id
+      INNER JOIN compania c ON m.compania_id = c.id
+      INNER JOIN procedencia p ON m.procedencia_id = p.id
+      LEFT JOIN conductor_maquina cm ON m.id = cm.maquina_id
+      WHERE m.isDeleted = 0`;
+    const countParams = [];
     if (personal_id) {
-        countQuery += " AND cm.personal_id = ?";
-    } 
-    const [countResult] = await pool.query(countQuery, params);
+      countQuery += " AND cm.personal_id = ?";
+      countParams.push(personal_id);
+    }
+    if (search) {
+      countQuery += " AND (m.patente LIKE ? OR m.codigo LIKE ? OR m.nombre LIKE ?)";
+      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (disponible !== undefined) {
+      countQuery += " AND m.disponible = ?";
+      countParams.push(disponible);
+    }
+    if (modelo_id) {
+      countQuery += " AND m.modelo_id = ?";
+      countParams.push(modelo_id);
+    }
+    if (compania_id) {
+      countQuery += " AND (m.compania_id = ? OR c.nombre = 'Comandancia')";
+      countParams.push(compania_id);
+    }
+    if (codigo) {
+      countQuery += " AND m.codigo LIKE ?";
+      countParams.push(`%${codigo}%`);
+    }
+    if (patente) {
+      countQuery += " AND m.patente LIKE ?";
+      countParams.push(`%${patente}%`);
+    }
+    if (procedencia_id) {
+      countQuery += " AND m.procedencia_id = ?";
+      countParams.push(procedencia_id);
+    }
+    if (req.personalFilter) {
+      countQuery += ' AND personal_id = ?';
+      countParams.push(req.personalFilter);
+    }
+    const [countResult] = await pool.query(countQuery, countParams);
     const totalRecords = countResult[0].total;
     const totalPages = Math.ceil(totalRecords / pageSize);
 

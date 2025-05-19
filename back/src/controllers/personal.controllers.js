@@ -1197,47 +1197,39 @@ export const asignarMaquinas = async (req, res) => {
 
 //Quitar asignacion de maquinas
 export const quitarMaquinas = async (req, res) => {
-    const { personal_id } = req.params;
-    const { maquinas } = req.body;
+    const { personal_id, maquina_id } = req.params;
     const errors = [];
 
     try {
-        // Validar que personal_id sea un número válido
+        // Validar que personal_id y maquina_id sean números válidos
         const personalIdNum = parseInt(personal_id);
+        const maquinaIdNum = parseInt(maquina_id);
         if (isNaN(personalIdNum)) {
             errors.push('ID de personal inválido');
         }
-
-        // Validar que maquinas sea un array de números
-        if (!Array.isArray(maquinas)) {
-            errors.push('El parámetro maquinas debe ser un array');
+        if (isNaN(maquinaIdNum)) {
+            errors.push('ID de máquina inválido');
         }
-
         if (errors.length > 0) {
             return res.status(400).json({ errors });
         }
 
         // Iniciar transacción
         await pool.query('START TRANSACTION');
-
         try {
-            // Eliminar las asociaciones especificadas
-            const placeholders = maquinas.map(() => '?').join(',');
+            // Eliminar la asociación especificada
             const deleteQuery = `
-                DELETE FROM conductor_maquina 
-                WHERE personal_id = ? 
-                AND maquina_id IN (${placeholders})
+                DELETE FROM conductor_maquina
+                WHERE personal_id = ?
+                AND maquina_id = ?
             `;
-            
             const [result] = await pool.query(
                 deleteQuery,
-                [personalIdNum, ...maquinas]
+                [personalIdNum, maquinaIdNum]
             );
-
             await pool.query('COMMIT');
-
             res.json({
-                message: 'Máquinas desasignadas correctamente',
+                message: 'Máquina desasignada correctamente',
                 affected_rows: result.affectedRows
             });
         } catch (error) {
@@ -1247,7 +1239,7 @@ export const quitarMaquinas = async (req, res) => {
     } catch (error) {
         console.error('Error en quitarMaquinas:', error);
         res.status(500).json({
-            message: 'Error al quitar máquinas',
+            message: 'Error al quitar máquina',
             error: error.message
         });
     }

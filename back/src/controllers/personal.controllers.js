@@ -197,7 +197,7 @@ export const getPersonalbyID = async (req, res) => {
                    p.img_url, p.obs, p.isDeleted,
                    rp.nombre AS rol_personal, 
                    c.nombre AS compania,
-                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia,
+                   p.compania_id, p.rol_personal_id, p.ven_licencia, p.imgLicencia, p.imgReversaLicencia,
                    p.minutosConducidos,
                    DATE_FORMAT(p.ultima_fec_servicio, '%d-%m-%Y %H:%i') AS ultima_fec_servicio,
                    TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
@@ -686,8 +686,8 @@ export const updatePersonal = async (req, res) => {
         if (req.files) {
             const imagen = req.files.imagen ? req.files.imagen[0] : null;
             const imgLicencia = req.files.imgLicencia ? req.files.imgLicencia[0] : null;
+            const imgReversaLicencia = req.files.imgReversaLicencia ? req.files.imgReversaLicencia[0] : null;
 
-        
             if (imagen) {
                 try {
                     const imgData = await uploadFileToS3(imagen, 'personal');
@@ -711,6 +711,19 @@ export const updatePersonal = async (req, res) => {
                     }
                 } catch (error) {
                     errors.push('Error al subir la imagen de la licencia: ' + error.message);
+                }
+            }
+
+            if (imgReversaLicencia) {
+                try {
+                    const reversaLicenciaData = await uploadFileToS3(imgReversaLicencia, 'personal');
+                    if (reversaLicenciaData && reversaLicenciaData.Location) {
+                        updates.imgReversaLicencia = reversaLicenciaData.Location;
+                    } else {
+                        errors.push('No se pudo obtener la URL de la imagen reversa de la licencia');
+                    }
+                } catch (error) {
+                    errors.push('Error al subir la imagen reversa de la licencia: ' + error.message);
                 }
             }
         }
@@ -752,6 +765,17 @@ export const updatePersonal = async (req, res) => {
         await pool.query('START TRANSACTION');
 
         try {
+            console.log('Objeto updates antes de construir la consulta:', JSON.stringify(updates, null, 2));
+            
+            if (Object.keys(updates).length === 0) {
+                await pool.query('ROLLBACK');
+                return res.status(400).json({ 
+                    message: 'No se proporcionaron datos para actualizar',
+                    receivedData: req.body,
+                    files: req.files ? Object.keys(req.files) : 'No files'
+                });
+            }
+
             const setClause = Object.keys(updates)
                 .map((key) => {
                     if (['fec_nac', 'fec_ingreso', 'ven_licencia'].includes(key)) {

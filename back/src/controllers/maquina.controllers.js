@@ -735,7 +735,7 @@ export const asignarConductores = async (req, res) => {
 
       // Verificar si ya existe la asignación
       const [existeAsignacion] = await pool.query(
-        "SELECT id FROM conductor_maquina WHERE personal_id = ? AND maquina_id = ? AND isDeleted = 0",
+        "SELECT id FROM conductor_maquina WHERE personal_id = ? AND maquina_id = ? ",
         [conductor_id, maquina_id]
       );
 

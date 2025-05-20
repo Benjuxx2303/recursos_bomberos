@@ -97,6 +97,7 @@
 - `img_url`
 - `isDeleted`
 - `minutosConducidos`
+- `imgReversaLicencia`
 
 ## Tablas Secundarias
 

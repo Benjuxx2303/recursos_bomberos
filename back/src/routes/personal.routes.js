@@ -28,7 +28,8 @@ const upload = multer({ storage: storage });
 // Configuración de multer para los campos o "key" de imagen
 const uploadFields = upload.fields([
     { name: 'imagen' }, 
-    { name: 'imgLicencia' }
+    { name: 'imgLicencia' },
+    { name: 'imgReversaLicencia' }
 ]);
 
 // Programar la verificación de vencimiento de licencia todos los días a las 8:00 AM
@@ -94,7 +95,11 @@ router.post(base_route, checkPermission('ingresarPersonal'), uploadFields, creat
 router.delete(`${base_route}/:id`, checkPermission('eliminarPersonal'), downPersonal); // dar de baja un personal
 // Restaurar personal eliminado
 router.patch(`${base_route}/restaurar`, restorePersonal);
-router.patch(`${base_route}/:id`, checkPermission('actualizarPersonal'), uploadFields, updatePersonal); // actualizar el personal
+router.patch(`${base_route}/:id`, checkPermission('actualizarPersonal'), multer().fields([
+    { name: 'imagen', maxCount: 1 },
+    { name: 'imgLicencia', maxCount: 1 },
+    { name: 'imgReversaLicencia', maxCount: 1 }
+]), updatePersonal); // actualizar el personal
 
 // Agregar la ruta para asignar máquinas con middleware de autenticación
 router.post(`${base_route}/:personal_id/maquinas`, checkPermission('actualizarPersonal'), asignarMaquinas);

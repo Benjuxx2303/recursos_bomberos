@@ -4,7 +4,7 @@ import { SECRET_JWT_KEY } from '../config.js';
 // Roles que pueden ver todas las compañías
 const ROLES_SIN_FILTRO = ['TELECOM', 'Comandante', 'Inspector Material Mayor'];
 /* const ROLES_INTERMEDIOS = ['Capitan', 'Teniente de Máquina']; */
-const ROLES_RESTRINGIDOS = ['Conductor','Maquinista'];
+const ROLES_RESTRINGIDOS = ['Conductor Rentado','Maquinista'];
 
 export const filterByCompany = (req, res, next) => {
     try {

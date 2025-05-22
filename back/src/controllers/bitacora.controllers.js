@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from "../db.js";
 import { checkIfDeletedById } from '../utils/queries.js';
 import { formatDateTime, validateDate, validateFloat, validateStartEndDate } from "../utils/validations.js";
+import { exportToExcel } from "../utils/excelExport.js"; // Ruta corregida
 
 // Nueva función getBitacora con filtros
 export const getBitacora = async (req, res) => {
@@ -546,7 +547,6 @@ export const createBitacora = async (req, res) => {
         // Procesar fechas y horas
         let fh_salida = null;
         let fh_llegada = null;
-        let minutos_duracion = null;
 
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);
@@ -1198,14 +1198,9 @@ export const startServicio = async (req, res) => {
 
                         const [result] = await pool.query(query, [maquinaIdNum, personalIdNum]);
 
-                        if (!result[0]?.maquinaDisponible || result[0].maquinaDisponible !== 1) {
-                            console.log("Máquina no disponible:", maquinaIdNum);
-                            errors.push("La máquina no está disponible.");
-                        }
-                        if (!result[0]?.personalDisponible || result[0].personalDisponible !== 1) {
-                            console.log("Personal no disponible:", personalIdNum);
-                            errors.push("El personal no está disponible.");
-                        }
+                        const errors = [];
+                        if (!result[0]?.maquinaDisponible) errors.push("La máquina no está disponible.");
+                        if (personal_id !== null && !result[0]?.personalDisponible) errors.push("El personal no está disponible.");
 
                         if (errors.length > 0) return res.status(400).json({ errors });
 
@@ -1301,9 +1296,9 @@ export const endServicio = async (req, res) => {
     const errors = [];
 
     try {
-        // Verificar existencia de la bitácora y que esté en curso
+        // Verificar existencia de la bitácora y obtener personal_id y maquina_id
         const [bitacora] = await pool.query(
-            "SELECT personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida, enCurso, fh_salida FROM bitacora WHERE id = ? AND isDeleted = 0",
+            "SELECT personal_id, maquina_id FROM bitacora WHERE id = ? AND isDeleted = 0",
             [id]
         );
 
@@ -1311,61 +1306,9 @@ export const endServicio = async (req, res) => {
             return res.status(404).json({ message: "Bitácora no encontrada o eliminada." });
         }
 
-        const { personal_id, maquina_id, km_salida, hmetro_salida, hbomba_salida, enCurso, fh_salida } = bitacora[0];
+        const { personal_id, maquina_id } = bitacora[0];
 
-        // Verificar que la bitácora esté en curso
-        if (enCurso !== 1) {
-            return res.status(400).json({ message: "La bitácora no está en curso." });
-        }
-
-        // Preparar fecha y hora de llegada
-        let mysqlFechaHora;
-        if (f_llegada && h_llegada) {
-            const error = validateDate(f_llegada, h_llegada);
-            if (error === false) errors.push("Fecha y hora de llegada inválida.");
-            else mysqlFechaHora = formatDateTime(f_llegada, h_llegada);
-        } else {
-            // Si no se proporciona fecha y hora, usar la actual
-            const now = new Date();
-            mysqlFechaHora = now.toISOString().slice(0, 19).replace('T', ' ');
-        }
-
-        // Si hay errores en la fecha, devolver error
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Calcular minutos_duracion
-        let minutosDuracion = null;
-        if (fh_salida && mysqlFechaHora) {
-            const salida = new Date(fh_salida);
-            const llegada = new Date(mysqlFechaHora);
-            minutosDuracion = Math.round((llegada - salida) / (1000 * 60));
-        }
-
-        // Validar km_llegada, hmetro_llegada, hbomba_llegada si se proporcionan
-        if (km_llegada !== undefined) {
-            km_llegada = parseFloat(km_llegada);
-            if (isNaN(km_llegada) || km_llegada < 0) errors.push("Km llegada debe ser un número válido y positivo.");
-            // Comparar con km_salida solo si ambos están definidos
-            if (km_salida !== null && km_llegada < km_salida) errors.push("Km llegada no puede ser menor a los datos de salida.");
-        }
-
-        if (hmetro_llegada !== undefined) {
-            hmetro_llegada = parseFloat(hmetro_llegada);
-            if (isNaN(hmetro_llegada) || hmetro_llegada < 0) errors.push("Hmetro llegada debe ser un número válido y positivo.");
-            // Comparar con hmetro_salida solo si ambos están definidos
-            if (hmetro_salida !== null && hmetro_llegada < hmetro_salida) errors.push("Hmetro llegada no puede ser menor a los datos de salida.");
-        }
-
-        if (hbomba_llegada !== undefined) {
-            hbomba_llegada = parseFloat(hbomba_llegada);
-            if (isNaN(hbomba_llegada) || hbomba_llegada < 0) errors.push("Hbomba llegada debe ser un número válido y positivo.");
-            // Comparar con hbomba_salida solo si ambos están definidos y la máquina tiene bomba
-            if (hbomba_salida !== null && hbomba_llegada < hbomba_salida) errors.push("Hbomba llegada no puede ser menor a los datos de salida.");
-        }
-
-        if (errors.length > 0) return res.status(400).json({ errors });
-
-        // Traer datos actuales de la máquina
+        // Obtener datos de la máquina
         const [maquina] = await pool.query(`SELECT kmetraje, hmetro_motor, hmetro_bomba FROM maquina WHERE id = ? AND isDeleted = 0`, [maquina_id]);
         
         if (maquina.length === 0) {
@@ -1398,41 +1341,57 @@ export const endServicio = async (req, res) => {
         
         // Actualizar datos en la bitácora
         const updateFields = ['fh_llegada = ?', 'enCurso = 0'];
-        const updateValues = [mysqlFechaHora];
+        const updateValues = [];
         
-        if (minutosDuracion !== null) {
-            updateFields.push('minutos_duracion = ?');
-            updateValues.push(minutosDuracion);
+        if (f_llegada && h_llegada) {
+            const mysqlFechaHora = formatDateTime(f_llegada, h_llegada);
+            if (!mysqlFechaHora) return res.status(400).json({ message: "Fecha y hora de llegada no son válidas." });
+            updateFields.push("fh_llegada = ?");
+            updateValues.push(mysqlFechaHora);
         }
-        
+
         if (km_llegada !== undefined) {
-            updateFields.push('km_llegada = ?');
+            km_llegada = parseFloat(km_llegada);
+            if (isNaN(km_llegada) || km_llegada < 0) errors.push("Km llegada debe ser un número válido y positivo.");
+            // Comparar con km_salida solo si ambos están definidos
+            if (kmetraje !== null && km_llegada < kmetraje) errors.push("Km llegada no puede ser menor a los datos de salida.");
+            updateFields.push("km_llegada = ?");
             updateValues.push(km_llegada);
         }
-        
+
         if (hmetro_llegada !== undefined) {
-            updateFields.push('hmetro_llegada = ?');
+            hmetro_llegada = parseFloat(hmetro_llegada);
+            if (isNaN(hmetro_llegada) || hmetro_llegada < 0) errors.push("Hmetro llegada debe ser un número válido y positivo.");
+            // Comparar con hmetro_salida solo si ambos están definidos
+            if (hmetro_motor !== null && hmetro_llegada < hmetro_motor) errors.push("Hmetro llegada no puede ser menor a los datos de salida.");
+            updateFields.push("hmetro_llegada = ?");
             updateValues.push(hmetro_llegada);
         }
-        
+
         if (hbomba_llegada !== undefined) {
-            updateFields.push('hbomba_llegada = ?');
+            hbomba_llegada = parseFloat(hbomba_llegada);
+            if (isNaN(hbomba_llegada) || hbomba_llegada < 0) errors.push("Hbomba llegada debe ser un número válido y positivo.");
+            // Comparar con hbomba_salida solo si ambos están definidos y la máquina tiene bomba
+            if (hmetro_bomba !== null && hbomba_llegada < hmetro_bomba) errors.push("Hbomba llegada no puede ser menor a los datos de salida.");
+            updateFields.push("hbomba_llegada = ?");
             updateValues.push(hbomba_llegada);
         }
-        
+
+        if (errors.length > 0) return res.status(400).json({ errors });
+
         if (obs !== undefined) {
-            updateFields.push('obs = ?');
+            updateFields.push("obs = ?");
             updateValues.push(obs);
         }
-        
+
         if (direccion !== undefined) {
-            updateFields.push('direccion = ?');
+            updateFields.push("direccion = ?");
             updateValues.push(direccion);
         }
-        
+
         // Añadir el ID para el WHERE
         updateValues.push(id);
-        
+
         await pool.query(
             `UPDATE bitacora SET ${updateFields.join(', ')} WHERE id = ?`,
             updateValues
@@ -1452,7 +1411,8 @@ export const endServicio = async (req, res) => {
         await pool.query("UPDATE maquina SET disponible = 1 WHERE id = ?", [maquina_id]);
         
         // Actualizar la ultima fecha de servicio del personal
-        if (mysqlFechaHora) {
+        if (f_llegada && h_llegada) {
+            const mysqlFechaHora = formatDateTime(f_llegada, h_llegada);
             // Verificar si esta es la última fecha de servicio para el personal
             const [ultimasFechas] = await pool.query(
                 "SELECT MAX(fh_llegada) as ultima_fecha FROM bitacora WHERE personal_id = ? AND isDeleted = 0",
@@ -1480,11 +1440,19 @@ export const endServicio = async (req, res) => {
         }
 
         // Actualizar minutos conducidos del personal si hay minutos_duracion
-        if (minutosDuracion !== null) {
-            await pool.query(
-                "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
-                [minutosDuracion, personal_id]
-            );
+        const [bitacoraInfoDuracion] = await pool.query(
+            "SELECT fh_salida, fh_llegada FROM bitacora WHERE id = ? AND isDeleted = 0",
+            [id]
+        );
+        if (bitacoraInfoDuracion.length > 0) {
+            const { fh_salida, fh_llegada } = bitacoraInfoDuracion[0];
+            if (fh_salida && fh_llegada) {
+                const minutosDuracion = Math.round((new Date(fh_llegada) - new Date(fh_salida)) / (1000 * 60));
+                await pool.query(
+                    "UPDATE personal SET minutosConducidos = COALESCE(minutosConducidos, 0) + ? WHERE id = ?",
+                    [minutosDuracion, personal_id]
+                );
+            }
         }
         
         res.json({ message: "Servicio finalizado correctamente." });
@@ -1705,4 +1673,104 @@ export const updateMinutosDuracion = async (req, res) => {
             error: error.message 
         });
     }
+};
+
+export const downloadBitacoraExcel = async (req, res) => {
+  try {
+    const { fields } = req.query; // Podrías añadir más filtros aquí si es necesario
+    const { companyFilter, personalFilter } = req; // Obtener los filtros del middleware
+
+    // Definir todos los posibles campos que puedes incluir y sus alias en la consulta
+    const columnas = {
+      id: "ID Bitácora",
+      compania: "Compañía",
+      personal: "Personal (Nombre)",
+      personal_rut: "Personal (RUT)",
+      maquina_codigo: "Máquina (Código)",
+      maquina_patente: "Máquina (Patente)",
+      clave: "Clave",
+      direccion: "Dirección",
+      fh_salida: "Fecha/Hora Salida",
+      fh_llegada: "Fecha/Hora Llegada",
+      km_salida: "KM Salida",
+      km_llegada: "KM Llegada",
+      hmetro_salida: "Horómetro Salida",
+      hmetro_llegada: "Horómetro Llegada",
+      hbomba_salida: "Hora Bomba Salida",
+      hbomba_llegada: "Hora Bomba Llegada",
+      obs: "Observaciones",
+      minutos_duracion: "Duración (Minutos)",
+    };
+
+    let query = `
+      SELECT
+          b.id AS 'id',
+          comp.nombre AS 'compania',
+          CONCAT(p.nombre, ' ', p.apellido) AS 'personal',
+          p.rut AS 'personal_rut',
+          m.codigo AS 'maquina_codigo',
+          m.patente AS 'maquina_patente',
+          cla.nombre AS 'clave',
+          b.direccion AS 'direccion',
+          DATE_FORMAT(b.fh_salida, '%d-%m-%Y %H:%i') AS 'fh_salida',
+          DATE_FORMAT(b.fh_llegada, '%d-%m-%Y %H:%i') AS 'fh_llegada',
+          b.km_salida AS 'km_salida',
+          b.km_llegada AS 'km_llegada',
+          b.hmetro_salida AS 'hmetro_salida',
+          b.hmetro_llegada AS 'hmetro_llegada',
+          b.hbomba_salida AS 'hbomba_salida',
+          b.hbomba_llegada AS 'hbomba_llegada',
+          b.obs AS 'obs',
+          b.minutos_duracion AS 'minutos_duracion'
+      FROM bitacora b
+      LEFT JOIN compania comp ON b.compania_id = comp.id
+      LEFT JOIN personal p ON b.personal_id = p.id
+      LEFT JOIN maquina m ON b.maquina_id = m.id
+      LEFT JOIN clave cla ON b.clave_id = cla.id
+      WHERE b.isDeleted = 0
+    `;
+
+    // Aquí podrías añadir filtros dinámicos basados en req.query, similar a downloadExcel
+    const params = [];
+
+    if (companyFilter) {
+      query += " AND b.compania_id = ?";
+      params.push(companyFilter);
+    }
+
+    if (personalFilter) {
+      query += " AND b.personal_id = ?";
+      params.push(personalFilter);
+    }
+
+    const [rows] = await pool.query(query, params);
+
+    // Renombrar las cabeceras según el objeto 'columnas' y filtrar según 'fields'
+    const selectedFields = fields ? fields.split(",") : Object.keys(columnas);
+
+    const result = rows.map((row) => {
+      let filteredRow = {};
+      selectedFields.forEach((fieldKey) => {
+        if (row[fieldKey] !== undefined) {
+          // Usar el nombre amigable de 'columnas' para la cabecera del Excel
+          filteredRow[columnas[fieldKey] || fieldKey] = row[fieldKey];
+        }
+      });
+      return filteredRow;
+    });
+
+    if (result.length === 0) {
+      // Si no hay datos, podrías enviar una respuesta diferente o un Excel vacío con cabeceras
+      // Por ahora, se enviará un Excel vacío si exportToExcel lo maneja así.
+    }
+
+    exportToExcel(result, res, "detalle_bitacora");
+
+  } catch (error) {
+    console.error("Error al generar Excel de bitácora: ", error);
+    res.status(500).json({
+      message: "Error interno del servidor al generar Excel de bitácora",
+      error: error.message,
+    });
+  }
 };

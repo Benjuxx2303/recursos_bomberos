@@ -3,6 +3,7 @@ import { checkPermission } from "../controllers/authMiddleware.js";
 import {
   createBitacora,
   deleteBitacora,
+  downloadBitacoraExcel, // Importar la nueva función
   endServicio,
   getBitacora,
   getBitacoraById,
@@ -17,6 +18,9 @@ import { filterByCompany } from "../middlewares/companyFilter.js";
 const router = Router();
 
 const base_route = "/bitacora";
+
+// Ruta para descargar el Excel de bitácoras
+router.get(`${base_route}/download-excel`, checkPermission('verServicios'), filterByCompany, downloadBitacoraExcel);
 
 router.get(base_route, checkPermission('verServicios'), filterByCompany, getBitacora); // paginado
 router.get(`${base_route}/search`, checkPermission('verServicios'), filterByCompany, getBitacora); // nueva ruta de búsqueda

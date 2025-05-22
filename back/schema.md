@@ -4,7 +4,6 @@
 
 ### `maquina`
 - `id` (PK)
-- `nombre`
 - `disponible`
 - `codigo`
 - `patente`

@@ -852,8 +852,6 @@ export const downloadExcel = async (req, res) => {
       compania,
       fields, // campos para excel
     } = req.query;
-    
-    const { companyFilter, personalFilter } = req; // Obtener los filtros del middleware
 
     // Definir todos los posibles campos que puedes incluir
     const columnas = {
@@ -938,17 +936,9 @@ export const downloadExcel = async (req, res) => {
       query += " AND m.ord_trabajo = ?";
       params.push(ord_trabajo);
     }
-    if (companyFilter) {
-      query += " AND b.compania_id = ?";
-      params.push(companyFilter);
-    } else if (compania) {
+    if (compania) {
       query += " AND c.nombre = ?";
       params.push(compania);
-    }
-    
-    if (personalFilter) {
-      query += " AND b.personal_id = ?";
-      params.push(personalFilter);
     }
 
     // Ejecutar la consulta con los parámetros

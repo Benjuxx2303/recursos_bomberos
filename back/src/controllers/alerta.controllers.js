@@ -555,7 +555,7 @@ export const sendMantencionAlerts = async (req, res) => {
     }
 };
 
-// Función para enviar alertas sobre mantenciones próximas (en los siguientes 7 días)
+// Función para enviar alertas sobre mantenciones próximas (15 o 5 días antes)
 export const sendProximaMantencionAlerts = async (req, res) => {
     console.log('Ejecutando sendProximaMantencionAlerts...');
     try {
@@ -576,14 +576,14 @@ export const sendProximaMantencionAlerts = async (req, res) => {
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN maquina maq ON b.maquina_id = maq.id
-            WHERE m.fec_inicio BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            WHERE m.fec_inicio >= CURDATE()  -- Considerar todas las futuras o de hoy
             AND m.isDeleted = 0
             AND m.estado_mantencion_id != (SELECT id FROM estado_mantencion WHERE nombre = 'Completada' LIMIT 1) -- Excluir completadas
         `);
 
-        console.log(`Mantenciones próximas (en 7 días) encontradas: ${mantencionesProximas.length}`);
+        console.log(`Mantenciones futuras o de hoy encontradas (potenciales para alerta 15/5 días): ${mantencionesProximas.length}`);
         if (mantencionesProximas.length === 0) {
-            if (res) return res.status(200).json({ message: "No hay mantenciones próximas en los siguientes 7 días para notificar." });
+            if (res) return res.status(200).json({ message: "No hay mantenciones futuras o de hoy para notificar." });
             return;
         }
 
@@ -591,35 +591,55 @@ export const sendProximaMantencionAlerts = async (req, res) => {
 
         for (const mantencion of mantencionesProximas) {
             const { mantencion_id, descripcion, fec_inicio, codigo_maquina, compania_id_maquina, personal_responsable_id } = mantencion;
-            
-            const fechaFormateada = new Date(fec_inicio).toLocaleDateString('es-ES', { timeZone: 'UTC' });
-            const contenidoAlerta = `Recordatorio: La mantención de la máquina ${codigo_maquina} está programada para el ${fechaFormateada}. Descripción: ${descripcion}`;
-            
-            console.log(`  Alertando para mantención próxima ID ${mantencion_id} de máquina ${codigo_maquina}. Fecha: ${fechaFormateada}`);
 
-            const emailConfig = {
-                subject: `Recordatorio Mantención Próxima: ${codigo_maquina} - ${fechaFormateada}`,
-                redirectUrl: `${process.env.FRONTEND_URL}/#/mantenciones/detalle/${mantencion_id}`,
-                buttonText: "Ver Detalles de Mantención"
-            };
+            const fechaInicio = new Date(fec_inicio);
+            fechaInicio.setUTCHours(0, 0, 0, 0);
 
-            const evento = {
-                tipo_evento: 'mantencion_proxima_recordatorio',
-                compania_id: compania_id_maquina,
-                personal_id_afectado: personal_responsable_id,
-                ingresado_por_usuario_id: null 
-            };
+            const hoy = new Date();
+            hoy.setUTCHours(0, 0, 0, 0);
 
-            promises.push(
-                createAndSendNotifications({
-                    contenido: contenidoAlerta,
-                    tipo: 'mantencion_proxima',
-                    idLink: mantencion_id.toString(),
-                    destinatarios: todosLosUsuariosActivos,
-                    emailConfig,
-                    evento
-                })
-            );
+            const diffTime = fechaInicio.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let alertar = false;
+            let contenidoAlerta = "";
+            let tipoNotificacionSuffix = "";
+
+            if (diffDays === 15 || diffDays === 5) {
+                alertar = true;
+                contenidoAlerta = `Recordatorio: La mantención de la máquina ${codigo_maquina} está programada para el ${fechaInicio.toLocaleDateString('es-ES', { timeZone: 'UTC' })} (en ${diffDays} días). Descripción: ${descripcion}`;
+                tipoNotificacionSuffix = `${diffDays}_dias`;
+            }
+
+            if (alertar) {
+                console.log(`  Alertando para mantención próxima ID ${mantencion_id} de máquina ${codigo_maquina}. Días restantes: ${diffDays}`);
+
+                const emailConfig = {
+                    subject: `Alerta Mantención Programada: ${codigo_maquina} - ${diffDays} días restantes`,
+                    redirectUrl: `${process.env.FRONTEND_URL}/#/mantenciones/detalle/${mantencion_id}`,
+                    buttonText: "Ver Detalles de Mantención"
+                };
+
+                const evento = {
+                    tipo_evento: `mantencion_programada_${tipoNotificacionSuffix}`,
+                    compania_id: compania_id_maquina,
+                    personal_id_afectado: personal_responsable_id,
+                    ingresado_por_usuario_id: null
+                };
+
+                promises.push(
+                    createAndSendNotifications({
+                        contenido: contenidoAlerta,
+                        tipo: `mantencion_programada_${tipoNotificacionSuffix}`,
+                        idLink: mantencion_id.toString(),
+                        destinatarios: todosLosUsuariosActivos,
+                        emailConfig,
+                        evento,
+                        tipoNotificacionSuffix, // Para evitar duplicados si es necesario
+                        referencia_id: mantencion_id // Para evitar duplicados si es necesario
+                    })
+                );
+            }
         }
 
         await Promise.allSettled(promises);

@@ -8,7 +8,9 @@ import {
     sendMantencionAlerts,
     sendProximaMantencionAlerts,
     sendRevisionTecnicaAlerts,
-    sendVencimientoAlerts
+    sendVencimientoAlerts,
+    sendVencimientoPatenteAlerts,
+    sendVencimientoSeguroAlerts
 } from "../controllers/alerta.controllers.js";
 
 const router = Router();
@@ -32,30 +34,41 @@ const createResSimulado = () => {
 // Configuración de los cron jobs para las alertas automáticas
 // Ejecutar todos los días a las 8:00 AM
 cron.schedule('0 8 * * *', async () => {
+    console.log('Iniciando ejecución de cronjob de alertas diarias (08:00 AM)...');
+    const resSimulado = createResSimulado();
     try {
-        const resSimulado = createResSimulado();
-        await Promise.all([
-            sendVencimientoAlerts({}, resSimulado),
-            sendRevisionTecnicaAlerts({}, resSimulado),
-            sendMantencionAlerts({}, resSimulado),
-            sendProximaMantencionAlerts({}, resSimulado)
-        ]);
-        console.log('Alertas programadas enviadas exitosamente');
+        console.log('Ejecutando sendVencimientoAlerts...');
+        await sendVencimientoAlerts({}, resSimulado);
+        console.log('sendVencimientoAlerts completado.');
+
+        console.log('Ejecutando sendRevisionTecnicaAlerts...');
+        await sendRevisionTecnicaAlerts({}, resSimulado);
+        console.log('sendRevisionTecnicaAlerts completado.');
+
+        console.log('Ejecutando sendVencimientoPatenteAlerts...');
+        await sendVencimientoPatenteAlerts({}, resSimulado);
+        console.log('sendVencimientoPatenteAlerts completado.');
+
+        console.log('Ejecutando sendVencimientoSeguroAlerts...');
+        await sendVencimientoSeguroAlerts({}, resSimulado);
+        console.log('sendVencimientoSeguroAlerts completado.');
+
+        console.log('Ejecutando sendMantencionAlerts...');
+        await sendMantencionAlerts({}, resSimulado); // Esta función maneja alertas de mantenciones (15, 5 días, atrasadas)
+        console.log('sendMantencionAlerts completado.');
+
+        console.log('Ejecutando sendProximaMantencionAlerts...');
+        await sendProximaMantencionAlerts({}, resSimulado); // Ahora ajustada para 15/5 días
+        console.log('sendProximaMantencionAlerts completado.');
+
+        console.log('Todas las alertas programadas han sido procesadas secuencialmente.');
     } catch (error) {
-        console.error('Error al enviar alertas programadas:', error);
+        console.error('Error durante la ejecución secuencial de alertas programadas:', error);
     }
 });
 
-// Verificar mantenciones próximas cada 4 horas
-cron.schedule('0 */4 * * *', async () => {
-    try {
-        const resSimulado = createResSimulado();
-        await sendProximaMantencionAlerts({}, resSimulado);
-        console.log('Verificación de mantenciones próximas completada');
-    } catch (error) {
-        console.error('Error al verificar mantenciones próximas:', error);
-    }
-});
+// El cronjob de sendProximaMantencionAlerts que se ejecutaba cada 4 horas ha sido eliminado.
+// Ahora se ejecuta junto con las demás alertas diarias a las 08:00 AM.
 
 // Limpiar alertas antiguas todos los días a la 1:00 AM
 cron.schedule('0 1 * * *', async () => {

@@ -1,717 +1,443 @@
 import { pool } from "../db.js";
 import { generateEmailTemplate, sendEmail } from "../utils/mailer.js";
-import { getNotificationUsers, saveAndEmitAlert } from "../utils/notifications.js";
+import { getNotificationUsers, createAndSendNotifications } from "../utils/notifications.js";
 
 // Función para obtener información del usuario
-const getUserInfo = async (usuario_id) => {
-    const userQuery = `
-        SELECT 
-            u.id,
-            u.username,
-            rp.nombre AS rol,
-            p.compania_id
-        FROM usuario u
-        INNER JOIN personal p ON u.personal_id = p.id
-        INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-        WHERE u.id = ?
-    `;
-    const [userInfo] = await pool.query(userQuery, [usuario_id]);
-    return userInfo[0];
+const getUserInfo = async (usuarioId) => {
+  const userQuery = `
+    SELECT 
+      u.id,
+      u.username,
+      rp.nombre AS rol,
+      p.compania_id
+    FROM usuario u
+    INNER JOIN personal p ON u.personal_id = p.id
+    INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
+    WHERE u.id = ?
+  `;
+  const [userInfo] = await pool.query(userQuery, [usuarioId]);
+  return userInfo[0];
 };
 
 // Función para verificar si una alerta similar ya fue enviada en los últimos 7 días
-const alertaYaEnviada = async (usuario_id, tipo) => {
-    const [rows] = await pool.query(
-        `SELECT COUNT(*) as count FROM alerta 
-        WHERE usuario_id = ? AND tipo = ? 
-        AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
-        [usuario_id, tipo]
-    );
-    return rows[0].count > 0;
+const alertaYaEnviada = async (usuarioId, tipo) => {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) as count FROM alerta 
+    WHERE usuario_id = ? AND tipo = ? 
+    AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+    [usuarioId, tipo]
+  );
+  return rows[0].count > 0;
 };
 
 // Función para obtener alertas por usuario
 export const getAlertasByUsuario = async (req, res) => {
-    const { usuario_id } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = 15;
-    const offset = (page - 1) * limit;
+  const { usuario_id: usuarioId } = req.params;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = 15;
+  const offset = (page - 1) * limit;
 
-    try {
-        const userInfo = await getUserInfo(usuario_id);
-        if (!userInfo) {
-            return res.status(404).json({ message: "Usuario no encontrado" });
-        }
-
-        const query = `
-            SELECT
-                a.id,
-                a.contenido,
-                DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
-                a.tipo,
-                COALESCE(ua.isRead, 0) AS isRead,
-                a.createdAt AS createdAtOriginal,
-                ua.id AS ua_id,
-                ua.alerta_id,
-                ua.usuario_id,
-                a.idLink
-            FROM alerta a
-            LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
-            WHERE ua.usuario_id = ?
-            AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-            ORDER BY a.createdAt DESC
-            LIMIT ? OFFSET ?
-        `;
-        const params = [usuario_id, usuario_id, limit, offset];
-        const [rows] = await pool.query(query, params);
-        res.status(200).json(rows);
-    } catch (error) {
-        res.status(500).json({ message: "Error interno del servidor", error: error.message });
+  try {
+    const userInfo = await getUserInfo(usuarioId);
+    if (!userInfo) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
     }
+
+    const query = `
+      SELECT
+        a.id,
+        a.contenido,
+        DATE_FORMAT(a.createdAt, '%d-%m-%Y %H:%i') AS createdAt,
+        a.tipo,
+        COALESCE(ua.isRead, 0) AS isRead,
+        a.createdAt AS createdAtOriginal,
+        ua.id AS ua_id,
+        ua.alerta_id,
+        ua.usuario_id,
+        a.idLink
+      FROM alerta a
+      LEFT JOIN usuario_alerta ua ON a.id = ua.alerta_id AND ua.usuario_id = ?
+      WHERE ua.usuario_id = ?
+      AND a.createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      ORDER BY a.createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+    const params = [usuarioId, usuarioId, limit, offset];
+    const [rows] = await pool.query(query, params);
+    return res.status(200).json(rows);
+  } catch (error) {
+    return res.status(500).json({ message: "Error interno del servidor", error: error.message });
+  }
 };
 
 // Función para crear un delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Función para enviar alertas de vencimiento de licencias
 export const sendVencimientoAlerts = async (req, res) => {
-    try {
-        // Obtener los correos de los cargos importantes
-        const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
-
-        // Crear un conjunto para almacenar los correos ya enviados
-        const correosEnviados = new Set();
-
-        // Consulta a la base de datos para obtener la información de personal y usuario con licencias a punto de vencer
-        const [rows] = await pool.query(`
-            SELECT p.id AS personal_id, p.nombre, p.apellido, p.ven_licencia, u.id AS usuario_id, u.correo, rp.nombre AS rol, c.id AS compania_id
-            FROM personal p
-            INNER JOIN usuario u ON p.id = u.personal_id
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            INNER JOIN compania c ON p.compania_id = c.id
-            WHERE p.isDeleted = 0 AND u.isDeleted = 0 AND rp.isDeleted = 0
-            AND p.ven_licencia BETWEEN DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND DATE_ADD(CURDATE(), INTERVAL 7 DAY);
-        `);
-
-        // Recorre todos los registros obtenidos de la consulta
-        const emailPromises = [];
-
-        for (const personal of rows) {
-            const { nombre, apellido, ven_licencia, correo, usuario_id, rol, compania_id, personal_id } = personal;
-
-            // Si ya se ha enviado un correo a este usuario, se salta el registro
-            if (correosEnviados.has(correo)) continue;
-
-            // Añadir el correo al conjunto para no enviarle más de una alerta
-            correosEnviados.add(correo);
-
-            // Convertir la fecha de vencimiento de la licencia a un objeto Date
-            const fechaVencimiento = new Date(ven_licencia);
-            fechaVencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            const quinceDiasAntes = new Date(fechaVencimiento);
-            quinceDiasAntes.setDate(quinceDiasAntes.getDate() - 15); // Restar 15 días
-            quinceDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            const cincoDiasAntes = new Date(fechaVencimiento);
-            cincoDiasAntes.setDate(cincoDiasAntes.getDate() - 5); // Restar 5 días
-            cincoDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            let contenido;
-            let contenidoCargoImportante;
-            let contenidoTenienteMaquina;
-
-            // Si la fecha de vencimiento es futura
-            if (fechaVencimiento > hoy) {
-                if (hoy < quinceDiasAntes) {
-                    contenido = `Hola ${nombre} ${apellido}, tu licencia vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva a tiempo.`;
-                    contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia por vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}.`;
-                } else if (hoy >= quinceDiasAntes && hoy < cincoDiasAntes) {
-                    contenido = `Hola ${nombre} ${apellido}, tu licencia está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con anticipación.`;
-                    contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                } else {
-                    contenido = `Hola ${nombre} ${apellido}, tu licencia está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
-                    contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                }
-            } else {
-                // Si la fecha de vencimiento ya pasó
-                contenido = `Hola ${nombre} ${apellido}, tu licencia ya venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, renueva con máxima prioridad.`;
-                contenidoCargoImportante = `¡Aviso! El personal ${nombre} ${apellido} tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                contenidoTenienteMaquina = `Teniente de Máquina, el personal ${nombre} ${apellido} de su compañía tiene su licencia vencida desde el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-            }
-
-            // Generar el contenido HTML para el correo electrónico usando una plantilla
-            const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",
-                contenido,
-                `${process.env.FRONTEND_URL}`,
-                "Acceder"
-            );
-
-            // Generar el contenido HTML para el correo de cargos importantes
-            const htmlContentCargoImportante = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",
-                contenidoCargoImportante,
-                `${process.env.FRONTEND_URL}`,
-                "Acceder"
-            );
-
-            // Generar el contenido HTML para el correo del teniente de máquina
-            const htmlContentTenienteMaquina = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Licencia",
-                contenidoTenienteMaquina,
-                `${process.env.FRONTEND_URL}`,
-                "Acceder"
-            );
-
-            // Agregar a las promesas de correo
-            emailPromises.push(
-                // Enviar el correo al usuario
-                sendEmail(correo, "Recordatorio: Vencimiento de Licencia", contenido, htmlContent),
-                // Guardar y emitir la alerta de vencimiento para el usuario
-                saveAndEmitAlert(usuario_id, contenido, 'vencimiento', personal_id)
-            );
-
-            // Enviar notificaciones a cargos importantes
-            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
-                if (correosEnviados.has(correoCargo)) continue;
-                correosEnviados.add(correoCargo);
-
-                emailPromises.push(
-                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Licencia", contenidoCargoImportante, htmlContentCargoImportante),
-                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'vencimiento', personal_id)
-                );
-            }
-
-            // Enviar notificaciones a Tenientes de Máquina
-            const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
-            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
-                if (correosEnviados.has(correoTeniente)) continue;
-                correosEnviados.add(correoTeniente);
-
-                emailPromises.push(
-                    sendEmail(correoTeniente, "Recordatorio: Vencimiento de Licencia", contenidoTenienteMaquina, htmlContentTenienteMaquina),
-                    saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'vencimiento', personal_id)
-                );
-            }
-        }
-
-        // Ejecutar todas las promesas de correo en paralelo
-        await Promise.all(emailPromises);
-
-        // Responder con un mensaje indicando que las alertas se enviaron correctamente
-        res.status(200).json({ message: "Alertas enviadas correctamente." });
-    } catch (error) {
-        // En caso de error, responder con un mensaje de error y el detalle
-        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+  console.log("Ejecutando sendVencimientoAlerts...");
+  try {
+    const todosLosUsuariosActivos = await getNotificationUsers();
+    
+    if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+      console.log("No hay usuarios activos para notificar.");
+      if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+      return;
     }
+    console.log(`Usuarios activos obtenidos: ${todosLosUsuariosActivos.length}`);
+
+    const [personalConLicenciasPorVencer] = await pool.query(`
+      SELECT 
+        p.id AS personal_id, 
+        p.nombre, 
+        p.apellido, 
+        p.ven_licencia, 
+        u.id AS usuario_id, 
+        p.compania_id AS compania_id_personal
+      FROM personal p
+      INNER JOIN usuario u ON p.id = u.personal_id 
+      WHERE p.isDeleted = 0 AND u.isDeleted = 0
+      AND p.ven_licencia IS NOT NULL AND p.ven_licencia >= CURDATE(); 
+    `);
+    
+    console.log(`Personal con licencias por vencer (potenciales) encontrado: ${personalConLicenciasPorVencer.length}`);
+    const promises = [];
+
+    for (const personal of personalConLicenciasPorVencer) {
+      const { personal_id: personalId, nombre, apellido, ven_licencia: venLicencia, compania_id_personal: companiaIdPersonal } = personal;
+
+      if (!venLicencia) continue; 
+
+      const fechaVencimiento = new Date(venLicencia);
+      fechaVencimiento.setUTCHours(0, 0, 0, 0); 
+
+      const hoy = new Date();
+      hoy.setUTCHours(0, 0, 0, 0);
+
+      const diffTime = fechaVencimiento.getTime() - hoy.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      console.log(`  Procesando licencia de ${nombre} ${apellido} (Personal ID: ${personalId}). Vence en: ${diffDays} días (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`);
+
+      if (diffDays === 15 || diffDays === 5) {
+        console.log(`    ¡ALERTA! Licencia de ${nombre} ${apellido} vence en ${diffDays} días.`);
+        
+        const contenido = `La licencia de conducir de ${nombre} ${apellido} vence en ${diffDays} días, el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}.`;
+        
+        const emailConfig = {
+          subject: `Alerta: Licencia por Vencer en ${diffDays} días - ${nombre} ${apellido}`,
+          redirectUrl: `${process.env.FRONTEND_URL}/#/personal/detalle/${personalId}`,
+          buttonText: "Ver Detalles de Personal"
+        };
+
+        const evento = {
+          tipo_evento: "vencimiento_licencia_conductor",
+          compania_id: companiaIdPersonal,
+          personal_id_afectado: personalId,
+          ingresado_por_usuario_id: null
+        };
+
+        promises.push(
+          createAndSendNotifications({
+            contenido,
+            tipo: "vencimiento_licencia",
+            idLink: personalId,
+            destinatarios: todosLosUsuariosActivos,
+            emailConfig,
+            evento
+          })
+        );
+      }
+    }
+
+    await Promise.allSettled(promises);
+    console.log("Proceso sendVencimientoAlerts completado.");
+    if (res) {
+      return res.status(200).json({ message: "Proceso de alertas de vencimiento ejecutado." });
+    }
+  } catch (error) {
+    console.error("Error en sendVencimientoAlerts:", error);
+    if (res) {
+      return res.status(500).json({ 
+        message: "Error interno del servidor al procesar alertas de vencimiento.", 
+        error: error.message 
+      });
+    }
+  }
 };
 
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
-    try {
-        // Obtener los correos de los cargos importantes (escalafón alto)
-        const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
-
-        // Crear un conjunto para almacenar los correos ya enviados
-        const correosEnviados = new Set();
-
-        // Consulta a la base de datos para obtener la información de las máquinas con revisiones técnicas próximas a vencer
-        const [rows] = await pool.query(`
-            SELECT 
-                m.id AS maquina_id,
-                m.codigo,
-                m.patente,
-                m.ven_rev_tec,
-                c.id AS compania_id,
-                c.nombre AS compania_nombre
-            FROM maquina m
-            INNER JOIN compania c ON m.compania_id = c.id
-            WHERE m.isDeleted = 0 
-              AND m.ven_rev_tec IS NOT NULL
-        `);
-
-        if (rows.length === 0) {
-            return res.status(200).json({ message: "No hay revisiones técnicas próximas a vencer." });
-        }
-
-        const emailPromises = [];
-
-        for (const maquina of rows) {
-            const { ven_rev_tec, codigo, patente, maquina_id, compania_id, compania_nombre } = maquina;
-            
-            const fechaVencimiento = new Date(ven_rev_tec);
-            fechaVencimiento.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            const quinceDiasAntes = new Date(fechaVencimiento);
-            quinceDiasAntes.setDate(quinceDiasAntes.getDate() - 15); // Restar 15 días
-            quinceDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            const cincoDiasAntes = new Date(fechaVencimiento);
-            cincoDiasAntes.setDate(cincoDiasAntes.getDate() - 5); // Restar 5 días
-            cincoDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
-            // Obtener usuarios que no sean Maquinista ni Conductor Rentado
-            const usuariosNotificables = await getNotificationUsers({ 
-                compania_id: compania_id,
-                exclude_roles: ['Maquinista', 'Conductor Rentado']
-            });
-
-            let contenido;
-            let contenidoCargoImportante;
-            let contenidoCapitan;
-            let contenidoTenienteMaquina;
-
-            // Si la fecha de vencimiento es futura
-            if (fechaVencimiento > hoy) {
-                if (hoy < quinceDiasAntes) {
-                    contenido = `La revisión técnica del vehículo código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realícela con anticipación.`;
-                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo con código: ${codigo} - patente: ${patente} vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, realícela con anticipación.`;
-                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía vence el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, asegúrese de que se realice a tiempo.`;
-                } else if (hoy >= quinceDiasAntes && hoy < cincoDiasAntes) {
-                    contenido = `La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia.`;
-                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con urgencia.`;
-                } else {
-                    contenido = `La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
-                    contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía está muy próxima a vencer el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                }
-            } else {
-                // Si la fecha de vencimiento ya pasó
-                contenido = `El vehículo código: ${codigo} - patente: ${patente} ya no puede circular ya que la revisión técnica venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad a este carro.`;
-                contenidoCargoImportante = `¡Aviso! La revisión técnica del vehículo código: ${codigo} - patente: ${patente} venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                contenidoCapitan = `Capitán, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-                contenidoTenienteMaquina = `Teniente de Máquina, la revisión técnica del vehículo código: ${codigo} - patente: ${patente} de su compañía venció el ${fechaVencimiento.toLocaleDateString("es-ES")}. Actuar con máxima prioridad.`;
-            }
-
-            const htmlContent = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Revisión Técnica",
-                contenido,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
-
-            const htmlContentCargoImportante = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Revisión Técnica",
-                contenidoCargoImportante,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
-
-            const htmlContentCapitan = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Revisión Técnica",
-                contenidoCapitan,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
-
-            const htmlContentTenienteMaquina = generateEmailTemplate(
-                "Recordatorio: Vencimiento de Revisión Técnica",
-                contenidoTenienteMaquina,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
-
-            // Enviar notificaciones a usuarios notificables
-            for (const usuario of usuariosNotificables) {
-                const { correo, id: usuario_id } = usuario;
-                if (correosEnviados.has(correo)) continue;
-                correosEnviados.add(correo);
-
-                emailPromises.push(
-                    sendEmail(correo, "Recordatorio: Vencimiento de Revisión Técnica", contenido, htmlContent),
-                    saveAndEmitAlert(usuario_id, contenido, 'revision_tecnica', maquina_id)
-                );
-            }
-
-            // Enviar notificaciones a cargos importantes (escalafón alto)
-            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
-                if (correosEnviados.has(correoCargo)) continue;
-                correosEnviados.add(correoCargo);
-
-                emailPromises.push(
-                    sendEmail(correoCargo, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCargoImportante, htmlContentCargoImportante),
-                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'revision_tecnica', maquina_id)
-                );
-            }
-
-            // Enviar notificaciones a Capitanes de la compañía
-            const capitanes = await getNotificationUsers({ compania_id: compania_id, rol: 'Capitán' });
-            for (const { correo: correoCapitan, id: capitanId } of capitanes) {
-                if (correosEnviados.has(correoCapitan)) continue;
-                correosEnviados.add(correoCapitan);
-
-                emailPromises.push(
-                    sendEmail(correoCapitan, "Recordatorio: Vencimiento de Revisión Técnica", contenidoCapitan, htmlContentCapitan),
-                    saveAndEmitAlert(capitanId, contenidoCapitan, 'revision_tecnica', maquina_id)
-                );
-            }
-
-            // Enviar notificaciones a Tenientes de Máquina
-            const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
-            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
-                if (correosEnviados.has(correoTeniente)) continue;
-                correosEnviados.add(correoTeniente);
-
-                emailPromises.push(
-                    sendEmail(correoTeniente, "Recordatorio: Vencimiento de Revisión Técnica", contenidoTenienteMaquina, htmlContentTenienteMaquina),
-                    saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'revision_tecnica', maquina_id)
-                );
-            }
-        }
-
-        await Promise.all(emailPromises);
-        res.status(200).json({ message: "Alertas enviadas y almacenadas correctamente." });
-    } catch (error) {
-        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+  console.log('Ejecutando sendRevisionTecnicaAlerts...');
+  try {
+    const todosLosUsuariosActivos = await getNotificationUsers();
+    if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+      if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+      return;
     }
+
+    console.log("Lógica detallada para sendRevisionTecnicaAlerts pendiente de implementación.");
+    if (res) return res.status(200).json({ 
+      message: "Función sendRevisionTecnicaAlerts llamada, pero la lógica detallada está pendiente." 
+    });
+  } catch (error) {
+    console.error("Error en sendRevisionTecnicaAlerts:", error);
+    if (res) return res.status(500).json({ 
+      message: "Error interno del servidor.", 
+      error: error.message 
+    });
+  }
 };
 
 // Función para enviar alertas sobre mantenciones
 export const sendMantencionAlerts = async (req, res) => {
+    console.log('Ejecutando sendMantencionAlerts...');
     try {
-        // Obtener los correos de los cargos importantes
-        const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
+        const todosLosUsuariosActivos = await getNotificationUsers();
+        if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+            return;
+        }
 
-        // Crear un conjunto para almacenar los correos ya enviados
-        const correosEnviados = new Set();
-
-        // Consulta a la base de datos para obtener la información de mantenciones
-        const [rows] = await pool.query(`
+        const [mantenciones] = await pool.query(`
             SELECT 
                 m.id AS mantencion_id,
                 m.maquina_id,
                 m.descripcion,
                 m.fec_inicio,
                 maq.codigo AS codigo_maquina,
+                maq.compania_id AS compania_id_maquina, // Compañía de la máquina
                 p.id AS responsable_id,
                 p.nombre AS responsable_nombre,
-                u.correo AS responsable_correo,
-                rp.nombre AS responsable_rol,
-                c.id AS compania_id,
-                c.nombre AS responsable_compania
+                u.id AS responsable_usuario_id, // ID de usuario del responsable
+                u.correo AS responsable_correo
             FROM mantencion m
             INNER JOIN maquina maq ON m.maquina_id = maq.id
             INNER JOIN personal p ON m.personal_responsable_id = p.id
-            INNER JOIN rol_personal rp ON p.rol_personal_id = rp.id
-            INNER JOIN compania c ON p.compania_id = c.id
             LEFT JOIN usuario u ON p.id = u.personal_id
             LEFT JOIN estado_mantencion em ON m.estado_mantencion_id = em.id
             WHERE m.isDeleted = 0 
               AND m.fec_inicio IS NOT NULL
-              AND u.id IS NOT NULL
               AND (em.nombre IS NULL OR em.nombre != 'Completada')
         `);
 
-        if (rows.length === 0) {
-            return res.status(200).json({ message: "No hay mantenciones próximas a realizarse." });
+        console.log(`Mantenciones programadas encontradas: ${mantenciones.length}`);
+        if (mantenciones.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay mantenciones programadas para notificar." });
+            return;
         }
 
-        const emailPromises = rows.map(async (mantencion) => {
-            const { responsable_id, responsable_nombre, responsable_correo, responsable_rol, responsable_compania, fec_inicio, codigo_maquina, descripcion, compania_id, mantencion_id } = mantencion;
+        const promises = [];
 
-            if (!responsable_correo || correosEnviados.has(responsable_correo)) return;
-            correosEnviados.add(responsable_correo);
+        for (const mantencion of mantenciones) {
+            const { mantencion_id, codigo_maquina, descripcion, fec_inicio, responsable_id, compania_id_maquina } = mantencion;
 
             const fechaMantencion = new Date(fec_inicio);
-            fechaMantencion.setHours(0, 0, 0, 0); // Normalizar a medianoche
-
+            fechaMantencion.setUTCHours(0, 0, 0, 0);
             const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
+            hoy.setUTCHours(0, 0, 0, 0);
 
-            const quinceDiasAntes = new Date(fechaMantencion);
-            quinceDiasAntes.setDate(quinceDiasAntes.getDate() - 15); // Restar 15 días
-            quinceDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
+            const diffTime = fechaMantencion.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            const cincoDiasAntes = new Date(fechaMantencion);
-            cincoDiasAntes.setDate(cincoDiasAntes.getDate() - 5); // Restar 5 días
-            cincoDiasAntes.setHours(0, 0, 0, 0); // Normalizar a medianoche
+            let contenidoAlerta;
+            let alertar = false;
 
-            // Obtener usuarios que no sean Maquinista ni Conductor Rentado
-            const usuariosNotificables = await getNotificationUsers({ 
-                compania_id: compania_id,
-                exclude_roles: ['Maquinista', 'Conductor Rentado']
-            });
-
-            let contenido;
-            let contenidoCargoImportante;
-            let contenidoTenienteMaquina;
-
-            // Si la fecha de mantención es futura
-            if (fechaMantencion > hoy) {
-                if (hoy < quinceDiasAntes) {
-                    contenido = `La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, prepárese con anticipación. Descripción: (${descripcion})`;
-                    contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, coordinar recursos. Descripción: (${descripcion})`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, coordinar recursos. Descripción: (${descripcion})`;
-                } else if (hoy >= quinceDiasAntes && hoy < cincoDiasAntes) {
-                    contenido = `La mantención del vehículo ${codigo_maquina} está próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, dar prioridad con urgencia. Descripción: (${descripcion})`;
-                    contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con urgencia. Descripción: (${descripcion})`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} está próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con urgencia. Descripción: (${descripcion})`;
-                } else {
-                    contenido = `La mantención del vehículo ${codigo_maquina} está muy próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad. Descripción: (${descripcion})`;
-                    contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} está muy próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
-                    contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} está muy próxima a realizarse el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
-                }
-            } else {
-                // Si la fecha de mantención ya pasó
-                contenido = `La mantención del vehículo ${codigo_maquina} ya debería haberse realizado el ${fechaMantencion.toLocaleDateString("es-ES")}. Por favor, dar máxima prioridad. Descripción: (${descripcion})`;
-                contenidoCargoImportante = `¡Aviso! La mantención del vehículo ${codigo_maquina} ya debería haberse realizado el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
-                contenidoTenienteMaquina = `Teniente de Máquina, la mantención del vehículo ${codigo_maquina} ya debería haberse realizado el ${fechaMantencion.toLocaleDateString("es-ES")}. Actuar con máxima prioridad. Descripción: (${descripcion})`;
+            if (diffDays === 15 || diffDays === 5) {
+                alertar = true;
+                contenidoAlerta = `La mantención del vehículo ${codigo_maquina} está programada para el ${fechaMantencion.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días). Descripción: ${descripcion}`;
+            } else if (diffDays < 5 && diffDays >= 0) {
+                alertar = true;
+                contenidoAlerta = `¡ATENCIÓN! La mantención del vehículo ${codigo_maquina} es en ${diffDays} días (${fechaMantencion.toLocaleDateString("es-ES", { timeZone: "UTC" })}). Descripción: ${descripcion}`;
+            } else if (diffDays < 0) {
+                alertar = true;
+                contenidoAlerta = `¡URGENTE! La mantención del vehículo ${codigo_maquina} estaba programada para el ${fechaMantencion.toLocaleDateString("es-ES", { timeZone: "UTC" })} y está ATRASADA. Descripción: ${descripcion}`;
             }
+            
+            if (alertar) {
+                console.log(`  Alertando para mantención ID ${mantencion_id} de máquina ${codigo_maquina}. Días restantes/atraso: ${diffDays}`);
+                const emailConfig = {
+                    subject: `Alerta Mantención: ${codigo_maquina} - ${diffDays} días restantes/atraso`,
+                    redirectUrl: `${process.env.FRONTEND_URL}/#/mantenciones/detalle/${mantencion_id}`,
+                    buttonText: "Ver Detalles de Mantención"
+                };
 
-            const htmlContent = generateEmailTemplate(
-                "Recordatorio: Mantención Programada",
-                contenido,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
+                const evento = {
+                    tipo_evento: 'mantencion_programada_aviso',
+                    compania_id: compania_id_maquina,
+                    personal_id_afectado: responsable_id, // El responsable de la mantención
+                    ingresado_por_usuario_id: null // No es una creación, es un recordatorio/aviso
+                };
 
-            const htmlContentCargoImportante = generateEmailTemplate(
-                "Recordatorio: Mantención Programada",
-                contenidoCargoImportante,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
-
-            const htmlContentTenienteMaquina = generateEmailTemplate(
-                "Recordatorio: Mantención Programada",
-                contenidoTenienteMaquina,
-                `${process.env.FRONTEND_URL}`,
-                "Ver Detalles"
-            );
-
-            // Enviar notificaciones a usuarios notificables
-            for (const usuario of usuariosNotificables) {
-                const { correo, id: usuario_id } = usuario;
-                if (correosEnviados.has(correo)) continue;
-                correosEnviados.add(correo);
-
-                emailPromises.push(
-                    sendEmail(correo, "Recordatorio: Mantención Programada", contenido, htmlContent),
-                    saveAndEmitAlert(usuario_id, contenido, 'mantencion', mantencion_id)
+                promises.push(
+                    createAndSendNotifications({
+                        contenido: contenidoAlerta,
+                        tipo: 'mantencion_programada',
+                        idLink: mantencion_id.toString(),
+                        destinatarios: todosLosUsuariosActivos,
+                        emailConfig,
+                        evento
+                    })
                 );
             }
+        }
 
-            // Enviar notificaciones a cargos importantes
-            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
-                if (correosEnviados.has(correoCargo)) continue;
-                correosEnviados.add(correoCargo);
+        await Promise.allSettled(promises);
+        console.log('Proceso sendMantencionAlerts completado.');
+        if (res) {
+            res.status(200).json({ message: "Proceso de alertas de mantención ejecutado." });
+        }
 
-                emailPromises.push(
-                    sendEmail(correoCargo, "Recordatorio: Mantención Programada", contenidoCargoImportante, htmlContentCargoImportante),
-                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id)
-                );
-            }
-
-            // Enviar notificaciones a Tenientes de Máquina
-            const tenientes = await getNotificationUsers({ compania_id: compania_id, rol: 'Teniente de Máquina' });
-            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
-                if (correosEnviados.has(correoTeniente)) continue;
-                correosEnviados.add(correoTeniente);
-
-                emailPromises.push(
-                    sendEmail(correoTeniente, "Recordatorio: Mantención Programada", contenidoTenienteMaquina, htmlContentTenienteMaquina),
-                    saveAndEmitAlert(tenienteId, contenidoTenienteMaquina, 'mantencion', mantencion_id)
-                );
-            }
-        });
-
-        await Promise.all(emailPromises);
-        res.status(200).json({ message: "Alertas de mantención enviadas y almacenadas correctamente." });
     } catch (error) {
         console.error("Error en sendMantencionAlerts:", error);
-        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+        if (res) {
+            res.status(500).json({ message: "Error interno del servidor al procesar alertas de mantención.", error: error.message });
+        }
     }
 };
 
-// Función para enviar alertas sobre mantenciones próximas
+// Función para enviar alertas sobre mantenciones próximas (en los siguientes 7 días)
 export const sendProximaMantencionAlerts = async (req, res) => {
+    console.log('Ejecutando sendProximaMantencionAlerts...');
     try {
-        // Obtener los correos de los cargos importantes
-        const cargosImportantes = await getNotificationUsers({ cargos_importantes: true });
+        const todosLosUsuariosActivos = await getNotificationUsers();
+        if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+            return;
+        }
 
-        // Crear un conjunto para evitar envíos duplicados
-        const correosEnviados = new Set();
-
-        // Obtener mantenciones próximas
-        const [mantenciones] = await pool.query(`
+        const [mantencionesProximas] = await pool.query(`
             SELECT 
                 m.id AS mantencion_id, 
-                m.descripcion, 
+                m.descripcion,
                 m.fec_inicio, 
-                maq.codigo, 
-                maq.compania_id,
+                maq.codigo AS codigo_maquina, 
+                maq.compania_id AS compania_id_maquina,
                 m.personal_responsable_id
             FROM mantencion m
             INNER JOIN bitacora b ON m.bitacora_id = b.id
             INNER JOIN maquina maq ON b.maquina_id = maq.id
-            WHERE m.fec_inicio BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
+            WHERE m.fec_inicio BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
             AND m.isDeleted = 0
+            AND m.estado_mantencion_id != (SELECT id FROM estado_mantencion WHERE nombre = 'Completada' LIMIT 1) -- Excluir completadas
         `);
 
-        if (mantenciones.length === 0) {
-            return res.status(200).json({ message: "No hay mantenciones próximas a realizarse." });
+        console.log(`Mantenciones próximas (en 7 días) encontradas: ${mantencionesProximas.length}`);
+        if (mantencionesProximas.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay mantenciones próximas en los siguientes 7 días para notificar." });
+            return;
         }
 
-        const emailPromises = [];
+        const promises = [];
 
-        for (const mantencion of mantenciones) {
-            const fechaFormateada = new Date(mantencion.fec_inicio).toLocaleDateString('es-ES');
-            const contenidoBase = `Mantención próxima a realizarse: Máquina: ${mantencion.codigo} Fecha: ${fechaFormateada} Descripción: ${mantencion.descripcion}`;
-            const url = `${process.env.FRONTEND_URL}/mantenciones/${mantencion.id}`;
+        for (const mantencion of mantencionesProximas) {
+            const { mantencion_id, descripcion, fec_inicio, codigo_maquina, compania_id_maquina, personal_responsable_id } = mantencion;
+            
+            const fechaFormateada = new Date(fec_inicio).toLocaleDateString('es-ES', { timeZone: 'UTC' });
+            const contenidoAlerta = `Recordatorio: La mantención de la máquina ${codigo_maquina} está programada para el ${fechaFormateada}. Descripción: ${descripcion}`;
+            
+            console.log(`  Alertando para mantención próxima ID ${mantencion_id} de máquina ${codigo_maquina}. Fecha: ${fechaFormateada}`);
 
-            // Obtener usuarios que no sean Maquinista ni Conductor Rentado
-            const usuariosNotificables = await getNotificationUsers({ 
-                compania_id: mantencion.compania_id,
-                exclude_roles: ['Maquinista', 'Conductor Rentado']
-            });
+            const emailConfig = {
+                subject: `Recordatorio Mantención Próxima: ${codigo_maquina} - ${fechaFormateada}`,
+                redirectUrl: `${process.env.FRONTEND_URL}/#/mantenciones/detalle/${mantencion_id}`,
+                buttonText: "Ver Detalles de Mantención"
+            };
 
-            const { mantencion_id, personal_responsable_id } = mantencion;
+            const evento = {
+                tipo_evento: 'mantencion_proxima_recordatorio',
+                compania_id: compania_id_maquina,
+                personal_id_afectado: personal_responsable_id,
+                ingresado_por_usuario_id: null 
+            };
 
-            // Enviar notificaciones a usuarios notificables
-            for (const usuario of usuariosNotificables) {
-                const { correo, id: usuario_id, rol } = usuario;
-
-                // Si ya se ha enviado un correo a este usuario, se salta el registro
-                if (correosEnviados.has(correo)) continue;
-                correosEnviados.add(correo);
-
-                // Contenido específico para el usuario común
-                const htmlContent = generateEmailTemplate('Próxima Mantención Programada', contenidoBase, url, 'Acceder');
-                emailPromises.push(
-                    sendEmail(correo, 'Próxima Mantención Programada', contenidoBase, htmlContent),
-                    saveAndEmitAlert(usuario_id, contenidoBase, 'mantencion', mantencion_id)
-                );
-            }
-
-            // Enviar notificaciones a cargos importantes
-            for (const { correo: correoCargo, id: cargoId } of cargosImportantes) {
-                if (correosEnviados.has(correoCargo)) continue;
-                correosEnviados.add(correoCargo);
-
-                const contenidoCargoImportante = `¡Aviso! La mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
-                const htmlContentCargoImportante = generateEmailTemplate('Próxima Mantención Programada', contenidoCargoImportante, url, 'Acceder');
-                emailPromises.push(
-                    sendEmail(correoCargo, 'Próxima Mantención Programada', contenidoCargoImportante, htmlContentCargoImportante),
-                    saveAndEmitAlert(cargoId, contenidoCargoImportante, 'mantencion', mantencion_id)
-                );
-            }
-
-            // Enviar notificaciones a Tenientes de Máquina
-            const tenientes = await getNotificationUsers({ compania_id: mantencion.compania_id, rol: 'Teniente de Máquina' });
-            for (const { correo: correoTeniente, id: tenienteId } of tenientes) {
-                if (correosEnviados.has(correoTeniente)) continue;
-                correosEnviados.add(correoTeniente);
-
-                const contenidoTeniente = `Teniente de Máquina, la mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
-                const htmlContentTeniente = generateEmailTemplate('Próxima Mantención Programada', contenidoTeniente, url, 'Acceder');
-                emailPromises.push(
-                    sendEmail(correoTeniente, 'Próxima Mantención Programada', contenidoTeniente, htmlContentTeniente),
-                    saveAndEmitAlert(tenienteId, contenidoTeniente, 'mantencion', mantencion_id)
-                );
-            }
-
-            // Si el responsable es Maquinista o Conductor Rentado, enviar notificación solo a él
-            if (personal_responsable_id) {
-                const responsable = await getNotificationUsers({ personal_id: personal_responsable_id });
-                if (responsable.length > 0) {
-                    const { correo: correoResponsable, id: responsableId, rol: rolResponsable } = responsable[0];
-                    if (['Maquinista', 'Conductor Rentado'].includes(rolResponsable)) {
-                        if (!correosEnviados.has(correoResponsable)) {
-                            correosEnviados.add(correoResponsable);
-                            const contenidoResponsable = `Hola, la mantención de la máquina ${mantencion.codigo} está próxima a realizarse el ${fechaFormateada}. Descripción: ${mantencion.descripcion}.`;
-                            const htmlContentResponsable = generateEmailTemplate('Próxima Mantención Programada', contenidoResponsable, url, 'Acceder');
-                            emailPromises.push(
-                                sendEmail(correoResponsable, 'Próxima Mantención Programada', contenidoResponsable, htmlContentResponsable),
-                                saveAndEmitAlert(responsableId, contenidoResponsable, 'mantencion', mantencion_id)
-                            );
-                        }
-                    }
-                }
-            }
+            promises.push(
+                createAndSendNotifications({
+                    contenido: contenidoAlerta,
+                    tipo: 'mantencion_proxima',
+                    idLink: mantencion_id.toString(),
+                    destinatarios: todosLosUsuariosActivos,
+                    emailConfig,
+                    evento
+                })
+            );
         }
 
-        await Promise.all(emailPromises);
-        res.status(200).json({ message: "Alertas enviadas correctamente." });
+        await Promise.allSettled(promises);
+        console.log('Proceso sendProximaMantencionAlerts completado.');
+        if (res) {
+            res.status(200).json({ message: "Proceso de alertas de mantenciones próximas ejecutado." });
+        }
+
     } catch (error) {
-        res.status(500).json({ message: "Error interno del servidor.", error: error.message });
+        console.error("Error en sendProximaMantencionAlerts:", error);
+        if (res) {
+            res.status(500).json({ message: "Error interno del servidor al procesar alertas de mantenciones próximas.", error: error.message });
+        }
     }
 };
 
 // Función para marcar alertas como leídas
 export const markAlertAsRead = async (req, res) => {
-    const { alerta_id } = req.params;
-    const { usuario_id } = req.body;
+  const { alerta_id: alertaId } = req.params;
+  const { usuario_id: usuarioId } = req.body;
     
-    try {
-        await pool.query(
-            `
-            UPDATE usuario_alerta
-            SET isRead = 1
-            WHERE alerta_id = ?
-            AND usuario_id = ?
-            `,
-            [alerta_id, usuario_id]
-        );
+  try {
+    await pool.query(
+      `
+      UPDATE usuario_alerta
+      SET isRead = 1
+      WHERE alerta_id = ?
+      AND usuario_id = ?
+      `,
+      [alertaId, usuarioId]
+    );
         
-        res.status(200).json({ message: "Alerta marcada como leída" });
-    } catch (error) {
-        res.status(500).json({ 
-            message: "Error al marcar la alerta como leída", 
-            error: error.message 
-        });
-    }
+    return res.status(200).json({ message: "Alerta marcada como leída" });
+  } catch (error) {
+    return res.status(500).json({ 
+      message: "Error al marcar la alerta como leída", 
+      error: error.message 
+    });
+  }
 };
 
 // Función para eliminar alertas antiguas
 export const deleteOldAlerts = async () => {
-    try {
-        // Eliminar registros de la tabla "usuario_alerta"
-        await pool.query(
-            'DELETE FROM usuario_alerta WHERE alerta_id IN (SELECT id FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY))'
-        );
+  try {
+    // Eliminar registros de la tabla "usuario_alerta"
+    await pool.query(
+      "DELETE FROM usuario_alerta WHERE alerta_id IN (SELECT id FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY))"
+    );
         
-        // Eliminar registros antiguos en la tabla "alerta"
-        await pool.query(
-            'DELETE FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)'
-        );
-    } catch (error) {
-        console.error('Error al eliminar alertas antiguas:', error);
-    }
+    // Eliminar registros antiguos en la tabla "alerta"
+    await pool.query(
+      "DELETE FROM alerta WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
+  } catch (error) {
+    console.error("Error al eliminar alertas antiguas:", error);
+  }
 };
 
 // Función para marcar todas las alertas como leídas
 export const markAllAlertsAsRead = async (req, res) => {
-    const { usuario_id } = req.params;
+  const { usuario_id: usuarioId } = req.params;
     
-    try {
-        await pool.query(
-            `
-            UPDATE usuario_alerta
-            SET isRead = 1
-            WHERE usuario_id = ?
-            `,
-            [usuario_id]
-        );
+  try {
+    await pool.query(
+      `
+      UPDATE usuario_alerta
+      SET isRead = 1
+      WHERE usuario_id = ?
+      `,
+      [usuarioId]
+    );
         
-        res.status(200).json({ message: "Alerta marcada como leída" });
-    } catch (error) {
-        res.status(500).json({ 
-            message: "Error al marcar la alerta como leída", 
-            error: error.message 
-        });
-    }
+    return res.status(200).json({ message: "Todas las alertas marcadas como leídas" });
+  } catch (error) {
+    return res.status(500).json({ 
+      message: "Error al marcar las alertas como leídas", 
+      error: error.message 
+    });
+  }
 };

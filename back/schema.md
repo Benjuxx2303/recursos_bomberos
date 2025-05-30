@@ -18,11 +18,11 @@
 - `hmetro_bomba`
 - `hmetro_motor`
 - `kmetraje`
-- `ven_patente`
+- `ven_patente` (date)
 - `cost_rev_tec`
-- `ven_rev_tec`
+- `ven_rev_tec` (date)
 - `cost_seg_auto`
-- `ven_seg_auto`
+- `ven_seg_auto` (date)
 - `img_url`
 - `img_rev_tecnica`
 - `img_seguro`
@@ -62,8 +62,8 @@
 - `taller_id` (FK)
 - `estado_mantencion_id` (FK)
 - `tipo_mantencion_id` (FK)
-- `fec_inicio`
-- `fec_termino`
+- `fec_inicio` (date)
+- `fec_termino` (date)
 - `ord_trabajo`
 - `n_factura`
 - `img_url`
@@ -88,10 +88,10 @@
 - `correo`
 - `celular`
 - `fec_nac`
-- `fec_ingreso`
-- `ultima_fec_servicio`
+- `fec_ingreso` (date)
+- `ultima_fec_servicio` (date)
 - `obs`
-- `ven_licencia`
+- `ven_licencia` (date)
 - `imgLicencia`
 - `img_url`
 - `isDeleted`

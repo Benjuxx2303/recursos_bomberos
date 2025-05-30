@@ -168,25 +168,299 @@ export const sendVencimientoAlerts = async (req, res) => {
 
 // Función para enviar alertas sobre vencimientos de revisión técnica
 export const sendRevisionTecnicaAlerts = async (req, res) => {
-  console.log('Ejecutando sendRevisionTecnicaAlerts...');
-  try {
-    const todosLosUsuariosActivos = await getNotificationUsers();
-    if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
-      if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
-      return;
-    }
+    console.log('Ejecutando sendRevisionTecnicaAlerts...');
+    try {
+        const todosLosUsuariosActivos = await getNotificationUsers();
+        if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+            console.log("No hay usuarios activos para notificar sobre revisiones técnicas.");
+            if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+            return;
+        }
 
-    console.log("Lógica detallada para sendRevisionTecnicaAlerts pendiente de implementación.");
-    if (res) return res.status(200).json({ 
-      message: "Función sendRevisionTecnicaAlerts llamada, pero la lógica detallada está pendiente." 
-    });
-  } catch (error) {
-    console.error("Error en sendRevisionTecnicaAlerts:", error);
-    if (res) return res.status(500).json({ 
-      message: "Error interno del servidor.", 
-      error: error.message 
-    });
-  }
+        const [maquinas] = await pool.query(`
+            SELECT 
+                id,
+                codigo,
+                ven_rev_tec,
+                compania_id
+            FROM maquina
+            WHERE isDeleted = 0 AND ven_rev_tec IS NOT NULL
+        `);
+
+        console.log(`Máquinas encontradas para revisión técnica: ${maquinas.length}`);
+        if (maquinas.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay máquinas con fechas de revisión técnica para notificar." });
+            return;
+        }
+
+        const promises = [];
+        const hoy = new Date();
+        hoy.setUTCHours(0, 0, 0, 0);
+
+        for (const maquina of maquinas) {
+            const { id, codigo, ven_rev_tec, compania_id } = maquina;
+            const fechaVencimiento = new Date(ven_rev_tec);
+            fechaVencimiento.setUTCHours(0, 0, 0, 0);
+
+            const diffTime = fechaVencimiento.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let contenidoAlerta;
+            let alertar = false;
+            let tipoNotificacionSuffix = "";
+
+            if (diffDays === 15 || diffDays === 5) {
+                alertar = true;
+                contenidoAlerta = `La Revisión Técnica del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días).`;
+                tipoNotificacionSuffix = `${diffDays}_dias`;
+            } else if (diffDays < 5 && diffDays >= 0) {
+                alertar = true;
+                contenidoAlerta = `¡ATENCIÓN! La Revisión Técnica del vehículo ${codigo} vence en ${diffDays === 0 ? 'HOY' : diffDays + ' días'} (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`;
+                tipoNotificacionSuffix = `proximo_vencer`;
+            } else if (diffDays < 0) {
+                alertar = true;
+                contenidoAlerta = `¡URGENTE! La Revisión Técnica del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (hace ${Math.abs(diffDays)} días).`;
+                tipoNotificacionSuffix = `vencida`;
+            }
+
+            if (alertar) {
+                console.log(`  Alertando para Revisión Técnica de ${codigo}. Días restantes/vencida: ${diffDays}`);
+                const emailConfig = {
+                    subject: `Alerta Revisión Técnica: ${codigo} - ${diffDays <=0 ? 'Vencida' : diffDays + ' días restantes'}`,
+                    redirectUrl: `${process.env.FRONTEND_URL}/#/vehiculos/detalle/${id}`,
+                    buttonText: "Ver Detalles del Vehículo"
+                };
+
+                const evento = {
+                    tipo_evento: `revision_tecnica_${tipoNotificacionSuffix}`,
+                    compania_id: compania_id,
+                    maquina_id_afectada: id,
+                    personal_id_afectado: null 
+                };
+
+                promises.push(
+                    createAndSendNotifications({
+                        contenido: contenidoAlerta,
+                        tipo: 'revision_tecnica',
+                        idLink: id.toString(),
+                        destinatarios: todosLosUsuariosActivos,
+                        emailConfig,
+                        evento
+                    })
+                );
+            }
+        }
+
+        await Promise.allSettled(promises);
+        console.log('Proceso sendRevisionTecnicaAlerts completado.');
+        if (res) {
+            res.status(200).json({ message: "Proceso de alertas de revisión técnica ejecutado." });
+        }
+
+    } catch (error) {
+        console.error("Error en sendRevisionTecnicaAlerts:", error);
+        if (res) {
+            res.status(500).json({ message: "Error interno del servidor al procesar alertas de revisión técnica.", error: error.message });
+        }
+    }
+};
+
+// Función para enviar alertas sobre vencimientos de patente
+export const sendVencimientoPatenteAlerts = async (req, res) => {
+    console.log('Ejecutando sendVencimientoPatenteAlerts...');
+    try {
+        const todosLosUsuariosActivos = await getNotificationUsers();
+        if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+            console.log("No hay usuarios activos para notificar sobre vencimiento de patentes.");
+            if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+            return;
+        }
+
+        const [maquinas] = await pool.query(`
+            SELECT 
+                id,
+                codigo,
+                ven_patente,
+                compania_id
+            FROM maquina
+            WHERE isDeleted = 0 AND ven_patente IS NOT NULL
+        `);
+
+        console.log(`Máquinas encontradas para alerta de patente: ${maquinas.length}`);
+        if (maquinas.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay máquinas con fechas de vencimiento de patente para notificar." });
+            return;
+        }
+
+        const promises = [];
+        const hoy = new Date();
+        hoy.setUTCHours(0, 0, 0, 0);
+
+        for (const maquina of maquinas) {
+            const { id, codigo, ven_patente, compania_id } = maquina;
+            const fechaVencimiento = new Date(ven_patente);
+            fechaVencimiento.setUTCHours(0, 0, 0, 0);
+
+            const diffTime = fechaVencimiento.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let contenidoAlerta;
+            let alertar = false;
+            let tipoNotificacionSuffix = "";
+
+            if (diffDays === 15 || diffDays === 5) {
+                alertar = true;
+                contenidoAlerta = `La Patente del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días).`;
+                tipoNotificacionSuffix = `${diffDays}_dias`;
+            } else if (diffDays < 5 && diffDays >= 0) {
+                alertar = true;
+                contenidoAlerta = `¡ATENCIÓN! La Patente del vehículo ${codigo} vence en ${diffDays === 0 ? 'HOY' : diffDays + ' días'} (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`;
+                tipoNotificacionSuffix = `proximo_vencer`;
+            } else if (diffDays < 0) {
+                alertar = true;
+                contenidoAlerta = `¡URGENTE! La Patente del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (hace ${Math.abs(diffDays)} días).`;
+                tipoNotificacionSuffix = `vencida`;
+            }
+
+            if (alertar) {
+                console.log(`  Alertando para Patente de ${codigo}. Días restantes/vencida: ${diffDays}`);
+                const emailConfig = {
+                    subject: `Alerta Vencimiento Patente: ${codigo} - ${diffDays <=0 ? 'Vencida' : diffDays + ' días restantes'}`,
+                    redirectUrl: `${process.env.FRONTEND_URL}/#/vehiculos/detalle/${id}`,
+                    buttonText: "Ver Detalles del Vehículo"
+                };
+
+                const evento = {
+                    tipo_evento: `vencimiento_patente_${tipoNotificacionSuffix}`,
+                    compania_id: compania_id,
+                    maquina_id_afectada: id,
+                    personal_id_afectado: null 
+                };
+
+                promises.push(
+                    createAndSendNotifications({
+                        contenido: contenidoAlerta,
+                        tipo: 'vencimiento_patente',
+                        idLink: id.toString(),
+                        destinatarios: todosLosUsuariosActivos,
+                        emailConfig,
+                        evento
+                    })
+                );
+            }
+        }
+
+        await Promise.allSettled(promises);
+        console.log('Proceso sendVencimientoPatenteAlerts completado.');
+        if (res) {
+            res.status(200).json({ message: "Proceso de alertas de vencimiento de patente ejecutado." });
+        }
+
+    } catch (error) {
+        console.error("Error en sendVencimientoPatenteAlerts:", error);
+        if (res) {
+            res.status(500).json({ message: "Error interno del servidor al procesar alertas de vencimiento de patente.", error: error.message });
+        }
+    }
+};
+
+// Función para enviar alertas sobre vencimientos de seguro automotriz
+export const sendVencimientoSeguroAlerts = async (req, res) => {
+    console.log('Ejecutando sendVencimientoSeguroAlerts...');
+    try {
+        const todosLosUsuariosActivos = await getNotificationUsers();
+        if (!todosLosUsuariosActivos || todosLosUsuariosActivos.length === 0) {
+            console.log("No hay usuarios activos para notificar sobre vencimiento de seguros.");
+            if (res) return res.status(200).json({ message: "No hay usuarios activos para notificar." });
+            return;
+        }
+
+        const [maquinas] = await pool.query(`
+            SELECT 
+                id,
+                codigo,
+                ven_seg_auto,
+                compania_id
+            FROM maquina
+            WHERE isDeleted = 0 AND ven_seg_auto IS NOT NULL
+        `);
+
+        console.log(`Máquinas encontradas para alerta de seguro: ${maquinas.length}`);
+        if (maquinas.length === 0) {
+            if (res) return res.status(200).json({ message: "No hay máquinas con fechas de vencimiento de seguro para notificar." });
+            return;
+        }
+
+        const promises = [];
+        const hoy = new Date();
+        hoy.setUTCHours(0, 0, 0, 0);
+
+        for (const maquina of maquinas) {
+            const { id, codigo, ven_seg_auto, compania_id } = maquina;
+            const fechaVencimiento = new Date(ven_seg_auto);
+            fechaVencimiento.setUTCHours(0, 0, 0, 0);
+
+            const diffTime = fechaVencimiento.getTime() - hoy.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let contenidoAlerta;
+            let alertar = false;
+            let tipoNotificacionSuffix = "";
+
+            if (diffDays === 15 || diffDays === 5) {
+                alertar = true;
+                contenidoAlerta = `El Seguro Automotriz del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días).`;
+                tipoNotificacionSuffix = `${diffDays}_dias`;
+            } else if (diffDays < 5 && diffDays >= 0) {
+                alertar = true;
+                contenidoAlerta = `¡ATENCIÓN! El Seguro Automotriz del vehículo ${codigo} vence en ${diffDays === 0 ? 'HOY' : diffDays + ' días'} (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`;
+                tipoNotificacionSuffix = `proximo_vencer`;
+            } else if (diffDays < 0) {
+                alertar = true;
+                contenidoAlerta = `¡URGENTE! El Seguro Automotriz del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (hace ${Math.abs(diffDays)} días).`;
+                tipoNotificacionSuffix = `vencida`;
+            }
+
+            if (alertar) {
+                console.log(`  Alertando para Seguro Automotriz de ${codigo}. Días restantes/vencido: ${diffDays}`);
+                const emailConfig = {
+                    subject: `Alerta Vencimiento Seguro: ${codigo} - ${diffDays <=0 ? 'Vencido' : diffDays + ' días restantes'}`,
+                    redirectUrl: `${process.env.FRONTEND_URL}/#/vehiculos/detalle/${id}`,
+                    buttonText: "Ver Detalles del Vehículo"
+                };
+
+                const evento = {
+                    tipo_evento: `vencimiento_seguro_${tipoNotificacionSuffix}`,
+                    compania_id: compania_id,
+                    maquina_id_afectada: id,
+                    personal_id_afectado: null 
+                };
+
+                promises.push(
+                    createAndSendNotifications({
+                        contenido: contenidoAlerta,
+                        tipo: 'vencimiento_seguro',
+                        idLink: id.toString(),
+                        destinatarios: todosLosUsuariosActivos,
+                        emailConfig,
+                        evento
+                    })
+                );
+            }
+        }
+
+        await Promise.allSettled(promises);
+        console.log('Proceso sendVencimientoSeguroAlerts completado.');
+        if (res) {
+            res.status(200).json({ message: "Proceso de alertas de vencimiento de seguro ejecutado." });
+        }
+
+    } catch (error) {
+        console.error("Error en sendVencimientoSeguroAlerts:", error);
+        if (res) {
+            res.status(500).json({ message: "Error interno del servidor al procesar alertas de vencimiento de seguro.", error: error.message });
+        }
+    }
 };
 
 // Función para enviar alertas sobre mantenciones

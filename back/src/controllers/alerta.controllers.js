@@ -208,25 +208,20 @@ export const sendRevisionTecnicaAlerts = async (req, res) => {
             let contenidoAlerta;
             let alertar = false;
             let tipoNotificacionSuffix = "";
+            alertar = false; // Inicializar alertar como false
 
+            // Ajustado para cronjobs: solo alertar 15 o 5 días antes.
             if (diffDays === 15 || diffDays === 5) {
                 alertar = true;
                 contenidoAlerta = `La Revisión Técnica del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días).`;
                 tipoNotificacionSuffix = `${diffDays}_dias`;
-            } else if (diffDays < 5 && diffDays >= 0) {
-                alertar = true;
-                contenidoAlerta = `¡ATENCIÓN! La Revisión Técnica del vehículo ${codigo} vence en ${diffDays === 0 ? 'HOY' : diffDays + ' días'} (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`;
-                tipoNotificacionSuffix = `proximo_vencer`;
-            } else if (diffDays < 0) {
-                alertar = true;
-                contenidoAlerta = `¡URGENTE! La Revisión Técnica del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (hace ${Math.abs(diffDays)} días).`;
-                tipoNotificacionSuffix = `vencida`;
-            }
+            } 
+            // No se contemplan otros casos para este cronjob específico
 
             if (alertar) {
-                console.log(`  Alertando para Revisión Técnica de ${codigo}. Días restantes/vencida: ${diffDays}`);
+                console.log(`  Alertando para Revisión Técnica de ${codigo}. Días restantes: ${diffDays}`);
                 const emailConfig = {
-                    subject: `Alerta Revisión Técnica: ${codigo} - ${diffDays <=0 ? 'Vencida' : diffDays + ' días restantes'}`,
+                    subject: `Alerta Revisión Técnica: ${codigo} - ${diffDays} días restantes`,
                     redirectUrl: `${process.env.FRONTEND_URL}/#/vehiculos/detalle/${id}`,
                     buttonText: "Ver Detalles del Vehículo"
                 };
@@ -307,25 +302,20 @@ export const sendVencimientoPatenteAlerts = async (req, res) => {
             let contenidoAlerta;
             let alertar = false;
             let tipoNotificacionSuffix = "";
+            alertar = false; // Inicializar alertar como false
 
+            // Ajustado para cronjobs: solo alertar 15 o 5 días antes.
             if (diffDays === 15 || diffDays === 5) {
                 alertar = true;
                 contenidoAlerta = `La Patente del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días).`;
                 tipoNotificacionSuffix = `${diffDays}_dias`;
-            } else if (diffDays < 5 && diffDays >= 0) {
-                alertar = true;
-                contenidoAlerta = `¡ATENCIÓN! La Patente del vehículo ${codigo} vence en ${diffDays === 0 ? 'HOY' : diffDays + ' días'} (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`;
-                tipoNotificacionSuffix = `proximo_vencer`;
-            } else if (diffDays < 0) {
-                alertar = true;
-                contenidoAlerta = `¡URGENTE! La Patente del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (hace ${Math.abs(diffDays)} días).`;
-                tipoNotificacionSuffix = `vencida`;
             }
+            // No se contemplan otros casos para este cronjob específico
 
             if (alertar) {
-                console.log(`  Alertando para Patente de ${codigo}. Días restantes/vencida: ${diffDays}`);
+                console.log(`  Alertando para Patente de ${codigo}. Días restantes: ${diffDays}`);
                 const emailConfig = {
-                    subject: `Alerta Vencimiento Patente: ${codigo} - ${diffDays <=0 ? 'Vencida' : diffDays + ' días restantes'}`,
+                    subject: `Alerta Vencimiento Patente: ${codigo} - ${diffDays} días restantes`,
                     redirectUrl: `${process.env.FRONTEND_URL}/#/vehiculos/detalle/${id}`,
                     buttonText: "Ver Detalles del Vehículo"
                 };
@@ -406,25 +396,20 @@ export const sendVencimientoSeguroAlerts = async (req, res) => {
             let contenidoAlerta;
             let alertar = false;
             let tipoNotificacionSuffix = "";
+            alertar = false; // Inicializar alertar como false
 
+            // Ajustado para cronjobs: solo alertar 15 o 5 días antes.
             if (diffDays === 15 || diffDays === 5) {
                 alertar = true;
                 contenidoAlerta = `El Seguro Automotriz del vehículo ${codigo} vence el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (en ${diffDays} días).`;
                 tipoNotificacionSuffix = `${diffDays}_dias`;
-            } else if (diffDays < 5 && diffDays >= 0) {
-                alertar = true;
-                contenidoAlerta = `¡ATENCIÓN! El Seguro Automotriz del vehículo ${codigo} vence en ${diffDays === 0 ? 'HOY' : diffDays + ' días'} (${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })}).`;
-                tipoNotificacionSuffix = `proximo_vencer`;
-            } else if (diffDays < 0) {
-                alertar = true;
-                contenidoAlerta = `¡URGENTE! El Seguro Automotriz del vehículo ${codigo} venció el ${fechaVencimiento.toLocaleDateString("es-ES", { timeZone: "UTC" })} (hace ${Math.abs(diffDays)} días).`;
-                tipoNotificacionSuffix = `vencida`;
             }
+            // No se contemplan otros casos para este cronjob específico
 
             if (alertar) {
-                console.log(`  Alertando para Seguro Automotriz de ${codigo}. Días restantes/vencido: ${diffDays}`);
+                console.log(`  Alertando para Seguro Automotriz de ${codigo}. Días restantes: ${diffDays}`);
                 const emailConfig = {
-                    subject: `Alerta Vencimiento Seguro: ${codigo} - ${diffDays <=0 ? 'Vencido' : diffDays + ' días restantes'}`,
+                    subject: `Alerta Vencimiento Seguro: ${codigo} - ${diffDays} días restantes`,
                     redirectUrl: `${process.env.FRONTEND_URL}/#/vehiculos/detalle/${id}`,
                     buttonText: "Ver Detalles del Vehículo"
                 };

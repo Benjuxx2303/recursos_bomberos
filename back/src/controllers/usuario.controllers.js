@@ -645,19 +645,25 @@ export const createUser = async (req, res) => {
             const companiaInitials = compania_nombre ? compania_nombre.split(' ').map(word => word[0]).join('') : '';
             const nombreInitial = nombre ? nombre[0] : '';
             const apellidoInitial = apellido ? apellido[0] : '';
-            username = `${companiaInitials}${nombreInitial}${apellidoInitial}`.toLowerCase();
-            
-            // Verificar si el username generado ya existe y añadir número si es necesario
+            let baseUsername = `${companiaInitials}${nombreInitial}${apellidoInitial}`.toLowerCase();
+            let tempUsername = baseUsername;
             let counter = 1;
-            let tempUsername = username;
+            let abc = 'abcdefghijklmnopqrstuvwxyz';
+            let abcIndex = 0;
             while (true) {
                 const [exists] = await pool.query(
-                    "SELECT id FROM usuario WHERE username = ? AND isDeleted = 0", 
+                    "SELECT id FROM usuario WHERE username = ? AND isDeleted = 0",
                     [tempUsername]
                 );
                 if (exists.length === 0) break;
-                tempUsername = `${username}${counter}`;
+                // Agrega letra y número incremental para mayor robustez
+                tempUsername = `${baseUsername}${abc[abcIndex]}${counter}`;
                 counter++;
+                if (abcIndex < abc.length - 1) {
+                    abcIndex++;
+                } else {
+                    abcIndex = 0;
+                }
             }
             username = tempUsername;
         } else {
@@ -667,8 +673,8 @@ export const createUser = async (req, res) => {
                 [username]
             );
             if (usernameExists.length > 0) {
-                return res.status(400).json({ 
-                    message: "El nombre de usuario ya está en uso" 
+                return res.status(400).json({
+                    message: "El nombre de usuario ya está en uso, por favor elige otro."
                 });
             }
         }

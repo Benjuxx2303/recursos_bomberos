@@ -204,6 +204,7 @@ export const getPersonalbyID = async (req, res) => {
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
                    GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids,
                    u.username AS usuario,
+                   u.id AS usuario_id,
                    (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
                     FROM bitacora
                     WHERE bitacora.personal_id = p.id) AS total_horas_conduccion,

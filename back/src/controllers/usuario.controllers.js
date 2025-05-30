@@ -841,3 +841,94 @@ export const changePassword = async (req, res) => {
         });
     }
 };
+
+// Cambiar contraseña de usuario por parte de un administrador
+export const adminResetPassword = async (req, res) => {
+    const { userId, newPassword } = req.body;
+    let errors = [];
+
+    console.log('Recibida solicitud de cambio de contraseña por administrador:', {
+        userIdPresent: !!userId,
+        newPasswordPresent: !!newPassword
+    });
+
+    try {
+        if (!userId || !newPassword) {
+            console.log('Faltan datos requeridos');
+            return res.status(400).json({ message: "ID de usuario y nueva contraseña son requeridos" });
+        }
+
+        // Validar contraseña
+        validatePassword(newPassword.trim(), errors);
+
+        if (errors.length > 0) {
+            console.log('Errores de validación:', errors);
+            return res.status(400).json({ errors });
+        }
+
+        // Verificar que el usuario exista
+        const [userExists] = await pool.query(
+            "SELECT id FROM usuario WHERE id = ? AND isDeleted = 0",
+            [userId]
+        );
+
+        if (userExists.length === 0) {
+            console.log('Usuario no encontrado:', userId);
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        // Encriptar la nueva contraseña
+        const salt = await bcrypt.genSalt(parseInt(SALT_ROUNDS));
+        const hashedPassword = await bcrypt.hash(newPassword.trim(), salt);
+
+        // Actualizar la contraseña
+        console.log('Actualizando contraseña para usuario:', userId);
+        const [result] = await pool.query(
+            "UPDATE usuario SET contrasena = ? WHERE id = ? AND isDeleted = 0",
+            [hashedPassword, userId]
+        );
+
+        if (result.affectedRows === 0) {
+            console.log('No se pudo actualizar la contraseña');
+            return res.status(500).json({ message: "Error al actualizar la contraseña" });
+        }
+
+        // Obtener información del usuario para enviar correo
+        const [userData] = await pool.query(
+            "SELECT u.correo, p.nombre, p.apellido FROM usuario u JOIN personal p ON u.personal_id = p.id WHERE u.id = ?",
+            [userId]
+        );
+
+        if (userData.length > 0) {
+            // Enviar correo de notificación
+            try {
+                const emailData = {
+                    to: userData[0].correo,
+                    subject: "Tu contraseña ha sido actualizada",
+                    html: generateEmailTemplate({
+                        title: "Contraseña Actualizada",
+                        name: `${userData[0].nombre} ${userData[0].apellido}`,
+                        message: "Un administrador ha actualizado tu contraseña. Por favor, inicia sesión con tu nueva contraseña.",
+                        buttonText: "Iniciar Sesión",
+                        buttonUrl: `${HOST}/login`
+                    })
+                };
+                await sendEmail(emailData);
+                console.log('Correo de notificación enviado a:', userData[0].correo);
+            } catch (emailError) {
+                console.error('Error al enviar correo de notificación:', emailError);
+                // No interrumpimos el flujo si falla el envío del correo
+            }
+        }
+
+        console.log('Contraseña actualizada exitosamente por administrador');
+        res.status(200).json({ message: "Contraseña actualizada correctamente" });
+
+    } catch (error) {
+        console.error('Error al cambiar contraseña por administrador:', error);
+        return res.status(500).json({ 
+            message: "Error al cambiar la contraseña",
+            error: error.message 
+        });
+    }
+};

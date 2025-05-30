@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { checkPermission } from "../controllers/authMiddleware.js";
 import {
+    adminResetPassword,
     changePassword,
     createUser,
     deleteUsuario,
@@ -55,5 +56,6 @@ router.get(`${base_route}/verify-email/:token`, verifyEmail);
 
 // Rutas protegidas
 router.post(`${base_route}/crear`, checkPermission('crearUsuario'), createUser);
+router.post(`${base_route}/admin-reset-password`, checkPermission('actualizarUsuario'), adminResetPassword);
 
 export default router;

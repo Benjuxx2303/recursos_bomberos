@@ -203,6 +203,7 @@ export const getPersonalbyID = async (req, res) => {
                    TIMESTAMPDIFF(HOUR, p.ultima_fec_servicio, NOW()) AS horas_desde_ultimo_servicio,
                    TIMESTAMPDIFF(MONTH, p.fec_ingreso, CURDATE()) AS antiguedad,
                    GROUP_CONCAT(DISTINCT m.id) AS maquinas_ids,
+                   u.username AS usuario,
                    (SELECT CAST(SUM(TIMESTAMPDIFF(HOUR, fh_salida, fh_llegada)) AS UNSIGNED)
                     FROM bitacora
                     WHERE bitacora.personal_id = p.id) AS total_horas_conduccion,
@@ -228,8 +229,9 @@ export const getPersonalbyID = async (req, res) => {
             INNER JOIN compania c ON p.compania_id = c.id
             LEFT JOIN conductor_maquina cm ON p.id = cm.personal_id
             LEFT JOIN maquina m ON cm.maquina_id = m.id
+            LEFT JOIN usuario u ON p.id = u.personal_id AND u.isDeleted = 0
             WHERE p.id = ? AND p.isDeleted = 0
-            GROUP BY p.id
+            GROUP BY p.id, u.username
         `;
 
         const [rows] = await pool.query(query, [idNumber]);

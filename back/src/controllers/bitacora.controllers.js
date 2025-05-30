@@ -547,6 +547,7 @@ export const createBitacora = async (req, res) => {
         // Procesar fechas y horas
         let fh_salida = null;
         let fh_llegada = null;
+        let minutos_duracion = null;
 
         if (f_salida && h_salida) {
             const error = validateDate(f_salida, h_salida);

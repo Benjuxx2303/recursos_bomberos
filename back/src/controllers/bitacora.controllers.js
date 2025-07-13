@@ -774,8 +774,37 @@ export const updateBitacora = async (req, res) => {
         );
         
         if (current.length === 0) return res.status(404).json({ message: "Bitácora no encontrada o ya está eliminada" });
-        
+
         const bitacoraActual = current[0];
+
+        // Verificar si es la última bitácora para la máquina
+        const [lastBitacora] = await pool.query('SELECT MAX(id) as lastId FROM bitacora WHERE maquina_id = ?', [bitacoraActual.maquina_id]);
+        const isLastBitacora = lastBitacora[0].lastId === bitacoraActual.id;
+
+        if (isLastBitacora && (km_llegada !== undefined || hmetro_llegada !== undefined || hbomba_llegada !== undefined)) {
+            const maquinaUpdates = [];
+            const maquinaValues = [];
+
+            if (km_llegada !== undefined) {
+                maquinaUpdates.push('kmetraje = ?');
+                maquinaValues.push(km_llegada);
+            }
+            if (hmetro_llegada !== undefined) {
+                maquinaUpdates.push('hmetro_motor = ?');
+                maquinaValues.push(hmetro_llegada);
+            }
+            if (hbomba_llegada !== undefined) {
+                maquinaUpdates.push('hmetro_bomba = ?');
+                maquinaValues.push(hbomba_llegada);
+            }
+
+            if (maquinaUpdates.length > 0) {
+                maquinaValues.push(bitacoraActual.maquina_id);
+                const updateMaquinaQuery = `UPDATE maquina SET ${maquinaUpdates.join(', ')} WHERE id = ?`;
+                await pool.query(updateMaquinaQuery, maquinaValues);
+            }
+        }
+
         // Guardar los valores antiguos para calcular diferencias posteriormente
         const oldMinutosDuracion = bitacoraActual.minutos_duracion || 0;
         const oldPersonalId = bitacoraActual.personal_id;
